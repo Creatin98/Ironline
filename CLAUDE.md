@@ -17,7 +17,7 @@ Architektur: docs/ARCHITECTURE.md (nur bei Bedarf lesen). Sprache: Deutsch.
 - Netzwerk: `python3 tools/run_net_test.py <godot>` (Host+Client, ~40 s). Nur bei Netzwerk-/Spieler-/Waffenänderungen.
 
 ## Git
-- Entwicklungsbranch `main-lyw1es`. `sicherheitskopie` ist ein Rückfallpunkt: nie ändern.
+- Es gibt nur `main` (laufend aktualisierter Teststand, direkt dort committen und pushen) und `sicherheitskopie` (fester Rückfallpunkt: nie ändern). Keine weiteren Branches anlegen.
 - Nach jeder abgeschlossenen Phase lauffähigen Stand committen und pushen, README/Doku aktuell halten.
 - Commits enden mit der vom System vorgegebenen Co-Authored-By-Zeile.
 
