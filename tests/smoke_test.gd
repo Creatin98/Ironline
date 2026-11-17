@@ -459,18 +459,14 @@ func _simulate_slide() -> void:
 				_fail("Slide-Test: zweites Leertasten-Druecken soll springen")
 			print("Slide: %.2f m in %d Ticks, bleibt geduckt, Leertaste steht auf, zweite springt" % [dist, ticks])
 		elif run == 2:
-			# slide cancel: holding sprint + forward ends the slide after ~40 % and runs on standing
+			# holding sprint + forward must NOT end the slide early (only Space does)
 			var ticks2 := 0
 			while local.is_sliding and ticks2 < 120:
 				await get_tree().physics_frame
 				ticks2 += 1
-			if ticks2 < 12 or ticks2 > 48 or local.is_crouching:
-				_fail("Slide-Cancel: Slide endete nach %d Ticks / geduckt=%s (erwartet: Abbruch ab ~40 %%, stehend)" % [ticks2, str(local.is_crouching)])
-			for i in 30:
-				await get_tree().physics_frame
-			if not local.is_sprinting:
-				_fail("Slide-Cancel: Spieler sprintet danach nicht weiter")
-			print("Slide-Cancel: nach %d Ticks abgebrochen, sprintet weiter" % ticks2)
+			if ticks2 < 30:
+				_fail("Slide endet durch gehaltenes Sprint+Vorwaerts schon nach %d Ticks (nur Leertaste darf abbrechen)" % ticks2)
+			print("Slide: Sprint+Vorwaerts bricht nicht ab (%d Ticks bis zum natuerlichen Ende)" % ticks2)
 		else:
 			# Space during the slide ends it and stands up
 			local.input.jump_pressed = true

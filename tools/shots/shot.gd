@@ -341,6 +341,32 @@ func _game_ui(state: String) -> void:
 			game.hud._kill_flash.color.a = 0.0
 		get_tree().paused = true
 		game.hud.crosshair.queue_redraw()
+	if state == "humanoids":
+		# five figures in a row: stand, run, crouch, slide, jump (poses driven directly)
+		var rows := [
+			{"v": Vector3.ZERO, "ground": true, "crouch": false, "slide": false, "sprint": false},
+			{"v": Vector3(0, 0, -7.0), "ground": true, "crouch": false, "slide": false, "sprint": true},
+			{"v": Vector3.ZERO, "ground": true, "crouch": true, "slide": false, "sprint": false},
+			{"v": Vector3(0, 0, -8.0), "ground": true, "crouch": true, "slide": true, "sprint": false},
+			{"v": Vector3(0, 2, -5.0), "ground": false, "crouch": false, "slide": false, "sprint": false},
+		]
+		var k := 0
+		for pp in MatchManager.participants.values():
+			if not pp.is_bot or k >= rows.size():
+				continue
+			var bn := pp.node as Player
+			bn.set_process(false)
+			bn.set_physics_process(false)
+			(bn.get_node("BotController") as Node).set_physics_process(false)
+			bn.global_position = Vector3(-4.2 + k * 2.1, 0.1, -13.5)
+			bn.rotation.y = 0.5
+			var r: Dictionary = rows[k]
+			for step in 40:
+				bn.rig.animate(0.05, r["v"], r["ground"], r["crouch"], r["slide"], r["sprint"], 0.0, bn._hand_target(true), bn._hand_target(false))
+			bn.hands.position = bn.rig.weapon_anchor()
+			k += 1
+		await get_tree().create_timer(0.3).timeout
+		get_tree().paused = true
 	if state == "blood":
 		# screen splatter + blood sprayed on the surfaces in front of the player
 		game.hud._add_blood_splats(90.0)

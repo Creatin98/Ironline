@@ -317,5 +317,4 @@ Python-Skripten in `tools/` erzeugt – keine Fremdinhalte, alles reproduzierbar
 * **Minimap:** Mates immer als blaue Pfeile (leuchten beim Schuss auf), eigener Pfeil leuchtet beim Schuss, Gegner nur als rote Punkte beim Schuss.
 * **Namen/Totenkopf:** Gegnernamen nur mit Tiefentest (nicht durch Wände), Mates durch Wände (`Player._update_name_label`). Stirbt ein Mate, schwebt
   3 s ein dezenter Totenkopf (`DeathSkull`) über der Stelle, durch Wände sichtbar, nur für das eigene Team.
-* **Blut-Ebene:** Bildschirm-Blut liegt in Canvas-Layer 1 (hinter dem HUD in Layer 2). **Slide-Cancel:** ab 40 % der Slidezeit bricht Sprint + Vorwärts den Slide ab
-  (stehend, Schwung bleibt). **AK-Nachladen:** der linke Unterarm schrumpft beim Übergreifen zum Spannhebel weg, die Hand führt links an der Waffe vorbei.
+* **Blut-Ebene:** Bildschirm-Blut liegt in Canvas-Layer 1 (hinter dem HUD in Layer 2). **Slide:** endet nur nach der Slidezeit oder per Leertaste (steht auf; gehaltenes Sprint+Vorwärts bricht nicht ab). **AK-Nachladen:** der linke Unterarm schrumpft beim Übergreifen zum Spannhebel weg, die Hand führt links an der Waffe vorbei.

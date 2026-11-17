@@ -28,8 +28,6 @@ const STEP_VIEW_SPEED := 1.7 # m/s the camera needs to catch up with a step
 ## Knee slide (sprint + crouch): ~1.5 m, decelerating; a small gadget, not a movement tech.
 const DEATH_FALL_TIME := 0.34
 const SLIDE_TIME := 0.84
-## From this share of the slide on it can be cancelled (sprint key / jump), like in Call of Duty.
-const SLIDE_CANCEL_FROM := 0.4
 const SLIDE_MIN_SPEED := 5.2
 const SLIDE_MIN_START_SPEED := 6.6
 const SLIDE_COOLDOWN := 0.9
@@ -103,6 +101,10 @@ var _prev_vertical_velocity: float = 0.0
 var _step_distance: float = 0.0
 var _sprint_block_timer: float = 0.0
 var _team_material: StandardMaterial3D
+var rig: HumanoidRig
+var _replay_aiming: bool = false
+var _last_pos: Vector3 = Vector3.ZERO
+var _est_vel: Vector3 = Vector3.ZERO
 var _death_tween: Tween
 var _walk_phase: float = 0.0
 var _step_view_offset: float = 0.0 # camera lag after a step so the view glides instead of popping
@@ -120,8 +122,12 @@ func _ready() -> void:
 	_set_height(STAND_HEIGHT)
 	_team_material = StandardMaterial3D.new()
 	_team_material.roughness = 0.8
-	torso_mesh.material_override = _team_material
-	head_mesh.material_override = _team_material
+	torso_mesh.visible = false # replaced by the humanoid rig
+	head_mesh.visible = false
+	rig = HumanoidRig.new()
+	rig.name = "Humanoid"
+	body.add_child(rig)
+	body.move_child(rig, 0)
 	set_physics_process(false)
 	set_process(false)
 	body.visible = false
@@ -142,10 +148,12 @@ func setup(participant: Participant, new_class: ClassData, local: bool) -> void:
 	name_label.visible = not is_local
 	head.setup_local(is_local)
 	weapon_manager.setup(self, class_data, is_local)
+	rig.setup_look(participant_id)
+	if not is_local:
+		set_replay_sleeves_hidden(true) # the humanoid has its own arms
 	if is_local:
 		# own body: only its shadow is rendered so the camera never clips into it
-		torso_mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY
-		head_mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY
+		rig.set_shadow_only(true)
 		hands.visible = false
 		human_controller.activate()
 	else:
@@ -175,12 +183,10 @@ func enter_replay_mode(is_killer: bool) -> void:
 	body.visible = true
 	hands.visible = true # also for the local player (normally first-person model only)
 	weapon_manager.visible = false # the first-person viewmodel
-	torso_mesh.visible = not is_killer
-	head_mesh.visible = not is_killer
-	torso_mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
-	head_mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+	rig.visible = not is_killer
+	rig.set_shadow_only(false)
 	name_label.visible = not is_killer
-	set_replay_sleeves_hidden(is_killer)
+	set_replay_sleeves_hidden(is_killer or not is_local)
 	if is_local:
 		camera.current = false
 
@@ -228,7 +234,8 @@ func _play_death_animation_replay() -> void:
 ## Killcam: while aiming the weapon sits exactly where the first-person view model sits when aiming
 ## (relative to the camera `cam_xf`), so sights and weapon look like in the game (0 = hip, 1 = sights).
 func replay_aim(a: float, cam_xf: Transform3D = Transform3D.IDENTITY) -> void:
-	var hip := Vector3(0.22, 1.25, -0.25)
+	_replay_aiming = a > 0.001
+	var hip := rig.weapon_anchor()
 	if a <= 0.001:
 		hands.position = hip
 		hands.rotation = Vector3(head.pitch, 0.0, 0.0)
@@ -438,6 +445,11 @@ func _update_name_label() -> void:
 	var ally := me != null and MatchManager.mode != null and MatchManager.mode.uses_teams and team == me.team
 	if name_label.no_depth_test != ally:
 		name_label.no_depth_test = ally
+	# glowing outline: enemies red, teammates blue (whatever the team colours are); depth tested = never through walls
+	var rel_color := Color(0.3, 0.55, 1.0) if ally else Color(1.0, 0.2, 0.14)
+	rig.set_outline_color(rel_color)
+	name_label.modulate = rel_color.lightened(0.15) # names follow the same rule: teammates blue, enemies red
+	rig.set_outline_visible(not is_local and not replay_mode or (replay_mode and not is_local))
 
 
 func _process(delta: float) -> void:
@@ -445,7 +457,7 @@ func _process(delta: float) -> void:
 		return
 	_update_name_label()
 	if replay_mode:
-		pass # the replay recorder drives the pose
+		_animate_body(delta) # the replay recorder drives position/aim; the body animates from the movement
 	else:
 		if alive and not has_movement_authority():
 			_interpolate_remote(delta)
@@ -464,17 +476,36 @@ func _process(delta: float) -> void:
 ## Cheap procedural animation of the visible body: walking bob, sprint lean,
 ## and the held weapon follows the view pitch.
 func _animate_body(delta: float) -> void:
-	if is_local:
+	if delta <= 0.0:
 		return
-	var speed_ratio := clampf(horizontal_speed / SPRINT_SPEED, 0.0, 1.0)
-	_walk_phase += delta * (4.0 + speed_ratio * 8.0)
-	var bob := absf(sin(_walk_phase)) * 0.045 * speed_ratio
-	body.position.y = lerpf(body.position.y, bob, minf(1.0, delta * 14.0))
-	var lean := -0.16 if is_sprinting else -0.05 * speed_ratio
-	if is_sliding:
-		lean = 0.55
-	body.rotation.x = lerpf(body.rotation.x, lean, minf(1.0, delta * 8.0))
-	hands.rotation.x = lerpf(hands.rotation.x, head.pitch, minf(1.0, delta * 12.0))
+	# velocity from the actual movement (works for local, remote, bots and replay ghosts alike)
+	var v := (global_position - _last_pos) / delta
+	_last_pos = global_position
+	if v.length() > 25.0:
+		v = Vector3.ZERO # teleport (respawn)
+	_est_vel = _est_vel.lerp(v, minf(1.0, delta * 12.0))
+	var vel_local := Basis(Vector3.UP, rotation.y).inverse() * _est_vel
+	var grounded := true
+	if not replay_mode:
+		grounded = is_on_floor() if has_movement_authority() else _net_on_floor
+	if not replay_mode:
+		hands.rotation.x = lerpf(hands.rotation.x, head.pitch, minf(1.0, delta * 12.0))
+	if not _replay_aiming:
+		hands.position = rig.weapon_anchor()
+	rig.animate(delta, vel_local, grounded, is_crouching, is_sliding, is_sprinting, head.pitch, _hand_target(true), _hand_target(false))
+
+
+## World hand position of the held weapon (wrist end of the forearm) in rig space, or INF without weapon.
+func _hand_target(right: bool) -> Vector3:
+	var idx := weapon_manager.current_index
+	if idx < 0 or idx >= weapon_manager._tp_models.size():
+		return Vector3.INF
+	var model: Node3D = weapon_manager._tp_models[idx]
+	var hand := model.get_node_or_null("RightHand" if right else "LeftHand") as Node3D
+	if hand == null:
+		return Vector3.INF
+	var wrist := Vector3(0.004, -0.028, 0.044) if right else Vector3(-0.006, -0.018, 0.040)
+	return rig.to_local(hand.to_global(wrist))
 
 
 func _update_states(delta: float) -> void:
@@ -494,12 +525,6 @@ func _update_states(delta: float) -> void:
 		if input.jump_pressed:
 			input.jump_pressed = false # Space ends the slide and stands up; a second Space jumps
 			_end_slide(true)
-		elif _slide_t >= SLIDE_TIME * SLIDE_CANCEL_FROM and input.sprint and input.move.y > 0.4 and not input.aim:
-			# slide cancel: the sprint key stands us up and runs on (momentum is kept)
-			var carry := Vector3(velocity.x, 0.0, velocity.z)
-			_end_slide(true)
-			velocity.x = carry.x
-			velocity.z = carry.z
 		elif _slide_t >= SLIDE_TIME or not is_on_floor() or horizontal_speed < 0.9 and _slide_t > 0.2:
 			_end_slide(false)
 	if not is_sliding:
@@ -681,9 +706,6 @@ func _set_height(h: float) -> void:
 	var capsule := collision_shape.shape as CapsuleShape3D
 	capsule.height = h
 	collision_shape.position.y = h * 0.5
-	torso_mesh.scale.y = h / STAND_HEIGHT
-	torso_mesh.position.y = (h - 0.3) * 0.5
-	head_mesh.position.y = h - 0.18
 
 
 func _can_stand_up() -> bool:
