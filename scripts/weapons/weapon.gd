@@ -4,8 +4,11 @@ extends Node3D
 ## The 3D model comes from WeaponData.model_scene and must contain a "Muzzle" node.
 ## Optional model nodes: "Pump" (shotgun slide), "Slide" (pistol slide).
 
-enum State { HOLSTERED, DRAWING, IDLE, RELOADING, PUMPING }
+## RELOAD_EXIT: a single-shell reload was interrupted by a shot; the weapon is brought back into the aim and fires.
+enum State { HOLSTERED, DRAWING, IDLE, RELOADING, PUMPING, RELOAD_EXIT }
 
+const RELOAD_EXIT_TIME := 0.2
+const ADS_BLOOM := 0.4 # share of the spread bloom (spread_bonus) that applies while aiming down the sights
 const HIT_MASK := 1 | 2 # World + Players
 const IMPACT_SCENE := preload("res://scenes/effects/bullet_impact.tscn")
 const MUZZLE_FLASH_SCENE := preload("res://scenes/effects/muzzle_flash.tscn")
@@ -35,7 +38,10 @@ var _state_duration: float = 1.0
 var rig: ReloadRig # reload animation of the first-person model
 var _reload_total: float = 0.0
 var _reload_elapsed: float = 0.0
-var _shell_cancel: bool = false
+var _shell_inserted: bool = false # the shell of the running cycle is already in the tube
+var _cycle_index: int = 0 # shell cycles since the reload started
+## > 0: a shot was requested while a reload was being interrupted; fired as soon as the weapon is ready (see take_queued_fire)
+var fire_queue_t: float = 0.0
 var _slide_timer: float = 0.0
 var _pump_rest: Vector3 = Vector3.ZERO
 
@@ -77,7 +83,7 @@ func fill_ammo() -> void:
 
 
 func is_reloading() -> bool:
-	return state == State.RELOADING
+	return state == State.RELOADING or state == State.RELOAD_EXIT
 
 
 func draw() -> void:
@@ -95,8 +101,9 @@ func holster() -> void:
 
 
 func cancel_actions() -> void:
-	if state == State.RELOADING or state == State.PUMPING:
+	if state == State.RELOADING or state == State.PUMPING or state == State.RELOAD_EXIT:
 		_set_state(State.IDLE, 0.0)
+	fire_queue_t = 0.0
 	_reload_total = 0.0
 	if rig:
 		rig.reset()
@@ -118,6 +125,7 @@ func update(delta: float) -> void:
 	fire_cooldown = maxf(0.0, fire_cooldown - delta)
 	spread_bonus = maxf(0.0, spread_bonus - data.spread_recovery * delta)
 	_slide_timer = maxf(0.0, _slide_timer - delta)
+	fire_queue_t = maxf(0.0, fire_queue_t - delta)
 	if slide_node:
 		slide_node.position.z = 0.035 if _slide_timer > 0.0 else 0.0
 	match state:
@@ -132,6 +140,20 @@ func update(delta: float) -> void:
 				_set_state(State.IDLE, 0.0)
 		State.RELOADING:
 			_update_reload(delta)
+		State.RELOAD_EXIT:
+			_state_timer -= delta
+			var k := 1.0 - clampf(_state_timer / _state_duration, 0.0, 1.0)
+			if rig:
+				rig.blend_out(k)
+				anim_offset = rig.holder_offset
+				anim_rotation = rig.holder_rotation
+			if _state_timer <= 0.0:
+				if rig:
+					rig.reset()
+				anim_offset = Vector3.ZERO
+				anim_rotation = Vector3.ZERO
+				_reload_total = 0.0
+				_set_state(State.IDLE, 0.0)
 		State.PUMPING:
 			_state_timer -= delta
 			var t := 1.0 - clampf(_state_timer / _state_duration, 0.0, 1.0)
@@ -159,7 +181,8 @@ func update(delta: float) -> void:
 func get_spread_degrees(is_aiming: bool, move_ratio: float, in_air: bool, crouching: bool) -> float:
 	var spread := data.spread_ads if is_aiming else data.spread_hip
 	spread += data.spread_moving_bonus * move_ratio * (0.4 if is_aiming else 1.0)
-	spread += spread_bonus
+	# sustained fire blooms the spread; through the sights only lightly (tapping stays precise)
+	spread += spread_bonus * (ADS_BLOOM if is_aiming else 1.0)
 	if in_air:
 		spread += 2.5
 	if crouching:
@@ -169,8 +192,12 @@ func get_spread_degrees(is_aiming: bool, move_ratio: float, in_air: bool, crouch
 
 func try_fire(is_aiming: bool, move_ratio: float, in_air: bool, crouching: bool) -> bool:
 	if state == State.RELOADING:
+		# shells are loaded one by one: whatever is already in the tube can be fired, the reload is interrupted
 		if data.reload_single_shells and magazine > 0:
-			_shell_cancel = true
+			_begin_reload_exit()
+		return false
+	if state == State.RELOAD_EXIT:
+		fire_queue_t = RELOAD_EXIT_TIME + 0.25
 		return false
 	if state != State.IDLE or fire_cooldown > 0.0:
 		return false
@@ -238,6 +265,14 @@ func try_fire(is_aiming: bool, move_ratio: float, in_air: bool, crouching: bool)
 	elif magazine <= 0:
 		fire_cooldown = maxf(fire_cooldown, 0.15)
 	return true
+
+
+## True once when a shot that was requested during an interrupted reload may be fired now.
+func take_queued_fire() -> bool:
+	if fire_queue_t > 0.0 and state == State.IDLE:
+		fire_queue_t = 0.0
+		return true
+	return false
 
 
 func _random_cone_direction(forward: Vector3, spread_deg: float) -> Vector3:
@@ -318,11 +353,14 @@ func start_reload() -> bool:
 		return false
 	if NetworkManager.is_host():
 		NetworkManager.broadcast_weapon_event(player.participant_id, "reload")
-	_shell_cancel = false
+	_shell_inserted = false
+	_cycle_index = 0
+	fire_queue_t = 0.0
 	_reload_elapsed = 0.0
 	_reload_total = 0.0
 	if rig:
 		rig.reset()
+		_update_cycle_flags()
 	if not player.is_local:
 		# other players: animate the third-person copy (the first-person model is hidden)
 		player.weapon_manager.begin_tp_reload(true, data.magazine_size - magazine)
@@ -345,23 +383,25 @@ func _update_reload(delta: float) -> void:
 	if rig:
 		for ev in rig.apply(t, tilt):
 			_play_mech_sound(ev)
-			if is_local and data.impact_feel > 1.0 and ev == "shell_insert":
-				# every shell slams in: little kick and shake
-				player.weapon_manager.apply_kick(0.045)
-				player.head.add_shake(0.22)
 		anim_offset = rig.holder_offset
 		anim_rotation = rig.holder_rotation
+	# the shell counts the moment it is pushed in (not at the end of the cycle): an interrupted reload keeps it
+	if data.reload_single_shells and not _shell_inserted and t >= ReloadRig.SHELL_INSERT_T:
+		_insert_shell()
 	if _state_timer > 0.0:
 		return
 	# cycle complete
 	if data.reload_single_shells:
-		magazine += 1
-		reserve -= 1
-		if magazine < data.magazine_size and reserve > 0 and not _shell_cancel:
+		if not _shell_inserted:
+			_insert_shell()
+		_shell_inserted = false
+		if magazine < data.magazine_size and reserve > 0:
+			_cycle_index += 1
 			_reload_elapsed = 0.0
 			_set_state(State.RELOADING, data.shell_reload_time)
 			if rig:
-				rig.apply(0.0, tilt) # next shell: hand back to the grip, restart the cycle
+				_update_cycle_flags()
+				rig.apply(0.0, tilt) # next shell: restart the cycle
 				rig._last_t = -1.0
 			return
 	else:
@@ -375,6 +415,36 @@ func _update_reload(delta: float) -> void:
 	anim_rotation = Vector3.ZERO
 	_reload_total = 0.0
 	_set_state(State.IDLE, 0.0)
+
+
+func _insert_shell() -> void:
+	_shell_inserted = true
+	if magazine >= data.magazine_size or reserve <= 0:
+		return
+	magazine += 1
+	reserve -= 1
+	if is_local and data.impact_feel > 1.0:
+		# every shell slams in: kick and shake
+		player.weapon_manager.apply_kick(0.05)
+		player.head.add_shake(0.24)
+
+
+## Tells the rig where this cycle starts (forend or belt) and ends, so the hand does not return to the forend between shells.
+func _update_cycle_flags() -> void:
+	if rig == null or not data.reload_single_shells:
+		return
+	rig.shell_first = _cycle_index == 0
+	rig.shell_last = data.magazine_size - magazine <= 1 or reserve <= 1
+
+
+## A shot interrupts the shell reload: the pose blends back into the aim (RELOAD_EXIT), then the queued shot is fired.
+func _begin_reload_exit() -> void:
+	fire_queue_t = RELOAD_EXIT_TIME + 0.25
+	if rig:
+		rig.begin_exit()
+	_set_state(State.RELOAD_EXIT, RELOAD_EXIT_TIME)
+	if not player.is_local:
+		player.weapon_manager.stop_tp_reload() # the figure other players see stops loading as well
 
 
 func _play_mech_sound(sfx: String, volume_db: float = -6.0) -> void:

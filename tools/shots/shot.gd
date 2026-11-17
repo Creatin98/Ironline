@@ -520,6 +520,9 @@ func _reload_view() -> void:
 	get_tree().paused = true
 	w._state_timer = (1.0 - progress) * w._state_duration
 	w._reload_total = 0.4
+	if "mid" in parts and w.rig != null: # a shell in the middle of a chain (hand comes from and goes to the belt)
+		w.rig.shell_first = false
+		w.rig.shell_last = false
 	w._update_reload(0.0)
 	wm.holder.position = w.data.hip_position + w.anim_offset
 	wm.holder.rotation = w.anim_rotation

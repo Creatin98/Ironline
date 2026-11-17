@@ -29,6 +29,8 @@ func _ready() -> void:
 	await _simulate_match()
 	_check_reload_rigs()
 	await _simulate_reloads()
+	_check_spread_values()
+	await _check_shotgun_interrupt()
 	await _simulate_cams()
 	await _simulate_steps()
 	await _simulate_slide()
@@ -157,6 +159,118 @@ func _simulate_reloads() -> void:
 		game.free()
 		await get_tree().process_frame
 	print("Nachladen im Spiel: alle Klassen und Waffen laden mit Animation nach")
+
+
+## MP5/AK: noticeable spread from the hip, only a little through the sights (and a light bloom when spraying).
+func _check_spread_values() -> void:
+	for pair in [["assault", 2.5, 3.5], ["smg", 2.0, 3.0]]:
+		var wd: WeaponData = GameDirector.get_class_data(String(pair[0])).primary
+		var w := Weapon.new()
+		w.data = wd
+		var hip := w.get_spread_degrees(false, 0.0, false, false)
+		var ads := w.get_spread_degrees(true, 0.0, false, false)
+		w.spread_bonus = wd.spread_max_bonus
+		var ads_spray := w.get_spread_degrees(true, 0.0, false, false)
+		var hip_spray := w.get_spread_degrees(false, 0.0, false, false)
+		w.free()
+		if hip < float(pair[1]) or hip > float(pair[2]):
+			_fail("%s: Huefte-Streuung %.2f ausserhalb %.1f-%.1f" % [wd.weapon_id, hip, float(pair[1]), float(pair[2])])
+		if ads < 0.3 or ads > 0.55:
+			_fail("%s: Streuung im Visier %.2f (kein Laser, aber nur leicht: 0.3-0.55)" % [wd.weapon_id, ads])
+		if ads_spray <= ads or ads_spray > 1.0:
+			_fail("%s: Streuungs-Bloom im Visier unpassend (%.2f -> %.2f)" % [wd.weapon_id, ads, ads_spray])
+		if hip_spray <= hip:
+			_fail("%s: Dauerfeuer vergroessert die Huefte-Streuung nicht" % wd.weapon_id)
+	print("Streuung MP5/AK: Huefte etwas ungenauer, im Visier leichte Streuung")
+
+
+## Shotgun: a shot while loading shells interrupts the reload (shells already in the tube count),
+## the weapon blends back into the aim and the queued shot is fired.
+func _check_shotgun_interrupt() -> void:
+	var cfg := MatchConfig.new()
+	cfg.mode_id = MatchConfig.MODE_FFA
+	cfg.map_id = "test_arena"
+	cfg.bots_enabled = false
+	cfg.time_limit = 0.0
+	cfg.local_class_id = "shotgun"
+	MatchManager.prepare_match(cfg)
+	var game: Node = (load("res://scenes/game/game.tscn") as PackedScene).instantiate()
+	add_child(game)
+	await get_tree().process_frame
+	MatchManager.warmup_left = 0.05
+	var waited := 0.0
+	while MatchManager.state != MatchManager.State.RUNNING and waited < 6.0:
+		await get_tree().process_frame
+		waited += get_process_delta_time()
+	var local: Player = MatchManager.get_local_participant().node as Player
+	local.human_controller.deactivate()
+	for i in 70:
+		await get_tree().physics_frame
+	var w := local.weapon_manager.get_current_weapon()
+	if not w.data.pump_action or not w.data.reload_single_shells:
+		_fail("Schrotflinte erwartet (Pump-Action, einzelne Patronen), gefunden: " + w.data.weapon_id)
+	# 1) empty tube: nothing to fire, the reload keeps running
+	w.magazine = 0
+	w.start_reload()
+	if w.try_fire(false, 0.0, false, false) or w.state != Weapon.State.RELOADING:
+		_fail("Schrotflinte: leere Waffe darf das Nachladen nicht per Schuss abbrechen")
+	# wait for the first shell (it counts the moment it is pushed in, before the cycle ends)
+	var frames := 0
+	while w.magazine < 1 and frames < 120:
+		await get_tree().physics_frame
+		frames += 1
+	if w.magazine != 1 or w.state != Weapon.State.RELOADING:
+		_fail("Schrotflinte: erste Patrone sollte beim Einschieben zaehlen (Magazin %d, Status %d)" % [w.magazine, w.state])
+	# 2) a shell has just been pushed in: a shot interrupts at once, smooth exit, then the shot is fired
+	w.cancel_actions()
+	w.magazine = 2
+	w.start_reload()
+	frames = 0
+	while w.magazine < 3 and frames < 120:
+		await get_tree().physics_frame
+		frames += 1
+	if w.magazine != 3 or w.state != Weapon.State.RELOADING:
+		_fail("Schrotflinte: Patrone sollte beim Einschieben zaehlen (Magazin %d, Status %d)" % [w.magazine, w.state])
+	var reserve_before := w.reserve
+	if w.try_fire(false, 0.0, false, false):
+		_fail("Schrotflinte: der unterbrechende Schuss darf erst nach dem Anlegen fallen")
+	if w.state != Weapon.State.RELOAD_EXIT:
+		_fail("Schrotflinte: Schuss im Nachladen sollte abbrechen (Status %d)" % w.state)
+	if not w.is_reloading():
+		_fail("Schrotflinte: der Abbruch muss als Nachladen zaehlen (Sprint/Granate)")
+	local.input.fire_pressed = true # second click during the exit: only queued, no double shot
+	var shots := 0
+	var mag_before := w.magazine
+	for i in 40:
+		await get_tree().physics_frame
+		if w.magazine < mag_before - shots:
+			shots += 1
+	if w.magazine != mag_before - 1:
+		_fail("Schrotflinte: nach dem Abbruch genau ein Schuss erwartet (Magazin %d statt %d)" % [w.magazine, mag_before - 1])
+	if w.reserve != reserve_before:
+		_fail("Schrotflinte: Reserve veraendert sich beim Abbruch (%d statt %d)" % [w.reserve, reserve_before])
+	if w.fire_queue_t > 0.0:
+		_fail("Schrotflinte: vorgemerkter Schuss wurde nicht verbraucht")
+	# 3) afterwards the weapon is in the rest pose (hand back on the forend) and reloads normally again
+	var lh := w.model.get_node_or_null("LeftHand") as Node3D
+	for i in 60:
+		await get_tree().physics_frame
+	if w.state != Weapon.State.IDLE:
+		_fail("Schrotflinte: nach Schuss und Pumpen sollte sie bereit sein (Status %d)" % w.state)
+	if lh != null and not lh.visible:
+		_fail("Schrotflinte: Hand nach dem Abbruch unsichtbar")
+	w.magazine = 4
+	if not w.start_reload():
+		_fail("Schrotflinte: Nachladen nach einem Abbruch nicht moeglich")
+	frames = 0
+	while w.is_reloading() and frames < 400:
+		await get_tree().physics_frame
+		frames += 1
+	if w.magazine != w.data.magazine_size:
+		_fail("Schrotflinte: Nachladen nach Abbruch unvollstaendig (%d/%d)" % [w.magazine, w.data.magazine_size])
+	game.free()
+	await get_tree().process_frame
+	print("Schrotflinte: Schuss unterbricht das Nachladen (eingelegte Patrone zaehlt, sanfter Abbruch, genau ein Schuss)")
 
 
 ## Reload animation: every weapon fires its sounds in order, moves its parts and returns to the rest pose.

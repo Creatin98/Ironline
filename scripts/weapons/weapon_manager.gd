@@ -216,6 +216,9 @@ func process_input(input: PlayerInputState, delta: float) -> void:
 			w.start_reload()
 	if _switch_state == SwitchState.READY and _grenade_timer <= 0.0 and not player.is_sprinting:
 		var wants_fire := input.fire_held if w.data.automatic else input.fire_pressed
+		# a shot that interrupted a shell reload is fired as soon as the weapon is back in the aim
+		if w.take_queued_fire():
+			wants_fire = true
 		if wants_fire:
 			var move_ratio := clampf(player.horizontal_speed / Player.SPRINT_SPEED, 0.0, 1.0)
 			w.try_fire(player.is_aiming, move_ratio, not player.is_on_floor(), player.is_crouching)
@@ -369,6 +372,11 @@ func begin_tp_reload(silent: bool, cycles: int = 1) -> void:
 	_tp_rigs[current_index].reset()
 
 
+## Public: the figure's reload stops (shot while loading shells).
+func stop_tp_reload() -> void:
+	_stop_tp_reload()
+
+
 func _stop_tp_reload() -> void:
 	if _tp_reload_progress >= 0.0 and current_index < _tp_rigs.size():
 		_tp_rigs[current_index].reset()
@@ -392,6 +400,8 @@ func _update_tp_reload(delta: float) -> void:
 		return
 	if floorf(_tp_reload_progress) != before:
 		rig._last_t = -1.0 # next cycle (shotgun shells)
+	rig.shell_first = int(floorf(_tp_reload_progress)) == 0
+	rig.shell_last = int(floorf(_tp_reload_progress)) >= _tp_reload_cycles - 1
 	var tilt := 1.0
 	for ev in rig.apply(_tp_reload_progress - floorf(_tp_reload_progress), tilt):
 		if not _tp_reload_silent:
@@ -534,6 +544,7 @@ func flash_third_person() -> void:
 func play_remote_shot(impacts: Array) -> void:
 	var w := get_current_weapon()
 	if w:
+		_stop_tp_reload() # a shot ends a reload that is still running on the figure (shells: interrupted)
 		w.play_remote_shot(impacts)
 
 

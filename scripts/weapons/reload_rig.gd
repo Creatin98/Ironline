@@ -26,13 +26,18 @@ const PISTOL := {
 	"grip": Vector3(-0.012, -0.112, 0.060),
 	"belt": Vector3(-0.150, -0.260, 0.100),
 }
-## Shotgun: the support hand leaves the forend, fetches a shell and loads it; the right hand stays on the grip.
+## Shotgun: the support hand fetches a shell at the belt, shoves it into the loading gate at the bottom of the receiver
+## and snaps back to the belt for the next one (only the last shell sends it back to the forend); the right hand stays on the grip.
 const SHOTGUN := {
-	"belt": Vector3(-0.190, -0.250, 0.080),
-	"gate_low": Vector3(-0.040, -0.120, 0.075),
-	"gate": Vector3(-0.012, -0.078, 0.050),
-	"gate_push": Vector3(-0.004, -0.056, 0.030),
+	"belt": Vector3(-0.150, -0.225, 0.085),
+	"gate_low": Vector3(-0.045, -0.125, 0.080),
+	"gate": Vector3(-0.012, -0.080, 0.052),
+	"gate_push": Vector3(-0.002, -0.058, 0.032),
 }
+## Progress of a shell cycle at which the shell is pushed in (it counts for the magazine from here on, see Weapon).
+const SHELL_INSERT_T := 0.62
+## The "ratsch" sound starts a little earlier: shell scraping into the gate, the clack at the insert mark.
+const SHELL_SOUND_T := 0.52
 
 var style: String = "rifle"
 var holder_offset: Vector3 = Vector3.ZERO
@@ -53,6 +58,11 @@ var left_elbow_shift: Vector3 = Vector3.ZERO
 var left_arm_slim: float = 1.0
 ## False in the first-person view: there the arms come from FirstPersonArms (IK), the model's own sleeves stay hidden.
 var show_sleeves: bool = true
+## Shotgun: this cycle is the first (hand comes from the forend) / the last one (hand goes back to the forend).
+var shell_first: bool = true
+var shell_last: bool = true
+var _exit_from: Dictionary = {} # node -> [position, rotation, scale] at the moment the reload was interrupted
+var _exit_extra: Array = []
 
 
 static func create(model: Node3D, reload_style: String) -> ReloadRig:
@@ -106,6 +116,40 @@ func reset() -> void:
 	holder_offset = Vector3.ZERO
 	holder_rotation = Vector3.ZERO
 	_last_t = -1.0
+	_exit_from.clear()
+	_exit_extra = []
+
+
+## The reload is interrupted (shot while loading shells): remembers the current pose, blend_out() leads it back to rest.
+func begin_exit() -> void:
+	_exit_from.clear()
+	for n in _rest:
+		if is_instance_valid(n):
+			_exit_from[n] = [n.position, n.rotation, n.scale]
+	_exit_extra = [holder_offset, holder_rotation, left_elbow_shift, left_arm_slim, _shell != null and _shell.visible]
+
+
+## Smooth way back from the interrupted pose into the rest pose, k = 0..1.
+func blend_out(k: float) -> void:
+	if _exit_extra.is_empty():
+		return
+	var e := _smooth(k)
+	for n in _exit_from:
+		if not is_instance_valid(n):
+			continue
+		var from: Array = _exit_from[n]
+		var rest: Array = _rest[n]
+		n.position = (from[0] as Vector3).lerp(rest[0], e)
+		n.rotation = (from[1] as Vector3).lerp(rest[1], e)
+		if rest.size() > 2:
+			n.scale = (from[2] as Vector3).lerp(rest[2], e)
+	holder_offset = (_exit_extra[0] as Vector3).lerp(Vector3.ZERO, e)
+	holder_rotation = (_exit_extra[1] as Vector3).lerp(Vector3.ZERO, e)
+	left_elbow_shift = (_exit_extra[2] as Vector3).lerp(Vector3.ZERO, e)
+	left_arm_slim = lerpf(float(_exit_extra[3]), 1.0, e)
+	if _shell != null:
+		_shell.visible = bool(_exit_extra[4]) and k < 0.4
+	_update_arms()
 
 
 ## Poses the model at cycle progress t (0..1). `tilt_scale` scales the whole-weapon tilt
@@ -158,7 +202,7 @@ func _events() -> Array:
 		"pistol":
 			return [[0.15, "reload_release"], [0.24, "reload_pistol_out"], [0.72, "reload_pistol_in"], [0.80, "reload_slide"]]
 		"shotgun":
-			return [[0.74, "shell_insert"]]
+			return [[SHELL_SOUND_T, "shell_insert"]]
 		_:
 			return [[0.15, "reload_release"], [0.21, "reload_mag_out"], [0.74, "reload_mag_in"], [0.79, "reload_slap"], [0.85, "reload_bolt"]]
 
@@ -175,14 +219,16 @@ static func _seg(t: float, a: float, b: float) -> float:
 
 
 ## Smoothly interpolated keyframes: [[t, value], ...] sorted by t (Vector3 or float).
-static func _key(keys: Array, t: float) -> Variant:
+static func _key(keys: Array, t: float, snap: bool = false) -> Variant:
 	if t <= float(keys[0][0]):
 		return keys[0][1]
 	for i in range(1, keys.size()):
 		var t1: float = keys[i][0]
 		if t <= t1:
 			var t0: float = keys[i - 1][0]
-			var k := _smooth((t - t0) / maxf(0.0001, t1 - t0))
+			var lin := clampf((t - t0) / maxf(0.0001, t1 - t0), 0.0, 1.0)
+			# snap: fast start, soft stop (every move is a quick flick instead of a smooth glide)
+			var k := (1.0 - (1.0 - lin) * (1.0 - lin)) if snap else _smooth(lin)
 			var a: Variant = keys[i - 1][1]
 			var b: Variant = keys[i][1]
 			if a is Vector3:
@@ -283,16 +329,23 @@ func _pose_shotgun(t: float, tilt_scale: float) -> void:
 	var gate_low: Vector3 = SHOTGUN["gate_low"]
 	var gate: Vector3 = SHOTGUN["gate"]
 	var push: Vector3 = SHOTGUN["gate_push"]
+	var start := lh0 if shell_first else belt # the first cycle comes from the forend, later ones from the belt
+	var end := lh0 if shell_last else belt # the last cycle ends on the forend
 	var lh: Vector3 = _key([
-		[0.00, lh0], [0.27, belt], [0.31, belt], [0.55, gate_low], [0.70, gate], [0.77, push], [0.81, push], [1.00, lh0],
-	], t)
+		[0.00, start], [0.16 if shell_first else 0.02, belt], [0.22, belt],
+		[0.44, gate_low], [0.56, gate], [SHELL_INSERT_T, push], [0.72, push],
+		[0.92 if not shell_last else 0.97, end], [1.00, end],
+	], t, true)
 	if _left != null:
 		_left.position = lh
 	if _shell != null:
-		_shell.visible = t > 0.28 and t < 0.77
-		var shell_tilt := float(_key([[0.28, 0.0], [0.55, 0.95], [0.70, 0.55], [0.77, 0.30]], t))
+		_shell.visible = t > 0.22 and t < SHELL_INSERT_T + 0.02
+		var shell_tilt := float(_key([[0.22, 0.0], [0.44, 0.95], [0.56, 0.55], [SHELL_INSERT_T, 0.30]], t, true))
 		_shell.rotation = Vector3(shell_tilt, 0.0, 0.0)
-	var push_bump := exp(-pow((t - 0.76) * 14.0, 2.0))
-	# aggressive loading: the weapon is thrown into a steep tilt and jolts hard when the shell goes in
-	holder_offset = Vector3(-0.07, 0.0, 0.06) * tilt_scale + Vector3(0.0, -0.02, 0.05) * push_bump * tilt_scale
-	holder_rotation = Vector3(0.30 - push_bump * 0.12, -0.10, -0.66 + push_bump * 0.10) * tilt_scale
+	# aggressive loading: the weapon is flung into a steep tilt, dips when the shell is pulled from the belt,
+	# is hit hard when the shell goes in and rebounds afterwards
+	var grab := exp(-pow((t - 0.22) * 15.0, 2.0))
+	var snap := exp(-pow((t - SHELL_INSERT_T) * 13.0, 2.0))
+	var rebound := exp(-pow((t - 0.80) * 10.0, 2.0))
+	holder_offset = (Vector3(-0.07, 0.06, 0.06) + Vector3(0.0, 0.0, 0.085) * snap + Vector3(0.0, -0.012, 0.0) * grab + Vector3(0.0, 0.018, -0.03) * rebound) * tilt_scale
+	holder_rotation = Vector3(0.30 - snap * 0.20 + grab * 0.10 - rebound * 0.06, -0.10 + snap * 0.07, -0.66 + snap * 0.15 - grab * 0.06) * tilt_scale

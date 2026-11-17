@@ -345,3 +345,12 @@ Python-Skripten in `tools/` erzeugt – keine Fremdinhalte, alles reproduzierbar
 * **Fadenkreuz:** beim Sprinten Punkt + vier feine Striche, mit Granate in der Hand Punkt + Ring (gehalten: warm, pulsierend, vier Innen-Ticks).
 * **Ego-Arme:** `FirstPersonArms` – Zwei-Knochen-IK von Schultern im Kameraraum zu den Handgelenken des Waffenmodells (streckt bei Bedarf), flach schattierte, verjüngte Achtkant-Gliedmaßen
   (Unterarm Hautton, Oberarm Hemd – wie die Figur). Die eingebauten Unterarm-Boxen des Ego-Modells sind ausgeblendet (`ReloadRig.show_sleeves`); Arme enden nie mitten im Bild (FOV 60–110).
+* **Streuung MP5/AK:** Hüfte 2.9°/2.3° (vorher 2.4°/1.9°), Visier 0.35°/0.38° (vorher 0.2°/0.25°). Bei Dauerfeuer wächst `spread_bonus` (Pro-Schuss-Zuwachs
+  größer als die Erholung je Schuss); im Visier wirkt er nur zu `Weapon.ADS_BLOOM` (0.4). Visier-Optik (`ads_position`, `ads_fov`) unverändert.
+* **Schrotflinte nachladen:** Schaden 30 × 8 Schrot (Abfall 8–20 m, min. 6), Zyklus 0.44 s. `ReloadRig` (`shell_first`/`shell_last`): erste Patrone von Vorderschaft zum Gürtel,
+  dann Gürtel ⇄ Ladeklappe (unten am Gehäuse) ohne Umweg, nur die letzte Patrone geht zurück zum Vorderschaft; Bewegungen als „Snap“-Flicks (`_key(..., snap)`),
+  Waffe wird gekippt, ruckt beim Einschieben und federt zurück. Die Patrone zählt, sobald sie eingeschoben ist (`ReloadRig.SHELL_INSERT_T`), nicht erst am Zyklusende.
+  Sound `shell_insert` = doppeltes „Ratsch-Ratsch“ (Ratsche + Schleifen + Klack; `tools/generate_audio.py`).
+* **Lade-Abbruch per Schuss:** Feuern im Zustand `RELOADING` mit Patronen im Rohr → `Weapon.State.RELOAD_EXIT` (0.2 s, `ReloadRig.begin_exit()/blend_out()` blendet die Pose
+  weich in die Ruhelage), der Schuss wird per `fire_queue_t`/`take_queued_fire()` vorgemerkt und danach genau einmal ausgelöst. Leeres Rohr: Schuss ohne Wirkung, Nachladen läuft weiter.
+  Andere Maschinen: `WeaponManager.stop_tp_reload()` bzw. `play_remote_shot` beendet die Nachlade-Animation der Figur.

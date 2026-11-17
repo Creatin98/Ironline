@@ -563,8 +563,32 @@ def make_reload_sounds():
     write_wav("reload_pistol_in", seq((0.0, scrape(0.06, 1000, 4000, 0.3)), (0.055, thunk(150, 0.07, 0.9)), (0.055, tick(1.25, 0.8, 0.04)), (0.08, tick(1.5, 0.45, 0.03))), 0.8)
     write_wav("reload_slide", seq((0.0, tick(0.9, 1.0, 0.05)), (0.0, thunk(190, 0.06, 0.8)), (0.02, gain(modal([1300, 2200, 3500], [0.03, 0.025, 0.015], [0.7, 0.5, 0.3], 0.14), 0.5))), 0.85)
 
-    # shotgun shell: plastic shell on the loading gate, then the carrier latch clicks
-    write_wav("shell_insert", seq((0.0, mix(thunk(260, 0.05, 0.7), tick(1.2, 0.5, 0.03))), (0.045, tick(1.0, 0.7, 0.04)), (0.045, gain(modal([1500, 2300], [0.02, 0.014], [0.6, 0.4], 0.08), 0.3))), 0.75)
+    # shotgun shell: a double "ratsch ratsch" - the shell rasps past the shell stop into the gate (rattling ratchet
+    # ticks + scrape) and bangs home with a dull clack; the carrier latch rasps and snaps back right after
+    def ratchet(count, start, spacing, shrink, strength):
+        """A row of fast ticks that speed up: the teeth of the ratchet."""
+        parts = []
+        at = start
+        for i in range(count):
+            parts.append((at, tick(0.85 + 0.07 * i, strength * (0.55 + 0.1 * i), 0.03)))
+            at += spacing * (shrink ** i)
+        return parts
+
+    ratsch_in = seq(
+        (0.0, scrape(0.085, 1100, 4300, 0.95)),
+        *ratchet(4, 0.004, 0.016, 0.82, 1.1),
+        (0.082, thunk(165, 0.07, 1.0)),
+        (0.082, tick(0.95, 1.0, 0.05)),
+        (0.084, gain(modal([1700, 2650], [0.026, 0.016], [0.6, 0.4], 0.12), 0.45)),
+    )
+    ratsch_latch = seq(
+        (0.0, scrape(0.055, 1500, 5000, 0.75)),
+        *ratchet(3, 0.003, 0.013, 0.8, 0.9),
+        (0.054, tick(1.3, 0.9, 0.04)),
+        (0.056, thunk(240, 0.04, 0.45)),
+        (0.058, gain(modal([2100, 3300], [0.018, 0.01], [0.6, 0.4], 0.08), 0.35)),
+    )
+    write_wav("shell_insert", seq((0.0, ratsch_in), (0.145, ratsch_latch)), 0.85)
 
 
 def make_ui():
