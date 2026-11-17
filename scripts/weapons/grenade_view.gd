@@ -138,11 +138,15 @@ static func _key(keys: Array, t: float) -> Variant:
 
 
 ## t = 0..1 over the whole throw. The view hides itself before 0 and after 1.
-func apply(t: float) -> void:
+func apply(t: float, hold_time: float = 0.0) -> void:
 	visible = t > 0.0 and t < 1.0
 	if not visible:
 		return
 	var rp: Vector3 = _key(R_POS, t)
+	if hold_time > 0.0:
+		# held ready: the cocked arm trembles a little (stronger the longer it is held)
+		var s := minf(1.0 + hold_time * 0.5, 2.5)
+		rp += Vector3(sin(hold_time * 9.0) * 0.0018, cos(hold_time * 7.3) * 0.0022, sin(hold_time * 5.1) * 0.0012) * s
 	_right.position = rp
 	_right.rotation = Vector3(float(_key(R_ROT, t)), 0.0, 0.0)
 	_right_arm.rotation.x = -_right.rotation.x * 0.85

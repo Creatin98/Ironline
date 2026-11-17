@@ -10,6 +10,8 @@ const LOWER_TIME := 0.11
 const GRENADE_TOTAL_TIME := 1.0
 const GRENADE_THROW_DELAY := GRENADE_TOTAL_TIME * GrenadeView.RELEASE_T
 ## Sound marks of a throw (share of the total time): taken out, pin pulled, spoon released.
+## The pulled grenade is held ready at this point of the throw (arm cocked) as long as the key stays down.
+const GRENADE_HOLD_T := 0.58
 const GRENADE_SOUNDS := [[0.04, "grenade_draw", -6.0], [0.34, "grenade_pin", -3.0], [0.63, "grenade_lever", -6.0]]
 const GRENADE_SPEED := 17.0
 
@@ -41,6 +43,10 @@ var _tp_reload_progress: float = -1.0 # in cycles; < 0 = idle
 var _tp_reload_cycles: int = 1
 var _tp_reload_silent: bool = false
 var _tp_flashes: Array[Node3D] = []
+## True while a pulled grenade is held ready (key down): drives the crosshair ring of the HUD.
+var grenade_holding: bool = false
+var _grenade_hold_time: float = 0.0
+var _fp_arms: FirstPersonArms
 var _grenade_view: GrenadeView
 var _grenade_sound_idx: int = 0
 var _tp_grenade_t: float = -1.0 # remote players: time into the throw (sounds only)
@@ -54,6 +60,10 @@ var _last_reserve: int = -1
 func setup(new_player: Player, class_data: ClassData, local: bool) -> void:
 	player = new_player
 	is_local = local
+	if is_local and _fp_arms == null:
+		_fp_arms = FirstPersonArms.new()
+		_fp_arms.name = "FirstPersonArms"
+		add_child(_fp_arms)
 	if is_local and _grenade_view == null:
 		_grenade_view = GrenadeView.new()
 		_grenade_view.name = "GrenadeView"
@@ -186,7 +196,7 @@ func process_input(input: PlayerInputState, delta: float) -> void:
 	if w == null:
 		return
 	_update_switch(delta)
-	_update_grenade(delta)
+	_update_grenade(delta, input.grenade_held)
 	w.update(delta)
 
 	# switching cancels a grenade that has not been thrown yet, and may interrupt the raise (spam switching)
@@ -246,6 +256,16 @@ func _update_switch(delta: float) -> void:
 		_switch_state = SwitchState.READY
 
 
+func is_throwing_grenade() -> bool:
+	return _grenade_timer > 0.0
+
+
+## A reload or a grenade throw is in progress (sprint rules, see Player._update_states).
+func is_action_active() -> bool:
+	var w := get_current_weapon()
+	return (w != null and w.is_reloading()) or _grenade_timer > 0.0
+
+
 ## Sprint cancels reload and grenade animations (Call-of-Duty style).
 func cancel_for_sprint() -> void:
 	var w := get_current_weapon()
@@ -264,6 +284,8 @@ func cancel_grenade(refund: bool) -> void:
 			GameEvents.local_grenades_changed.emit(grenades)
 	_grenade_timer = 0.0
 	_grenade_thrown = true
+	grenade_holding = false
+	_grenade_hold_time = 0.0
 	if _grenade_view != null:
 		_grenade_view.apply(0.0)
 
@@ -280,10 +302,20 @@ func _begin_grenade() -> void:
 		GameEvents.local_grenades_changed.emit(grenades)
 
 
-func _update_grenade(delta: float) -> void:
+func _update_grenade(delta: float, held: bool) -> void:
 	if _grenade_timer <= 0.0:
+		grenade_holding = false
+		_grenade_hold_time = 0.0
 		return
-	_grenade_timer -= delta
+	# after the pin is pulled the grenade stays in the cocked arm as long as the key is held
+	var frac_now := clampf(1.0 - _grenade_timer / GRENADE_TOTAL_TIME, 0.0, 1.0)
+	grenade_holding = held and not _grenade_thrown and frac_now >= GRENADE_HOLD_T
+	if grenade_holding:
+		_grenade_hold_time += delta
+		_grenade_timer = GRENADE_TOTAL_TIME * (1.0 - GRENADE_HOLD_T)
+	else:
+		_grenade_hold_time = 0.0
+		_grenade_timer -= delta
 	var frac := clampf(1.0 - _grenade_timer / GRENADE_TOTAL_TIME, 0.0, 1.0)
 	while _grenade_sound_idx < GRENADE_SOUNDS.size() and frac >= float(GRENADE_SOUNDS[_grenade_sound_idx][0]):
 		var mark: Array = GRENADE_SOUNDS[_grenade_sound_idx]
@@ -293,7 +325,7 @@ func _update_grenade(delta: float) -> void:
 		else:
 			AudioManager.play_3d(String(mark[1]), player.global_position + Vector3.UP, float(mark[2]) - 4.0, 0.04, 25.0)
 	if _grenade_view != null:
-		_grenade_view.apply(frac if _grenade_timer > 0.0 else 0.0)
+		_grenade_view.apply(frac if _grenade_timer > 0.0 else 0.0, _grenade_hold_time)
 	if not _grenade_thrown and _grenade_timer <= GRENADE_TOTAL_TIME - GRENADE_THROW_DELAY:
 		_grenade_thrown = true
 		_spawn_grenade()
@@ -375,10 +407,12 @@ func _process(delta: float) -> void:
 		if _tp_grenade_t >= 0.0:
 			_tp_grenade_t += delta
 			var tf := _tp_grenade_t / GRENADE_TOTAL_TIME
+			# only draw + pin by time: the release of a held grenade is announced by the spawn of the grenade itself
 			while _grenade_sound_idx < GRENADE_SOUNDS.size() and tf >= float(GRENADE_SOUNDS[_grenade_sound_idx][0]):
 				var m: Array = GRENADE_SOUNDS[_grenade_sound_idx]
 				_grenade_sound_idx += 1
-				AudioManager.play_3d(String(m[1]), player.global_position + Vector3.UP, float(m[2]) - 4.0, 0.04, 25.0)
+				if String(m[1]) != "grenade_lever":
+					AudioManager.play_3d(String(m[1]), player.global_position + Vector3.UP, float(m[2]) - 4.0, 0.04, 25.0)
 			if tf >= 1.0:
 				_tp_grenade_t = -1.0
 		return
@@ -449,6 +483,32 @@ func _process(delta: float) -> void:
 
 	holder.position = holder.position.lerp(pos, minf(1.0, delta * 18.0))
 	holder.rotation = holder.rotation.lerp(rot, minf(1.0, delta * 18.0))
+	_update_arms(w)
+
+
+## Arms of the first-person view: from the shoulders (camera space) to the wrists of the weapon's hands.
+## Hidden while the grenade view brings its own hands.
+func _update_arms(w: Weapon) -> void:
+	if _fp_arms == null:
+		return
+	var throwing := _grenade_view != null and _grenade_view.visible
+	_fp_arms.visible = not throwing
+	if throwing or w.model == null:
+		return
+	_fp_arms.update(_wrist(w.model, "RightHand", Vector3(0.004, -0.028, 0.044)), _wrist(w.model, "LeftHand", Vector3(-0.006, -0.018, 0.040)))
+
+
+func _wrist(model: Node3D, hand_name: String, offset: Vector3) -> Vector3:
+	var hand := model.get_node_or_null(hand_name) as Node3D
+	if hand == null:
+		return Vector3.INF
+	return to_local(hand.to_global(offset))
+
+
+## Skin and shirt colour of the first-person arms (those of the player's own figure).
+func set_arm_colors(skin: Color, shirt: Color) -> void:
+	if _fp_arms != null:
+		_fp_arms.set_colors(skin, shirt)
 
 
 # ----------------------------------------------------------------------------- network (client side)

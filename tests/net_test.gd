@@ -31,6 +31,8 @@ func _ready() -> void:
 	GameDirector._skip_loading_screen = true
 	MatchManager.warmup_time = 1.0
 	MatchManager.runout_time = 0.15
+	NetworkManager.vote_time = 4.0 # the real vote runs 15 s (10 s scoreboard + 5 s final vote)
+	NetworkManager.vote_outcome_time = 0.4
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("--role="):
 			role = arg.substr(7)

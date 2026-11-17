@@ -23,7 +23,9 @@ func _ready() -> void:
 	MatchManager.warmup_time = 0.5
 	MatchManager.runout_time = 0.15
 	for arg in OS.get_cmdline_user_args():
-		if arg.begins_with("--target="):
+		if arg.begins_with("--fov="):
+			GameSettings.fov = float(arg.substr(6))
+		elif arg.begins_with("--target="):
 			target = arg.substr(9)
 		elif arg.begins_with("--out="):
 			out_path = arg.substr(6)
@@ -344,6 +346,13 @@ func _game_ui(state: String) -> void:
 			game.hud._kill_flash.color.a = 0.0
 		get_tree().paused = true
 		game.hud.crosshair.queue_redraw()
+	if state == "sprintcross":
+		local.is_sprinting = true
+		await get_tree().create_timer(0.1).timeout
+		local.is_sprinting = true
+		get_tree().paused = true
+		game.hud.crosshair.queue_redraw()
+		await get_tree().process_frame
 	if state.begins_with("grenade"):
 		var gt := float(int(state.substr(7))) / 100.0
 		var wm: WeaponManager = local.weapon_manager
@@ -352,6 +361,8 @@ func _game_ui(state: String) -> void:
 		for i in 25:
 			await get_tree().physics_frame
 		wm._grenade_timer = 0.0001
+		wm.grenade_holding = int(state.substr(7)) == 58
+		game.hud.crosshair.queue_redraw()
 		get_tree().paused = true
 		wm._grenade_view.apply(gt)
 		wm._grenade_view.visible = true
@@ -426,6 +437,50 @@ func _game_ui(state: String) -> void:
 			me.assists = 3
 			me.score = 850
 			MatchManager.end_match()
+		"endfinal", "endvote", "endwin", "endwin2":
+			# end screen sequence: endfinal = big cards in the middle, endvote = one card voted, endwin / endwin2 = closing animation
+			me.kills = 7
+			me.deaths = 2
+			me.assists = 3
+			me.score = 850
+			MatchManager.end_match()
+			for i in 12:
+				await get_tree().process_frame
+			var screen: MatchEndScreen = game.match_end
+			if not screen.visible:
+				game._show_results()
+				await get_tree().process_frame
+			screen._vote_time_left = 5.0
+			screen._vote_duration = 15.0
+			screen._enter_final(true)
+			screen._update_final(5.0)
+			if state != "endfinal":
+				screen._vote_for("frontier")
+				screen._last_tally = {"frontier": 2, "harbor": 1}
+				screen._refresh_vote_ui()
+			if state in ["endwin", "endwin2"]:
+				NetworkManager.vote_outcome_time = 2.8
+				screen._start_outcome("frontier")
+				screen._intro_tween.kill()
+				screen._reveal_winner()
+				var win_card: VoteCard = screen._cards["frontier"]
+				var tgt: float = 0.55 if state == "endwin" else 1.0
+				# freeze the moment: the winner in the middle (endwin) or halfway expanded (endwin2)
+				for id in screen._cards:
+					if id != "frontier":
+						screen._cards[id].modulate.a = 0.0
+				var grow := minf(1.4, screen.size.y * 0.6 / win_card.size.y)
+				var big: Vector2 = win_card.size * grow
+				win_card.size = big
+				win_card.position = (screen.size - big) * 0.5 + Vector2(0.0, screen.size.y * 0.02)
+				if state == "endwin2":
+					win_card.position = win_card.position.lerp(Vector2.ZERO, 0.6)
+					win_card.size = win_card.size.lerp(screen.size, 0.6)
+					win_card.expand = 0.6
+				screen._flash.color.a = 0.0
+			screen._dim.color.a = 0.84
+			screen.set_process(false)
+			get_tree().paused = true
 	for i in 20:
 		await get_tree().process_frame
 

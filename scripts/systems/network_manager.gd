@@ -13,20 +13,21 @@ extends Node
 
 enum Mode { OFFLINE, HOST, CLIENT }
 
-const PROTOCOL_VERSION := 5
+const PROTOCOL_VERSION := 6
 const DEFAULT_PORT := 7777
 const MAX_PEERS := 12
 const SNAPSHOT_EVERY_TICKS := 3 # 20 Hz at 60 physics ticks
 const OWNER_STATE_EVERY_TICKS := 6 # 10 Hz
 const LOAD_TIMEOUT := 12.0
 const CONNECT_TIMEOUT := 8.0
-const VOTE_TIME := 15.0
+const VOTE_TIME := 15.0 # fixed: 10 s scoreboard + 5 s final vote in the middle of the screen
 
 # held input bits (client -> server, every tick)
 const HELD_SPRINT := 1
 const HELD_CROUCH := 2
 const HELD_AIM := 4
 const HELD_FIRE := 8
+const HELD_GRENADE := 16
 # one-shot action bits (client -> server, reliable, only when pressed)
 const ACT_FIRE := 1
 const ACT_JUMP := 2
@@ -50,7 +51,7 @@ signal all_peers_loaded
 signal network_state_changed
 signal vote_opened(maps: Array, duration: float)
 signal vote_tally_changed(tally: Dictionary)
-signal vote_closed
+signal vote_closed(winner_map: String)
 
 var mode: int = Mode.OFFLINE
 ## peer_id -> {"name": String, "team": int, "class_id": String}
@@ -70,6 +71,11 @@ var _connecting: bool = false
 var _tick: int = 0
 var _next_grenade_id: int = 1
 var _grenades: Dictionary = {} # net id -> Grenade
+## Vote length and the pause between the end of the vote and the start of the round (closing animation
+## of the end screen); the tests shorten both.
+var vote_time: float = VOTE_TIME
+var vote_outcome_time: float = 2.8
+var _outcome_pending: bool = false
 var _vote_active: bool = false
 var _vote_timer: float = 0.0
 var _votes: Dictionary = {} # peer id -> map id
@@ -167,6 +173,7 @@ func _reset() -> void:
 	_loaded_peers = {}
 	_grenades = {}
 	_vote_active = false
+	_outcome_pending = false
 	network_state_changed.emit()
 
 
@@ -222,8 +229,6 @@ func _on_peer_disconnected(id: int) -> void:
 	if _vote_active:
 		_votes.erase(id)
 		_broadcast_tally()
-		if _all_voted():
-			_finish_vote()
 	if in_match:
 		var p := MatchManager.get_participant(id)
 		if p != null and game != null and game.has_method("remove_player_node"):
@@ -393,6 +398,7 @@ func host_start_match(cfg: MatchConfig) -> void:
 	if mode != Mode.HOST:
 		return
 	lobby_config = cfg.duplicate_config()
+	_outcome_pending = false
 	in_match = true
 	multiplayer.multiplayer_peer.refuse_new_connections = true
 	_loaded_peers = {}
@@ -556,6 +562,7 @@ func host_return_to_lobby() -> void:
 	if mode != Mode.HOST:
 		return
 	in_match = false
+	_outcome_pending = false
 	_waiting_for_load = false
 	multiplayer.multiplayer_peer.refuse_new_connections = false
 	if multiplayer.get_peers().size() > 0:
@@ -766,6 +773,9 @@ func _rpc_grenade_spawn(gid: int, thrower_id: int, team: int, origin: Vector3, v
 	if mode != Mode.CLIENT or game == null:
 		return
 	var grenade: Node = game.spawn_visual_grenade(thrower_id, team, origin, velocity)
+	# the spoon flies off at the moment of the throw (the time of the release is known only now, the hold may last)
+	if thrower_id != MatchManager.local_participant_id:
+		AudioManager.play_3d("grenade_lever", origin, -10.0, 0.04, 25.0)
 	if grenade != null:
 		grenade.net_id = gid
 		_grenades[gid] = grenade
@@ -813,11 +823,11 @@ func host_open_vote(maps: Array) -> void:
 	if mode != Mode.HOST or _vote_active:
 		return
 	_vote_active = true
-	_vote_timer = VOTE_TIME
+	_vote_timer = vote_time
 	_votes = {}
 	if multiplayer.get_peers().size() > 0:
-		_rpc_vote_open.rpc(maps, VOTE_TIME)
-	vote_opened.emit(maps, VOTE_TIME)
+		_rpc_vote_open.rpc(maps, vote_time)
+	vote_opened.emit(maps, vote_time)
 	vote_tally_changed.emit(_tally())
 
 
@@ -849,8 +859,7 @@ func _register_vote(id: int, map_id: String) -> void:
 		return
 	_votes[id] = map_id
 	_broadcast_tally()
-	if _all_voted():
-		_finish_vote()
+	# no early end: the vote always runs its full time (the end screen follows a fixed sequence)
 
 
 func _tally() -> Dictionary:
@@ -859,13 +868,6 @@ func _tally() -> Dictionary:
 		var m: String = _votes[id]
 		out[m] = int(out.get(m, 0)) + 1
 	return out
-
-
-func _all_voted() -> bool:
-	for id in peers:
-		if not _votes.has(id):
-			return false
-	return true
 
 
 func _broadcast_tally() -> void:
@@ -881,7 +883,8 @@ func _rpc_vote_tally(tally: Dictionary) -> void:
 	vote_tally_changed.emit(tally)
 
 
-## Host: picks the winner (ties and no votes are decided randomly) and starts the next round.
+## Host: picks the winner (ties and no votes are decided randomly), tells everybody (closing animation of
+## the end screen) and starts the next round `vote_outcome_time` later.
 func _finish_vote() -> void:
 	if not _vote_active:
 		return
@@ -898,14 +901,19 @@ func _finish_vote() -> void:
 		winners = GameDirector.ROTATION_MAPS.duplicate()
 	var cfg := MatchManager.config.duplicate_config()
 	cfg.map_id = winners[randi() % winners.size()]
+	_outcome_pending = true
 	if multiplayer.get_peers().size() > 0:
-		_rpc_vote_close.rpc()
-	vote_closed.emit()
+		_rpc_vote_close.rpc(cfg.map_id)
+	vote_closed.emit(cfg.map_id)
+	await get_tree().create_timer(vote_outcome_time).timeout
+	if not _outcome_pending or mode != Mode.HOST:
+		return # the host went back to the lobby / left in the meantime
+	_outcome_pending = false
 	host_start_match(cfg)
 
 
 @rpc("authority", "call_remote", "reliable")
-func _rpc_vote_close() -> void:
+func _rpc_vote_close(winner_map: String) -> void:
 	if mode != Mode.CLIENT:
 		return
-	vote_closed.emit()
+	vote_closed.emit(winner_map)

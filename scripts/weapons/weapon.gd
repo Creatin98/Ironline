@@ -55,6 +55,12 @@ func setup(new_data: WeaponData, new_player: Player, local: bool) -> void:
 		if pump_node:
 			_pump_rest = pump_node.position
 		rig = ReloadRig.create(model, data.reload_style)
+		if local:
+			# the first-person view gets IK arms (FirstPersonArms); the model's built-in sleeves would end in mid-air
+			rig.show_sleeves = false
+			for n in model.find_children("*Forearm", "MeshInstance3D", true, false):
+				if n.name == "LeftForearm" or n.name == "RightForearm":
+					(n as Node3D).visible = false
 	if muzzle == null:
 		muzzle = Node3D.new()
 		muzzle.position = Vector3(0, 0, -0.6)

@@ -332,3 +332,16 @@ Python-Skripten in `tools/` erzeugt – keine Fremdinhalte, alles reproduzierbar
   „Umgebung allgemein“ auf 100 %. Die Sounds und Regler bleiben erhalten. `AmbienceSystem` pausiert stumme Loops und spielt stumme Ereignisse gar nicht
   (`AudioCategories.effective_volume` = Kategorie × Eltern-Busse), das Atmen nach dem Sprint ebenso. Alte `settings.cfg` (ohne `meta/version` 2) bekommen den neuen
   Standard, wo noch der alte Wert 100 % steht; bewusst gesetzte Werte bleiben (`GameSettings.SETTINGS_VERSION`).
+
+* **Ende der Runde (nicht überspringbar):** Letzter-Abschuss-Replay → Abspann → Scoreboard laufen ohne Leertaste-Skip (`Game._unhandled_input` schluckt sie). Die normale Killcam nach dem eigenen Tod
+  bleibt überspringbar.
+* **Kartenabstimmung als feste Choreografie** (`MatchEndScreen`, eine Uhr `NetworkManager.vote_time` = 15 s, kein vorzeitiges Ende mehr): *RESULTS* (10 s) Scoreboard + kleine Karten unten;
+  *FINAL* (5 s) Scoreboard blendet aus und schrumpft, die Karten (`VoteCard`) gleiten groß und auseinander in die Bildschirmmitte, großer Countdown, Abstimmung läuft weiter;
+  *OUTCOME* (`vote_outcome_time` 2.8 s) die zwei anderen Karten verschwinden, die Gewinnerkarte zentriert sich, Blitz + Lichtstreifen, füllt den Bildschirm (dasselbe Bild wie der
+  Ladebildschirm) → Host startet die Runde. Online: Host zählt (`_finish_vote` → `vote_closed(winner)` per RPC, Start erst nach `vote_outcome_time`); offline läuft dieselbe Abfolge lokal
+  (eigene Wahl, ohne Wahl zufällig). Ohne Kartenabstimmung bleibt das Scoreboard bis zum Knopfdruck. Protokoll 6.
+* **Granate halten:** G gedrückt (`PlayerInputState.grenade_held`, `HELD_GRENADE`) hält die gezogene Granate in der Wurfpose (`GRENADE_HOLD_T` 0.58, Hand zittert leicht), Loslassen wirft.
+  Sprint: eine schon gehaltene Sprinttaste bricht Nachladen/Wurf nicht ab, ein neuer Druck schon (`Player._update_states`).
+* **Fadenkreuz:** beim Sprinten Punkt + vier feine Striche, mit Granate in der Hand Punkt + Ring (gehalten: warm, pulsierend, vier Innen-Ticks).
+* **Ego-Arme:** `FirstPersonArms` – Zwei-Knochen-IK von Schultern im Kameraraum zu den Handgelenken des Waffenmodells (streckt bei Bedarf), flach schattierte, verjüngte Achtkant-Gliedmaßen
+  (Unterarm Hautton, Oberarm Hemd – wie die Figur). Die eingebauten Unterarm-Boxen des Ego-Modells sind ausgeblendet (`ReloadRig.show_sleeves`); Arme enden nie mitten im Bild (FOV 60–110).

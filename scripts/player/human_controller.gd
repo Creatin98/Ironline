@@ -82,6 +82,7 @@ func _physics_process(_delta: float) -> void:
 		inp.crouch = Input.is_action_pressed("crouch")
 		inp.aim = Input.is_action_pressed("aim")
 		inp.fire_held = Input.is_action_pressed("fire")
+		inp.grenade_held = Input.is_action_pressed("grenade")
 	else:
 		inp.clear_all()
 		_pending_actions = 0
@@ -104,6 +105,8 @@ func send_to_server() -> void:
 		held |= NetworkManager.HELD_AIM
 	if inp.fire_held:
 		held |= NetworkManager.HELD_FIRE
+	if inp.grenade_held:
+		held |= NetworkManager.HELD_GRENADE
 	var actions := _pending_actions
 	if inp.fire_pressed:
 		actions |= NetworkManager.ACT_FIRE

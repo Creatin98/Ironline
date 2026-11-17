@@ -22,7 +22,9 @@ func _ready() -> void:
 	_scan("res://")
 	_instantiate_core_scenes()
 	await _check_loading_screen()
+	await _check_end_screen_sequence()
 	_check_death_skull()
+	_check_first_person_arms()
 	await _check_settings_and_audio()
 	await _simulate_match()
 	_check_reload_rigs()
@@ -367,6 +369,113 @@ func _check_settings_and_audio() -> void:
 	print("Einstellungen/Audio: %d Kategorien, Busse, Unabhaengigkeit, Speichern, Menue OK" % AudioCategories.ENTRIES.size())
 
 
+## End screen (offline): scoreboard with small vote cards first, then the final vote in the middle of the
+## screen, then the closing animation, then the chosen map is handed over (the real scene change is cut off here).
+func _check_end_screen_sequence() -> void:
+	NetworkManager.vote_time = 6.0
+	NetworkManager.vote_outcome_time = 0.6
+	var cfg := MatchConfig.new()
+	cfg.mode_id = MatchConfig.MODE_FFA
+	cfg.map_id = "test_arena"
+	cfg.bots_enabled = false
+	cfg.time_limit = 0.0
+	MatchManager.prepare_match(cfg)
+	var game: Node = (load("res://scenes/game/game.tscn") as PackedScene).instantiate()
+	add_child(game)
+	await get_tree().process_frame
+	var waited := 0.0
+	while MatchManager.state != MatchManager.State.RUNNING and waited < 8.0:
+		await get_tree().process_frame
+		waited += get_process_delta_time()
+	var screen: MatchEndScreen = game.match_end
+	screen.map_chosen.disconnect(game._on_map_chosen)
+	var chosen := [""]
+	screen.map_chosen.connect(func(id: String) -> void: chosen[0] = id)
+	MatchManager.end_match()
+	waited = 0.0
+	while not screen.visible and waited < 5.0:
+		await get_tree().process_frame
+		waited += get_process_delta_time()
+	if not screen.visible:
+		_fail("Endscreen erschien nicht")
+	var t_results := 0.0
+	while screen._phase == MatchEndScreen.Phase.RESULTS and t_results < 8.0:
+		if t_results < 0.3 and (screen._stage.visible or not screen.vote_box.visible or not screen.scoreboard.visible):
+			_fail("Zu Beginn muessen Scoreboard und kleine Karten sichtbar sein (Stage %s)" % str(screen._stage.visible))
+		await get_tree().process_frame
+		t_results += get_process_delta_time()
+	# 6 s vote: the final vote starts after (6 - 2.04) = ~3.96 s
+	if t_results < 3.4 or t_results > 4.6:
+		_fail("Scoreboard-Phase dauerte %.1f s (erwartet ca. 4.0 s bei 6 s Abstimmung)" % t_results)
+	if screen._phase != MatchEndScreen.Phase.FINAL or screen._cards.size() != 3 or not screen._stage.visible:
+		_fail("Finale Abstimmung startete nicht (Phase %d, Karten %d)" % [screen._phase, screen._cards.size()])
+	await get_tree().create_timer(1.4).timeout
+	if screen._content.visible or screen.vote_picker.modulate.a > 0.05:
+		_fail("Scoreboard und kleine Karten muessen nach dem Wechsel verschwunden sein")
+	var mid := screen.size * 0.5
+	var inside := 0
+	for id in screen._cards:
+		var card: VoteCard = screen._cards[id]
+		if card.size.x < 200.0 or absf(card.position.y + card.size.y * 0.5 - mid.y) > screen.size.y * 0.3:
+			_fail("Karte %s ist nicht gross/mittig (Groesse %s, Position %s)" % [id, str(card.size), str(card.position)])
+		inside += 1
+	screen._on_card_pressed("harbor")
+	if not screen._cards["harbor"]._selected:
+		_fail("Klick auf die grosse Karte waehlt sie nicht aus")
+	var t_outcome := 0.0
+	while screen._phase != MatchEndScreen.Phase.OUTCOME and t_outcome < 4.0:
+		await get_tree().process_frame
+		t_outcome += get_process_delta_time()
+	if screen._phase != MatchEndScreen.Phase.OUTCOME or screen._winner != "harbor":
+		_fail("Abstimmung endete nicht mit der gewaehlten Karte (Phase %d, Sieger %s)" % [screen._phase, screen._winner])
+	var t_hand := 0.0
+	while chosen[0] == "" and t_hand < 3.0:
+		await get_tree().process_frame
+		t_hand += get_process_delta_time()
+	if chosen[0] != "harbor":
+		_fail("Gewinnerkarte wurde nicht uebergeben (%s)" % chosen[0])
+	if t_hand < 0.3:
+		_fail("Abschluss-Animation zu kurz (%.2f s)" % t_hand)
+	var win_card: VoteCard = screen._cards["harbor"]
+	if win_card.expand < 0.95 or win_card.size.x < screen.size.x * 0.95:
+		_fail("Gewinnerkarte fuellt am Ende nicht den Bildschirm (expand %.2f, Breite %.0f)" % [win_card.expand, win_card.size.x])
+	print("Endscreen: %.1f s Scoreboard, finale Abstimmung mit %d grossen Karten, Gewinner fuellt den Bildschirm" % [t_results, inside])
+	NetworkManager.vote_time = NetworkManager.VOTE_TIME
+	NetworkManager.vote_outcome_time = 2.8
+	game.free()
+	await get_tree().process_frame
+
+
+## First-person arms: the IK chain is continuous (shoulder -> elbow -> wrist) and reaches every wrist target,
+## stretched when far away - so no arm ends in mid-air at any FOV.
+func _check_first_person_arms() -> void:
+	var arms := FirstPersonArms.new()
+	add_child(arms)
+	var targets := [Vector3(0.2, -0.3, -0.3), Vector3(-0.05, -0.12, -0.75), Vector3(0.0, -0.5, -0.4), Vector3(0.3, 0.0, -0.9), Vector3(0.1, -0.2, -1.1)]
+	var worst := 0.0
+	for t in targets:
+		var tr: Vector3 = t
+		var tl := Vector3(-tr.x, tr.y, tr.z)
+		arms.update(tr, tl)
+		for side in 2:
+			var wrist_target: Vector3 = tr if side == 0 else tl
+			var upper: MeshInstance3D = arms._upper[side]
+			var fore: MeshInstance3D = arms._fore[side]
+			var shoulder: Vector3 = FirstPersonArms.SHOULDERS[side]
+			var elbow_from_upper: Vector3 = upper.transform * Vector3(0, 0, -FirstPersonArms.UPPER)
+			var wrist_from_fore: Vector3 = fore.transform * Vector3(0, 0, -FirstPersonArms.FORE)
+			worst = maxf(worst, upper.transform.origin.distance_to(shoulder))
+			worst = maxf(worst, elbow_from_upper.distance_to(fore.transform.origin))
+			worst = maxf(worst, wrist_from_fore.distance_to(wrist_target))
+	if worst > 0.003:
+		_fail("Ego-Arme: Kette nicht durchgehend / Ziel nicht erreicht (Abweichung %.4f m)" % worst)
+	arms.update(Vector3.INF, Vector3.INF)
+	if arms._fore[0].visible or arms._fore[1].visible:
+		_fail("Ego-Arme ohne Hand muessen ausgeblendet sein")
+	arms.free()
+	print("Ego-Arme: IK erreicht alle Ziele (max. Abweichung %.4f m)" % worst)
+
+
 ## Death skull marker for fallen teammates: a sprite that shows through walls and removes itself.
 func _check_death_skull() -> void:
 	var holder := Node3D.new()
@@ -464,6 +573,94 @@ func _check_loading_screen() -> void:
 	print("Ladebildschirm: %.1f s, danach entfernt" % t)
 
 
+## Grenade handling in a quiet match (no bots): holding G keeps the pulled grenade ready, a sprint key that is
+## already down does not cancel the throw, a fresh sprint press does.
+func _check_grenade_hold(game: Node, local: Player) -> void:
+	# the first-person model has no sleeves of its own (the IK arms replace them), also after a reload pose
+	for w in local.weapon_manager.weapons:
+		if w.model == null or w.rig == null:
+			continue
+		w.rig.apply(0.85, 1.0)
+		for n in ["LeftForearm", "RightForearm"]:
+			var sleeve := w.model.get_node_or_null(n) as Node3D
+			if sleeve != null and sleeve.visible:
+				_fail("%s: %s des Ego-Modells muss ausgeblendet bleiben" % [w.data.weapon_id, n])
+		w.rig.reset()
+	local.input.clear_all()
+	local.global_position = Vector3(0.0, 0.1, 0.0)
+	local.velocity = Vector3.ZERO
+	local.rotation.y = PI
+	for i in 60:
+		await get_tree().physics_frame
+	var wm: WeaponManager = local.weapon_manager
+	var held_before := wm.grenades
+	if held_before > 0:
+		var known: Dictionary = {}
+		for child in game.get_node("Projectiles").get_children():
+			known[child.get_instance_id()] = true
+		local.input.grenade_pressed = true
+		local.input.grenade_held = true
+		for i in 90: # 1.5 s: longer than the whole throw would take
+			await get_tree().physics_frame
+		var thrown_early := 0
+		for child in game.get_node("Projectiles").get_children():
+			if child is Grenade and not known.has(child.get_instance_id()):
+				thrown_early += 1
+		if thrown_early != 0 or not wm.grenade_holding or wm.grenades != held_before - 1:
+			_fail("Gehaltene Granate: geworfen (%d) oder nicht gehalten (haltend %s, Granaten %d)" % [thrown_early, str(wm.grenade_holding), wm.grenades])
+		local.input.grenade_held = false # release: throw
+		for i in 50:
+			await get_tree().physics_frame
+		var thrown := 0
+		for child in game.get_node("Projectiles").get_children():
+			if child is Grenade and not known.has(child.get_instance_id()):
+				thrown += 1
+				child.free() # harmless: it must not explode among the bots of the following tests
+		if thrown != 1 or wm.grenade_holding:
+			_fail("Gehaltene Granate: nach dem Loslassen %d neue Granaten (erwartet 1)" % thrown)
+		print("Granate: bei gehaltener Taste wurfbereit gehalten, nach dem Loslassen geworfen")
+	# --- a sprint key that is already down does not cancel the throw; pressing it during the throw does
+	wm.grenades += 2
+	var known2: Dictionary = {}
+	for child in game.get_node("Projectiles").get_children():
+		known2[child.get_instance_id()] = true
+	local.input.sprint = true
+	local.input.move = Vector2(0, 1)
+	for i in 20:
+		await get_tree().physics_frame
+	local.input.grenade_pressed = true
+	for i in 80:
+		await get_tree().physics_frame
+	var thrown_sprinting := 0
+	for child in game.get_node("Projectiles").get_children():
+		if child is Grenade and not known2.has(child.get_instance_id()):
+			thrown_sprinting += 1
+			child.free()
+	if thrown_sprinting != 1:
+		_fail("Granate bei gehaltener Sprinttaste wurde nicht geworfen (%d)" % thrown_sprinting)
+	local.input.sprint = false
+	local.input.move = Vector2.ZERO
+	for i in 20:
+		await get_tree().physics_frame
+	local.input.grenade_pressed = true
+	for i in 12:
+		await get_tree().physics_frame
+	var grenades_mid := wm.grenades
+	local.input.sprint = true # a fresh sprint press during the throw breaks it off and gives the grenade back
+	local.input.move = Vector2(0, 1)
+	for i in 60:
+		await get_tree().physics_frame
+	local.input.sprint = false
+	local.input.move = Vector2.ZERO
+	if wm.grenades != grenades_mid + 1:
+		_fail("Neuer Sprint-Druck brach den Wurf nicht ab (Granaten %d -> %d)" % [grenades_mid, wm.grenades])
+	for child in game.get_node("Projectiles").get_children():
+		if child is Grenade and not known2.has(child.get_instance_id()):
+			child.free()
+	print("Granate/Sprint: gehaltene Sprinttaste wirft, neuer Druck bricht ab")
+	local.input.clear_all()
+
+
 ## Knee slide: sprint + crouch glides ~1-2 m; Space ends it and stands up, a second Space jumps.
 func _simulate_slide() -> void:
 	var cfg := MatchConfig.new()
@@ -542,6 +739,7 @@ func _simulate_slide() -> void:
 		local.input.clear_all()
 		for i in 30:
 			await get_tree().physics_frame
+	await _check_grenade_hold(game, local)
 	# hit feedback: the four situations (hit, headshot, kill, headshot kill) play their sounds without errors
 	for name in ["hitmarker", "hitmarker_headshot", "kill_confirm", "kill_headshot"]:
 		var st := AudioManager.get_stream(name)
@@ -662,6 +860,15 @@ func _simulate_cams() -> void:
 	MatchManager.runout_time = 0.15
 	if not game._replay_active or not game.recorder.playing:
 		_fail("Last-Kill-Cam startete nicht")
+	# the last kill cam cannot be skipped with Space
+	var jump_ev := InputEventAction.new()
+	jump_ev.action = "jump"
+	jump_ev.pressed = true
+	Input.parse_input_event(jump_ev)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	if not game._replay_active or not game.recorder.playing:
+		_fail("Die Last-Kill-Cam liess sich mit Leertaste ueberspringen")
 	elif game.match_end.visible:
 		_fail("Endbildschirm erschien schon waehrend des Replays")
 	for i in 20:

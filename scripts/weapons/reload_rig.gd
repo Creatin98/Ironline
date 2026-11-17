@@ -51,6 +51,8 @@ var _arms: Array = []
 ## Pose-driven tweaks of the left forearm (rifle reload: crossing over the weapon without clipping through it).
 var left_elbow_shift: Vector3 = Vector3.ZERO
 var left_arm_slim: float = 1.0
+## False in the first-person view: there the arms come from FirstPersonArms (IK), the model's own sleeves stay hidden.
+var show_sleeves: bool = true
 
 
 static func create(model: Node3D, reload_style: String) -> ReloadRig:
@@ -90,7 +92,7 @@ func reset() -> void:
 	left_elbow_shift = Vector3.ZERO
 	left_arm_slim = 1.0
 	for arm in _arms:
-		(arm["fore"] as Node3D).visible = true
+		(arm["fore"] as Node3D).visible = show_sleeves
 	for n in _rest:
 		if is_instance_valid(n):
 			n.position = _rest[n][0]
@@ -147,7 +149,7 @@ func _update_arms() -> void:
 		fore.position = (a + b) * 0.5 - hand.position
 		fore.rotation = Vector3(asin(clampf(f.y, -1.0, 1.0)), atan2(-f.x, -f.z), 0.0)
 		var slim := left_arm_slim if hand == _left else 1.0
-		fore.visible = slim > 0.08
+		fore.visible = show_sleeves and slim > 0.08
 		fore.scale = Vector3(slim, slim, dist / float(arm["length"]))
 
 

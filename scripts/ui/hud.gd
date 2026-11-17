@@ -401,8 +401,12 @@ func _process(delta: float) -> void:
 
 func _draw_crosshair() -> void:
 	var center := crosshair.size * 0.5
-	var show_cross := _player != null and _player.alive and not _player.is_sprinting and GameSettings.show_hud and GameSettings.show_crosshair
-	if show_cross:
+	var in_game := _player != null and _player.alive and GameSettings.show_hud and GameSettings.show_crosshair
+	if in_game and _player.weapon_manager.is_throwing_grenade():
+		_draw_grenade_cross(center, _player.weapon_manager.grenade_holding)
+	elif in_game and _player.is_sprinting:
+		_draw_sprint_cross(center)
+	elif in_game:
 		var ads := _player.head.get_ads_blend()
 		var alpha := 1.0 - clampf((ads - 0.5) * 2.0, 0.0, 1.0)
 		if alpha > 0.01:
@@ -472,6 +476,34 @@ func _draw_damage_indicators(center: Vector2) -> void:
 		var alpha := clampf(float(d["time"]) / 0.6, 0.0, 1.0) * 0.85
 		var radius := 150.0
 		crosshair.draw_arc(center, radius, a - PI / 2.0 - 0.28, a - PI / 2.0 + 0.28, 12, Color(0.95, 0.12, 0.08, alpha), 9.0, true)
+
+
+## While sprinting the crosshair shrinks to a calm dot with four tiny ticks: you always see where you look.
+func _draw_sprint_cross(center: Vector2) -> void:
+	var shadow := Color(0, 0, 0, 0.5)
+	crosshair.draw_circle(center + Vector2(1, 1), 2.5, shadow)
+	crosshair.draw_circle(center, 2.0, Color(1, 1, 1, 0.65))
+	_draw_cross_lines(center + Vector2(1, 1), 11.0, 4.0, shadow, 1.6)
+	_draw_cross_lines(center, 11.0, 4.0, Color(1, 1, 1, 0.42), 1.6)
+
+
+## Grenade in the hand: dot with a ring; held ready (pin pulled, key down) the ring glows warm, pulses and
+## gets four inward ticks ("armed").
+func _draw_grenade_cross(center: Vector2, holding: bool) -> void:
+	var pulse := 0.5 + 0.5 * sin(Time.get_ticks_msec() / 1000.0 * 7.0) if holding else 0.0
+	var col := Color(1, 1, 1, 0.8)
+	if holding:
+		col = Color(1.0, 0.8, 0.45, 0.85 + 0.15 * pulse)
+	var radius := 15.0 + 1.2 * pulse
+	var shadow := Color(0, 0, 0, 0.5)
+	crosshair.draw_arc(center + Vector2(1, 1), radius, 0.0, TAU, 40, shadow, 2.6, true)
+	crosshair.draw_arc(center, radius, 0.0, TAU, 40, col, 1.8, true)
+	crosshair.draw_circle(center + Vector2(1, 1), 2.5, shadow)
+	crosshair.draw_circle(center, 2.0, col)
+	if holding:
+		for i in 4:
+			var dir := Vector2.from_angle(PI * 0.5 * i)
+			crosshair.draw_line(center + dir * (radius - 1.0), center + dir * (radius - 7.0), col, 1.8)
 
 
 func _draw_cross_lines(center: Vector2, gap: float, arm: float, col: Color, width: float) -> void:

@@ -53,6 +53,14 @@ func _ready() -> void:
 	_build()
 
 
+func get_skin_color() -> Color:
+	return skin_color
+
+
+func get_shirt_color() -> Color:
+	return _shirt_color
+
+
 ## Look of this person: skin tone (beige, lighter to darker), hair and neutral clothes, derived from the id.
 func setup_look(seed_id: int) -> void:
 	var rng := RandomNumberGenerator.new()

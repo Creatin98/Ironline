@@ -55,6 +55,7 @@ var _slide_speed: float = 0.0
 var _slide_entry: float = 0.0
 var _slide_cd: float = 0.0
 var _prev_crouch_in: bool = false
+var _prev_sprint_in: bool = false
 ## Space stood us up while crouch is still held: crouch stays off until the key is released.
 var _crouch_suppressed: bool = false
 var is_aiming: bool = false
@@ -149,6 +150,7 @@ func setup(participant: Participant, new_class: ClassData, local: bool) -> void:
 	head.setup_local(is_local)
 	weapon_manager.setup(self, class_data, is_local)
 	rig.setup_look(participant_id)
+	weapon_manager.set_arm_colors(rig.get_skin_color(), rig.get_shirt_color())
 	if not is_local:
 		set_replay_sleeves_hidden(true) # the humanoid has its own arms
 	if is_local:
@@ -551,8 +553,15 @@ func _update_states(delta: float) -> void:
 			if AudioCategories.effective_volume("breath", GameSettings.volumes) > 0.001:
 				AudioManager.play_2d("breath_heavy", -12.0, 0.03)
 		_sprint_time = 0.0
-	if wants_sprint:
-		weapon_manager.cancel_for_sprint() # sprint breaks off reload / grenade animations
+	# pressing sprint breaks off a reload / grenade throw (like in Call of Duty); a sprint key that was already
+	# down when the action began only takes effect after the action has ended
+	var sprint_pressed := input.sprint and not _prev_sprint_in
+	_prev_sprint_in = input.sprint
+	if wants_sprint and weapon_manager.is_action_active():
+		if sprint_pressed:
+			weapon_manager.cancel_for_sprint()
+		else:
+			wants_sprint = false
 	wants_sprint = wants_sprint and weapon_manager.is_switch_ready_for_sprint()
 	is_sprinting = wants_sprint
 	# aim
@@ -769,6 +778,7 @@ func _apply_remote_input() -> void:
 	input.crouch = held & NetworkManager.HELD_CROUCH != 0
 	input.aim = held & NetworkManager.HELD_AIM != 0
 	input.fire_held = held & NetworkManager.HELD_FIRE != 0
+	input.grenade_held = held & NetworkManager.HELD_GRENADE != 0
 	rotation.y = _remote_yaw
 	head.set_pitch(_remote_pitch)
 	var a := _remote_actions

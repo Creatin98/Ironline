@@ -48,7 +48,6 @@ var _plate_stripe: ColorRect
 var _plate_name: Label
 var _plate_detail: Label
 var _plate_assist: Label
-var _plate_hint: Label
 var _death_seq: int = 0 # invalidates a running death sequence (respawn, round end)
 var _replay_active: bool = false
 var _cam_ui: Control
@@ -190,12 +189,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 		return
 	if event.is_action_pressed("jump") and not _paused:
-		if _replay_active:
-			recorder.skip()
-			get_viewport().set_input_as_handled()
-			return
-		if _outro_active and not _results_shown:
-			_show_results()
+		# the last kill cam, the outro and the results cannot be skipped: nobody misses the end of the round
+		if _replay_active or _outro_active:
 			get_viewport().set_input_as_handled()
 			return
 		if local_player != null and not local_player.alive and MatchManager.state == MatchManager.State.RUNNING and _dead_elapsed >= KILLCAM_SKIP_AFTER:
@@ -487,14 +482,6 @@ func _build_bars() -> void:
 	col.add_child(_plate_detail)
 	_plate_assist = UITheme.label("", 17, Color(0.5, 0.78, 1.0))
 	col.add_child(_plate_assist)
-	_plate_hint = UITheme.label("Leertaste: überspringen", 16, UITheme.TEXT_DIM, HORIZONTAL_ALIGNMENT_RIGHT)
-	_plate_hint.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT)
-	_plate_hint.offset_left = -330.0
-	_plate_hint.offset_right = -22.0
-	_plate_hint.offset_top = -40.0
-	_plate_hint.offset_bottom = -10.0
-	_bar_bottom.add_child(_plate_hint)
-	_plate_hint.top_level = false
 
 
 ## Last kill cam vs. killcam: which labels are shown.

@@ -35,7 +35,7 @@ Array Dictionary String StringName NodePath RID PackedStringArray PackedFloat32A
 PackedByteArray PackedInt32Array PackedVector3Array int float bool void TextServer MultiplayerAPI
 MultiplayerPeer ENetMultiplayerPeer OfflineMultiplayerPeer NavigationRegion3D NavigationAgent3D
 NavigationServer3D NavigationMesh RayCast3D Timer AnimationPlayer Decal ShapeCast3D Texture2D
-GradientTexture1D Script GDScript CenterContainer TextureRect ScrollContainer MarginContainer SubViewport SubViewportContainer Image ImageTexture Panel TabContainer AspectRatioContainer Marker2D Line2D Basis GradientTexture2D Gradient KinematicCollision3D ShaderMaterial Shader AABB AudioStreamMP3 RandomNumberGenerator CollisionObject3D PackedVector2Array AudioEffectLimiter PhysicsShapeQueryParameters3D Sprite3D Basis CheckButton ButtonGroup
+GradientTexture1D Script GDScript CenterContainer TextureRect ScrollContainer MarginContainer SubViewport SubViewportContainer Image ImageTexture Panel TabContainer AspectRatioContainer Marker2D Line2D Basis GradientTexture2D Gradient KinematicCollision3D ShaderMaterial Shader AABB AudioStreamMP3 RandomNumberGenerator CollisionObject3D PackedVector2Array AudioEffectLimiter PhysicsShapeQueryParameters3D Sprite3D Basis InputEventAction SurfaceTool ArrayMesh CheckButton ButtonGroup
 """.split())
 
 GD_TYPE_PATTERN = re.compile(r"(?::[ \t]*|\bas[ \t]+|\bextends[ \t]+|\bis[ \t]+)([A-Z][A-Za-z0-9_]*)")

@@ -14,6 +14,7 @@ var fire_pressed: bool = false
 var jump_pressed: bool = false
 var reload_pressed: bool = false
 var grenade_pressed: bool = false
+var grenade_held: bool = false         # key still down: a pulled grenade is held ready until it is released
 var switch_pressed: bool = false
 var select_primary: bool = false
 var select_secondary: bool = false
@@ -37,4 +38,5 @@ func clear_all() -> void:
 	sprint = false
 	crouch = false
 	aim = false
+	grenade_held = false
 	fire_held = false

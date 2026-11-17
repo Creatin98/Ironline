@@ -77,6 +77,13 @@ func set_badge(id: String, text: String) -> void:
 		(_cards[id]["badge"] as Label).text = text
 
 
+## Screen rectangle of a card (the end screen starts its big vote cards exactly over the small ones).
+func card_global_rect(id: String) -> Rect2:
+	if _cards.has(id):
+		return (_cards[id]["panel"] as Control).get_global_rect()
+	return Rect2()
+
+
 func set_disabled(value: bool) -> void:
 	disabled = value
 	modulate = Color(1, 1, 1, 0.55) if value else Color.WHITE
