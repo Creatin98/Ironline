@@ -284,3 +284,15 @@ Python-Skripten in `tools/` erzeugt – keine Fremdinhalte, alles reproduzierbar
   hell mit Umriss) und zeichnet sie gedreht. Mates dauerhaft als Pfeile, Gegner nur als roter Pfeil beim Schuss (1.6 s, mit Blickrichtung).
 * **Hit-/Kill-Sounds:** `make_hit_feedback` – Transienten aus Rauschen + inharmonische Metall-Partiale (> 2 kHz), Kill mit Clang und Sub-Punch,
   Kopfschuss als Doppel-Snap, Kopfschuss-Kill als Kombination aus beidem (Lautheit: Treffer < Kopfschuss < Kill < Kopfschuss-Kill).
+
+* **Einstellungen (3 Reiter: Grafik / Sound / Spiel):** `SettingsPanel` ist datengetrieben (`_entries`: Typ, `GameSettings`-Eigenschaft, Steuerelement),
+  dadurch laden/übernehmen/„Reiter auf Standard“ für alle gleich. Sound-Regler wirken sofort (Vorschau-Sample beim Loslassen), „Zurück“ macht sie rückgängig,
+  „Übernehmen“ speichert (`user://settings.cfg`, Abschnitt `audio_volumes`, `video`, `hud`). Grafik: Voreinstellung (Niedrig/Mittel/Hoch) füllt die Einzelwerte,
+  manuelle Änderung → „Benutzerdefiniert“. `GameSettings.apply_scene` setzt Schatten/Post-Processing in der Map, `effects_scale()` skaliert Partikel,
+  `view_distance_m()` die Kamera-Fernebene.
+* **Audio-Architektur:** `AudioCategories.ENTRIES` ist die einzige Quelle (Bus, Eltern-Bus, Label, Standardwert, Vorschau-Sound). Busse werden beim Start
+  angelegt (`ensure_buses`, idempotent): Master → Music / UI / SFX (→ Weapons, Grenades [+Limiter], Reload, Handling, Movement, Hitmarker, Headshot, Kill, HitOther)
+  / Ambience (→ Birds, Wind, Water, Distant, Breath, AmbientOther). `AudioManager.play_*` wählt den Bus über den Dateinamen (`EXACT_SOUNDS`/`SOUND_PREFIXES`).
+  **Neue Soundkategorie = ein Eintrag in `ENTRIES`** (Regler, Speichern, Bus entstehen automatisch); neue Sounddatei = Zeile in `EXACT_SOUNDS`/`SOUND_PREFIXES`.
+* **Umgebung:** `AmbienceSystem` (pro Map-Profil): Wind-/Wasser-Loops, Vogel-/Möwenrufe, ferner Jet; eigener Atem nach langem Sprint (`Player._update_states`).
+  Sounds per `tools/generate_audio.py ambience`.

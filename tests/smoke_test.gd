@@ -21,6 +21,7 @@ func _ready() -> void:
 	_scan("res://")
 	_instantiate_core_scenes()
 	await _check_loading_screen()
+	await _check_settings_and_audio()
 	await _simulate_match()
 	_check_reload_rigs()
 	await _simulate_reloads()
@@ -244,6 +245,123 @@ func _simulate_steps() -> void:
 	print("Stufen: Kante 0.2 m ohne Springen ueberlaufen (z=%.2f, y=%.2f, Luft-Ticks %d), 0.7 m Wand blockiert" % [local.global_position.z, max_y, airborne])
 	game.free()
 	await get_tree().process_frame
+
+
+## Settings menu and audio architecture: buses, categories, independence, persistence, panel wiring.
+func _check_settings_and_audio() -> void:
+	# every sound file belongs to a known category with an existing bus (nothing falls back silently)
+	var dir := DirAccess.open("res://assets/audio/sfx")
+	var unmapped: Array[String] = []
+	for f in dir.get_files():
+		if f.ends_with(".wav"):
+			var n := f.get_basename()
+			if AudioCategories.category_of(n) == "sfx" and not n.begins_with("none"):
+				unmapped.append(n)
+	if not unmapped.is_empty():
+		_fail("Sounds ohne Kategorie (fallen auf SFX): %s" % ", ".join(unmapped))
+	for e in AudioCategories.ENTRIES:
+		var idx := AudioServer.get_bus_index(String(e["bus"]))
+		if idx < 0:
+			_fail("Audiobus %s fehlt" % e["bus"])
+		elif e["parent"] != "" and AudioServer.get_bus_send(idx) != StringName(String(e["parent"])):
+			_fail("Bus %s sendet nicht an %s" % [e["bus"], e["parent"]])
+	var names := {}
+	for i in AudioServer.bus_count:
+		var bn := String(AudioServer.get_bus_name(i))
+		if names.has(bn):
+			_fail("Doppelter Audiobus: %s" % bn)
+		names[bn] = true
+	# categories are independent
+	var snapshot := GameSettings.volumes.duplicate()
+	GameSettings.set_volume("weapons", 0.5)
+	var weapons_db := AudioServer.get_bus_volume_db(AudioServer.get_bus_index("Weapons"))
+	if absf(weapons_db - linear_to_db(0.5)) > 0.1:
+		_fail("Waffen-Regler stellt den Bus nicht ein (%.1f dB)" % weapons_db)
+	for other in ["Grenades", "Reload", "Hitmarker", "Wind", "Master", "Music", "UI"]:
+		if absf(AudioServer.get_bus_volume_db(AudioServer.get_bus_index(other))) > 0.5 and other != "Music":
+			_fail("Waffen-Regler beeinflusst Bus %s" % other)
+	GameSettings.set_volume("kill", 0.0)
+	if not AudioServer.is_bus_mute(AudioServer.get_bus_index("Kill")) or AudioServer.is_bus_mute(AudioServer.get_bus_index("Headshot")):
+		_fail("Kill-Regler stummt falsche Busse")
+	for id in snapshot:
+		GameSettings.set_volume(id, snapshot[id])
+	# a played sound lands on its category bus
+	var pl := AudioManager.play_2d("hitmarker_headshot")
+	if pl == null or pl.bus != "Headshot":
+		_fail("hitmarker_headshot spielt nicht ueber den Headshot-Bus")
+	var pg := AudioManager.play_2d("explosion")
+	if pg == null or pg.bus != "Grenades":
+		_fail("explosion spielt nicht ueber den Granaten-Bus")
+	AudioManager.stop_all()
+	# persistence: save, change in memory, load again
+	var path := "user://settings_test.cfg"
+	GameSettings.set_volume("weapons", 0.3)
+	GameSettings.set_volume("birds", 0.0)
+	GameSettings.window_mode = 2
+	GameSettings.fps_limit = 60
+	GameSettings.vsync = false
+	GameSettings.antialiasing = 1
+	GameSettings.shadow_quality = 1
+	GameSettings.show_minimap = false
+	GameSettings.ads_sensitivity = 0.7
+	GameSettings.save(path)
+	GameSettings.volumes = AudioCategories.default_volumes()
+	GameSettings.window_mode = 0
+	GameSettings.fps_limit = 0
+	GameSettings.vsync = true
+	GameSettings.antialiasing = 2
+	GameSettings.shadow_quality = 3
+	GameSettings.show_minimap = true
+	GameSettings.ads_sensitivity = 1.0
+	GameSettings.load_settings(path)
+	if absf(GameSettings.get_volume("weapons") - 0.3) > 0.001 or GameSettings.get_volume("birds") != 0.0 or GameSettings.get_volume("master") != 1.0:
+		_fail("Lautstaerken wurden nicht gespeichert/geladen")
+	if GameSettings.window_mode != 2 or GameSettings.fps_limit != 60 or GameSettings.vsync or GameSettings.antialiasing != 1 \
+			or GameSettings.shadow_quality != 1 or GameSettings.show_minimap or absf(GameSettings.ads_sensitivity - 0.7) > 0.001:
+		_fail("Grafik-/Spieleinstellungen wurden nicht gespeichert/geladen")
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
+	# restore defaults
+	GameSettings.volumes = AudioCategories.default_volumes()
+	GameSettings.window_mode = 0
+	GameSettings.fps_limit = 0
+	GameSettings.vsync = true
+	GameSettings.antialiasing = 2
+	GameSettings.shadow_quality = 3
+	GameSettings.show_minimap = true
+	GameSettings.ads_sensitivity = 1.0
+	GameSettings.apply()
+	# the panel: presets fill the controls, manual changes switch to "benutzerdefiniert", Zurueck undoes live sound changes
+	var panel := SettingsPanel.new()
+	add_child(panel)
+	panel.open()
+	panel._on_preset_selected(0)
+	if absf(float(panel._get_control(panel._find("render_scale"))) - 0.8) > 0.001 or int(panel._get_control(panel._find("shadow_quality"))) != 1:
+		_fail("Grafik-Voreinstellung Niedrig fuellt die Regler nicht")
+	var aa := panel._find("antialiasing")
+	(aa["ctrl"] as OptionButton).select(2)
+	panel._changed(aa)
+	if int(panel._get_control(panel._preset_entry)) != 3:
+		_fail("Manuelle Aenderung schaltet die Voreinstellung nicht auf benutzerdefiniert")
+	var vol := panel._find("weapons")
+	(vol["ctrl"] as HSlider).value = 20.0
+	if absf(GameSettings.get_volume("weapons") - 0.2) > 0.001:
+		_fail("Lautstaerke-Regler wirkt nicht sofort")
+	panel._cancel()
+	if absf(GameSettings.get_volume("weapons") - 1.0) > 0.001:
+		_fail("Zurueck stellt die Lautstaerke nicht wieder her")
+	panel.open()
+	(panel._find("fps_limit")["ctrl"] as OptionButton).select(2)
+	(panel._find("show_crosshair")["ctrl"] as CheckButton).button_pressed = false
+	(vol["ctrl"] as HSlider).value = 40.0
+	panel._apply()
+	if GameSettings.fps_limit != 60 or GameSettings.show_crosshair or absf(GameSettings.get_volume("weapons") - 0.4) > 0.001:
+		_fail("Uebernehmen schreibt die Panel-Werte nicht in GameSettings")
+	GameSettings.fps_limit = 0
+	GameSettings.show_crosshair = true
+	GameSettings.volumes = AudioCategories.default_volumes()
+	GameSettings.apply()
+	panel.free()
+	print("Einstellungen/Audio: %d Kategorien, Busse, Unabhaengigkeit, Speichern, Menue OK" % AudioCategories.ENTRIES.size())
 
 
 ## Loading screen: shows for DURATION, then reports "finished" and removes itself.

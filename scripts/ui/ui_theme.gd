@@ -88,6 +88,24 @@ static func class_option(current_class_id: String, min_width: float = 320.0) -> 
 	return o
 
 
+static var _grabber_tex: ImageTexture
+
+
+## Round slider knob (generated once).
+static func _knob(radius: int, fill: Color, border: Color) -> ImageTexture:
+	var size := radius * 2 + 4
+	var img := Image.create(size, size, false, Image.FORMAT_RGBA8)
+	var c := Vector2(size, size) * 0.5
+	for y in size:
+		for x in size:
+			var d := Vector2(x + 0.5, y + 0.5).distance_to(c)
+			var a := clampf(radius + 1.0 - d, 0.0, 1.0)
+			var col := border if d > radius - 2.0 else fill
+			img.set_pixel(x, y, Color(col.r, col.g, col.b, a))
+	return ImageTexture.create_from_image(img)
+
+
+## Modern flat slider: thin dark track, accent fill, round knob.
 static func hslider(min_value: float, max_value: float, step: float, value: float, min_width: float = 260.0) -> HSlider:
 	var s := HSlider.new()
 	s.min_value = min_value
@@ -95,7 +113,37 @@ static func hslider(min_value: float, max_value: float, step: float, value: floa
 	s.step = step
 	s.value = value
 	s.custom_minimum_size = Vector2(min_width, 32)
+	s.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	var track := StyleBoxFlat.new()
+	track.bg_color = Color(1, 1, 1, 0.12)
+	track.set_corner_radius_all(3)
+	track.content_margin_top = 3
+	track.content_margin_bottom = 3
+	var fill := StyleBoxFlat.new()
+	fill.bg_color = ACCENT
+	fill.set_corner_radius_all(3)
+	fill.content_margin_top = 3
+	fill.content_margin_bottom = 3
+	var fill_hi := fill.duplicate() as StyleBoxFlat
+	fill_hi.bg_color = Color(1.0, 0.75, 0.3)
+	s.add_theme_stylebox_override("slider", track)
+	s.add_theme_stylebox_override("grabber_area", fill)
+	s.add_theme_stylebox_override("grabber_area_highlight", fill_hi)
+	if _grabber_tex == null:
+		_grabber_tex = _knob(9, Color(1, 1, 1), ACCENT)
+	s.add_theme_icon_override("grabber", _grabber_tex)
+	s.add_theme_icon_override("grabber_highlight", _grabber_tex)
+	s.add_theme_icon_override("grabber_disabled", _grabber_tex)
 	return s
+
+
+## Toggle switch (CheckButton) with consistent font.
+static func toggle(text: String = "") -> CheckButton:
+	var c := CheckButton.new()
+	c.text = text
+	c.add_theme_font_size_override("font_size", 18)
+	c.add_theme_color_override("font_color", TEXT)
+	return c
 
 
 static func spacer(h: float) -> Control:

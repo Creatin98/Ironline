@@ -16,6 +16,7 @@ var _is_blood: bool = false
 
 func setup(pos: Vector3, normal: Vector3, blood: bool) -> void:
 	_is_blood = blood
+	particles.amount = maxi(2, int(particles.amount * GameSettings.effects_scale()))
 	_live.append(self)
 	while _live.size() > MAX_LIVE:
 		var oldest = _live.pop_front()
@@ -30,7 +31,7 @@ func setup(pos: Vector3, normal: Vector3, blood: bool) -> void:
 		look_at(global_position - normal, Vector3.UP)
 	if blood:
 		particles.color = Color(0.55, 0.05, 0.05, 1.0)
-		particles.amount = 10
+		particles.amount = maxi(2, int(10.0 * GameSettings.effects_scale()))
 		particles.initial_velocity_min = 1.5
 		particles.initial_velocity_max = 4.0
 		particles.gravity = Vector3(0, -9.0, 0)

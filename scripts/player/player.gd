@@ -44,6 +44,8 @@ var controls_enabled: bool = true
 var is_sprinting: bool = false
 var is_crouching: bool = false
 var is_sliding: bool = false
+var _sprint_time: float = 0.0
+var _breath_cooldown: float = 0.0
 var _slide_t: float = 0.0
 var _slide_dir: Vector3 = Vector3.ZERO
 var _slide_speed: float = 0.0
@@ -373,7 +375,7 @@ func get_ads_sensitivity_scale() -> float:
 	var w := weapon_manager.get_current_weapon()
 	if w == null:
 		return 1.0
-	return clampf(w.data.ads_fov / GameSettings.fov, 0.45, 1.0)
+	return clampf(w.data.ads_fov / GameSettings.fov, 0.45, 1.0) * GameSettings.ads_sensitivity
 
 
 # ----------------------------------------------------------------------------- per frame
@@ -475,6 +477,15 @@ func _update_states(delta: float) -> void:
 			_set_height(STAND_HEIGHT)
 	# sprint: nur vorwaerts, nicht geduckt, nicht beim Zielen/Schiessen
 	var wants_sprint := input.sprint and input.move.y > 0.4 and not is_crouching and not input.aim and _sprint_block_timer <= 0.0
+	# out of breath after a long sprint (own breathing, local player only)
+	_breath_cooldown = maxf(0.0, _breath_cooldown - delta)
+	if is_sprinting and horizontal_speed > 3.0:
+		_sprint_time += delta
+	elif _sprint_time > 0.0:
+		if is_local and _sprint_time >= 2.5 and _breath_cooldown <= 0.0:
+			_breath_cooldown = 12.0
+			AudioManager.play_2d("breath_heavy", -12.0, 0.03)
+		_sprint_time = 0.0
 	if wants_sprint:
 		weapon_manager.cancel_for_sprint() # sprint breaks off reload / grenade animations
 	wants_sprint = wants_sprint and weapon_manager.is_switch_ready_for_sprint()

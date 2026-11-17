@@ -48,8 +48,12 @@ func _run() -> void:
 		await get_tree().process_frame
 		await get_tree().process_frame
 		match target:
-			"menu_settings":
+			"menu_settings", "menu_settings_sound", "menu_settings_game":
 				menu._show_settings()
+				if target.ends_with("sound"):
+					menu._settings._select_tab(1)
+				elif target.ends_with("game"):
+					menu._settings._select_tab(2)
 			"menu_online":
 				menu._show_lobby()
 			"menu_lobby":

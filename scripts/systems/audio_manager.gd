@@ -24,6 +24,7 @@ var _music_tween: Tween
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
+	AudioCategories.ensure_buses()
 	for i in POOL_3D_SIZE:
 		var p := AudioStreamPlayer3D.new()
 		p.bus = "SFX"
@@ -117,6 +118,7 @@ func play_3d(sfx_name: String, position: Vector3, volume_db: float = 0.0, pitch_
 	_next_3d = (_next_3d + 1) % POOL_3D_SIZE
 	p.stop()
 	p.stream = stream
+	p.bus = AudioCategories.bus_of(sfx_name) # every sound belongs to its category bus
 	p.global_position = position
 	p.volume_db = volume_db
 	p.max_distance = max_distance
@@ -126,7 +128,8 @@ func play_3d(sfx_name: String, position: Vector3, volume_db: float = 0.0, pitch_
 
 
 ## Plays a non-positional sound (local player's own weapon, UI, feedback).
-func play_2d(sfx_name: String, volume_db: float = 0.0, pitch_variation: float = 0.04, bus: String = "SFX") -> AudioStreamPlayer:
+## `bus` empty = the bus of the sound's category (see AudioCategories).
+func play_2d(sfx_name: String, volume_db: float = 0.0, pitch_variation: float = 0.04, bus: String = "") -> AudioStreamPlayer:
 	var stream := get_stream(sfx_name)
 	if stream == null:
 		return null
@@ -134,11 +137,24 @@ func play_2d(sfx_name: String, volume_db: float = 0.0, pitch_variation: float = 
 	_next_2d = (_next_2d + 1) % POOL_2D_SIZE
 	p.stop()
 	p.stream = stream
-	p.bus = bus
+	p.bus = bus if bus != "" else AudioCategories.bus_of(sfx_name)
 	p.volume_db = volume_db
 	p.pitch_scale = 1.0 + randf_range(-pitch_variation, pitch_variation)
 	p.play()
 	return p
+
+
+## Plays the sample of a category (volume slider feedback in the sound settings).
+func play_preview(category_id: String) -> void:
+	var sample := String(AudioCategories.get_entry(category_id).get("preview", ""))
+	if sample == "":
+		return
+	var p := play_2d(sample, -3.0, 0.0, String(AudioCategories.get_entry(category_id)["bus"]))
+	if p != null and p.stream != null and p.stream.get_length() > 2.0:
+		var stream := p.stream
+		get_tree().create_timer(1.8, true, false, true).timeout.connect(func() -> void:
+			if is_instance_valid(p) and p.stream == stream:
+				p.stop())
 
 
 func play_ui(sfx_name: String, volume_db: float = 0.0) -> void:
@@ -160,7 +176,7 @@ func play_attached(sfx_name: String, parent: Node3D, volume_db: float = 0.0, pit
 	if stream == null or not is_instance_valid(parent):
 		return null
 	var p := AudioStreamPlayer3D.new()
-	p.bus = "SFX"
+	p.bus = AudioCategories.bus_of(sfx_name)
 	p.stream = stream
 	p.volume_db = volume_db
 	p.max_distance = 40.0

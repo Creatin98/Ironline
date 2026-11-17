@@ -126,6 +126,16 @@ func _load_map() -> void:
 	map = scene.instantiate()
 	map_container.add_child(map)
 	hud.minimap.build_from(map)
+	GameSettings.apply_scene(map)
+	GameSettings.settings_changed.connect(_on_settings_changed)
+	var ambience := AmbienceSystem.new()
+	ambience.name = "Ambience"
+	add_child(ambience)
+	ambience.setup(MatchManager.config.map_id)
+
+
+func _on_settings_changed() -> void:
+	GameSettings.apply_scene(map)
 
 
 func _create_roster() -> void:

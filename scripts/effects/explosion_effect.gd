@@ -13,12 +13,19 @@ var _light_energy_start: float = 14.0
 
 
 func play() -> void:
+	var fx := GameSettings.effects_scale()
+	for ps in [fire, smoke, debris]:
+		ps.amount = maxi(4, int(ps.amount * fx))
 	fire.emitting = true
 	smoke.emitting = true
 	debris.emitting = true
 	light.visible = true
 	light.light_energy = _light_energy_start
 	AudioManager.play_3d("explosion", global_position, 14.0, 0.08, 200.0)
+	# a second, deeper layer gives the blast weight and sets it apart from gunfire
+	var deep := AudioManager.play_3d("explosion", global_position, 9.0, 0.0, 200.0)
+	if deep != null:
+		deep.pitch_scale = 0.6
 	# shake nearby local camera
 	var local := get_tree().get_first_node_in_group("local_player") as Player
 	if local and local.alive:

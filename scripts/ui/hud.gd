@@ -231,6 +231,8 @@ func _layout() -> void:
 		var corner: Vector2 = info["corner"]
 		c.pivot_offset = Vector2.ZERO
 		c.scale = Vector2(k, k)
+		c.visible = is_editing() or GameSettings.show_hud and (block_name != "minimap" or GameSettings.show_minimap) \
+				and (block_name != "killfeed" or GameSettings.show_killfeed)
 		var s := c.get_combined_minimum_size() * k
 		var pos := Vector2(m + corner.x * (area.x - s.x - 2.0 * m), m + corner.y * (area.y - s.y - 2.0 * m))
 		if block_name == "minimap":
@@ -239,6 +241,7 @@ func _layout() -> void:
 		pos += _offset_of(block_name)
 		c.position = _clamp_to_screen(pos, s, area)
 	fps_label.visible = GameSettings.show_fps
+	_blood_layer.visible = GameSettings.show_blood_overlay
 	if _edit_overlay != null:
 		_edit_overlay.queue_redraw()
 
@@ -399,7 +402,7 @@ func _process(delta: float) -> void:
 
 func _draw_crosshair() -> void:
 	var center := crosshair.size * 0.5
-	var show_cross := _player != null and _player.alive and not _player.is_sprinting
+	var show_cross := _player != null and _player.alive and not _player.is_sprinting and GameSettings.show_hud and GameSettings.show_crosshair
 	if show_cross:
 		var ads := _player.head.get_ads_blend()
 		var alpha := 1.0 - clampf((ads - 0.5) * 2.0, 0.0, 1.0)
@@ -418,8 +421,9 @@ func _draw_crosshair() -> void:
 				_draw_cross_lines(center + Vector2(1, 1), gap, arm, shadow, 2.0)
 				_draw_cross_lines(center, gap, arm, col, 2.0)
 			crosshair.draw_circle(center, 1.5, col)
-	_draw_damage_indicators(center)
-	if _hitmarker_time > 0.0:
+	if GameSettings.show_damage_indicators:
+		_draw_damage_indicators(center)
+	if _hitmarker_time > 0.0 and GameSettings.show_hit_markers:
 		_draw_hitmarker(center)
 
 

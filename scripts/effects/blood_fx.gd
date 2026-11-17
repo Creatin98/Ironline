@@ -126,7 +126,7 @@ static func _spawn_particles(parent: Node3D, pos: Vector3, dir: Vector3, scale: 
 	p.mesh = _particle_mesh
 	p.one_shot = true
 	p.explosiveness = 0.95
-	p.amount = maxi(6, int(22.0 * scale))
+	p.amount = maxi(4, int(22.0 * scale * GameSettings.effects_scale()))
 	p.lifetime = 0.7
 	p.direction = dir
 	p.spread = 38.0

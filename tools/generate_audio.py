@@ -299,6 +299,97 @@ def make_hit_feedback():
     write_wav("kill_headshot", soft_clip(kill_h, 3.0), 1.0)
 
 
+def make_ambience():
+    """Quiet ambience: seamless wind and water loops, bird/gull calls, a distant jet, own breathing.
+    Own random generator, so the other sounds stay byte-identical. All files are normalised low
+    (they are layered under the gameplay and played at low volume by the game)."""
+    local = random.Random(2024)
+
+    def nz(seconds):
+        return [local.uniform(-1, 1) for _ in range(int(seconds * SR))]
+
+    def loop(samples, fade):
+        """Makes `samples` loop seamlessly by cross-fading the end into the start."""
+        f = int(fade * SR)
+        body = samples[:-f]
+        tail = samples[-f:]
+        for i in range(f):
+            w = i / f
+            body[i] = body[i] * w + tail[i] * (1.0 - w)
+        return body
+
+    # wind: low rumble + gusts (periodic LFOs fit the loop length exactly) + a faint whistle
+    length = 12.0
+    raw = nz(length + 1.5)
+    low = lowpass(raw, 420)
+    mid = highpass(lowpass(raw, 1600), 500)
+    out = []
+    for i in range(len(low)):
+        t = i / SR
+        gust = 0.55 + 0.25 * math.sin(2 * math.pi * t / 12.0 + 1.0) + 0.2 * math.sin(2 * math.pi * t / 6.0 + 0.3)
+        whistle = max(0.0, math.sin(2 * math.pi * t / 4.0 + 2.0)) ** 3
+        out.append(low[i] * gust + mid[i] * 0.35 * whistle * gust)
+    write_wav("amb_wind", loop(out, 1.5), 0.5)
+
+    # water: soft lapping waves (slow swell) with small splashes
+    raw = nz(length + 1.5)
+    wash = lowpass(raw, 1100)
+    fizz = highpass(lowpass(raw, 4500), 1800)
+    out = []
+    for i in range(len(wash)):
+        t = i / SR
+        swell = 0.5 + 0.5 * math.sin(2 * math.pi * t / 6.0)
+        swell2 = 0.5 + 0.5 * math.sin(2 * math.pi * t / 4.0 + 1.3)
+        out.append(wash[i] * (0.35 + 0.65 * swell) + fizz[i] * 0.25 * swell * swell2)
+    write_wav("amb_water", loop(out, 1.5), 0.5)
+
+    def chirp(f0, f1, length_s, vib=0.0, vib_rate=40.0):
+        n = int(length_s * SR)
+        ph = 0.0
+        out = []
+        for i in range(n):
+            t = i / n
+            f = f0 + (f1 - f0) * t + vib * math.sin(2 * math.pi * vib_rate * i / SR)
+            ph += 2 * math.pi * f / SR
+            env = math.sin(math.pi * t) ** 1.5
+            out.append(math.sin(ph) * env + 0.25 * math.sin(2 * ph) * env)
+        return out
+
+    # birds: three short songs of different character
+    song1 = concat(chirp(2900, 4300, 0.07), silence(0.06), chirp(3000, 4500, 0.07), silence(0.06), chirp(3100, 4700, 0.09))
+    write_wav("amb_bird_1", song1, 0.5)
+    song2 = concat(*[chirp(3300 + 400 * (k % 2), 3700 - 300 * (k % 2), 0.05, 150, 55) for k in range(7)])
+    write_wav("amb_bird_2", song2, 0.5)
+    song3 = concat(chirp(4600, 3500, 0.12), silence(0.09), chirp(4500, 3300, 0.14), silence(0.5), chirp(4400, 3400, 0.1))
+    write_wav("amb_bird_3", song3, 0.5)
+    # gull: a harsher, lower, wavering cry
+    gull = mix(chirp(1500, 1050, 0.5, 70, 14), gain(chirp(3000, 2100, 0.5, 140, 14), 0.4))
+    gull = [x * (0.8 + 0.2 * math.sin(2 * math.pi * 11 * i / SR)) for i, x in enumerate(gull)]
+    write_wav("amb_gull", concat(gull, silence(0.05), gain(gull, 0.7)), 0.5)
+
+    # distant jet: broadband rumble that swells and fades, with a slowly sinking pitch hum
+    dur = 16.0
+    raw = nz(dur)
+    low = lowpass(raw, 350)
+    high = highpass(lowpass(raw, 1500), 400)
+    out = []
+    for i in range(len(low)):
+        t = i / SR
+        env = math.sin(math.pi * t / dur) ** 2.5
+        hum = math.sin(2 * math.pi * (95 - 18 * t / dur) * t)
+        out.append(env * (low[i] * 1.0 + high[i] * 0.25 + hum * 0.05))
+    write_wav("amb_plane", out, 0.45)
+
+    # own breathing after a sprint: in (rising) and out (longer, falling), twice
+    def breath_cycle(inh, exh):
+        a = lowpass(highpass(nz(inh), 250), 2200)
+        a = [x * math.sin(math.pi * i / len(a)) ** 1.3 * (0.6 + 0.4 * i / len(a)) for i, x in enumerate(a)]
+        b = lowpass(highpass(nz(exh), 200), 1800)
+        b = [x * (math.sin(math.pi * i / len(b)) ** 1.2) * (1.0 - 0.5 * i / len(b)) for i, x in enumerate(b)]
+        return concat(a, silence(0.08), b, silence(0.12))
+    write_wav("breath_heavy", concat(breath_cycle(0.45, 0.65), gain(breath_cycle(0.4, 0.6), 0.8)), 0.6)
+
+
 def make_slide_sound():
     """Knee slide: filtered noise swish with a fading scrape, no tonal part."""
     local = random.Random(4242)
@@ -473,6 +564,9 @@ if __name__ == "__main__":
     if "grenade" in sys.argv[1:]:
         make_grenade_sounds()
         sys.exit(0)
+    if "ambience" in sys.argv[1:]:
+        make_ambience()
+        sys.exit(0)
     if "slide" in sys.argv[1:]:
         make_slide_sound()
         sys.exit(0)
@@ -487,6 +581,7 @@ if __name__ == "__main__":
     make_reload_sounds()
     make_grenade_sounds()
     make_slide_sound()
+    make_ambience()
     make_movement()
     make_feedback()
     make_ui()
