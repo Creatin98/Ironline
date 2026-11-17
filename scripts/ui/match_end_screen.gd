@@ -4,12 +4,16 @@ extends Control
 ## Map voting is added in phase 7 (the "next round" button restarts with the same config).
 
 signal next_round_requested
+signal lobby_requested
 signal leave_requested
 
 var result_label: Label
 var detail_label: Label
 var scoreboard: Scoreboard
 var buttons: HBoxContainer
+var next_btn: Button
+var lobby_btn: Button
+var wait_label: Label
 
 
 func _ready() -> void:
@@ -36,12 +40,28 @@ func _ready() -> void:
 	buttons = UITheme.hbox(20)
 	buttons.alignment = BoxContainer.ALIGNMENT_CENTER
 	v.add_child(buttons)
-	var next_btn := UITheme.button("Nächste Runde", 22, 280)
+	next_btn = UITheme.button("Nächste Runde", 22, 260)
 	next_btn.pressed.connect(func() -> void: next_round_requested.emit())
 	buttons.add_child(next_btn)
-	var leave_btn := UITheme.button("Hauptmenü", 22, 280)
+	lobby_btn = UITheme.button("Zur Lobby", 22, 220)
+	lobby_btn.pressed.connect(func() -> void: lobby_requested.emit())
+	lobby_btn.visible = false
+	buttons.add_child(lobby_btn)
+	var leave_btn := UITheme.button("Hauptmenü", 22, 220)
 	leave_btn.pressed.connect(func() -> void: leave_requested.emit())
 	buttons.add_child(leave_btn)
+	wait_label = UITheme.label("Der Host entscheidet über die nächste Runde …", 18, UITheme.TEXT_DIM, HORIZONTAL_ALIGNMENT_CENTER)
+	wait_label.visible = false
+	v.add_child(wait_label)
+
+
+## Online: only the host can start the next round / return to the lobby.
+func configure_for_network() -> void:
+	var online := NetworkManager.is_online()
+	var host := NetworkManager.is_host()
+	next_btn.visible = not online or host
+	lobby_btn.visible = online and host
+	wait_label.visible = online and not host
 
 
 func show_results() -> void:

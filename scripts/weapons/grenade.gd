@@ -11,6 +11,10 @@ const BOUNCE_SOUND_COOLDOWN := 0.25
 
 var thrower_id: int = 0
 var thrower_team: int = Teams.Team.NONE
+## Network id (server-assigned); 0 offline.
+var net_id: int = 0
+## Client copy: only flies and bounces, the server decides when it explodes.
+var visual_only: bool = false
 
 var _fuse: float = FUSE_TIME
 var _exploded: bool = false
@@ -33,7 +37,7 @@ func launch(initial_velocity: Vector3) -> void:
 func _process(delta: float) -> void:
 	_bounce_cooldown = maxf(0.0, _bounce_cooldown - delta)
 	_fuse -= delta
-	if _fuse <= 0.0 and not _exploded:
+	if _fuse <= (-1.5 if visual_only else 0.0) and not _exploded:
 		explode()
 
 
@@ -49,18 +53,32 @@ func explode() -> void:
 		return
 	_exploded = true
 	var center := global_position + Vector3(0.0, 0.25, 0.0)
+	spawn_explosion_fx(get_tree(), center)
+	if not visual_only and MatchManager.is_authority():
+		NetworkManager.broadcast_grenade_explosion(net_id, center)
+		_apply_damage(center)
+	queue_free()
+
+
+## Client: the server detonated this grenade at `center`.
+func explode_visual_at(center: Vector3) -> void:
+	if _exploded:
+		return
+	_exploded = true
+	spawn_explosion_fx(get_tree(), center)
+	queue_free()
+
+
+static func spawn_explosion_fx(tree: SceneTree, center: Vector3) -> void:
 	var fx := EXPLOSION_SCENE.instantiate()
-	var parent := get_tree().get_first_node_in_group("effects_container")
+	var parent := tree.get_first_node_in_group("effects_container")
 	if parent == null:
-		parent = get_tree().current_scene
+		parent = tree.current_scene
 	parent.add_child(fx)
 	fx.global_position = center
 	if fx.has_method("play"):
 		fx.play()
 	GameEvents.explosion_at.emit(center, RADIUS)
-	if MatchManager.is_authority():
-		_apply_damage(center)
-	queue_free()
 
 
 func _apply_damage(center: Vector3) -> void:

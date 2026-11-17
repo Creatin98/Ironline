@@ -18,6 +18,7 @@ var reserve: int = 0
 var state: int = State.HOLSTERED
 var fire_cooldown: float = 0.0
 var spread_bonus: float = 0.0
+var last_fire_msec: int = 0
 
 # procedural animation outputs read by WeaponManager
 var anim_offset: Vector3 = Vector3.ZERO
@@ -176,6 +177,8 @@ func try_fire(is_aiming: bool, move_ratio: float, in_air: bool, crouching: bool)
 	var hit_enemy := false
 	var headshot_any := false
 	var killed_any := false
+	var impacts: Array = [] # [position, normal, hit_player] for the other machines
+	last_fire_msec = Time.get_ticks_msec()
 	for i in data.pellets:
 		var dir := _random_cone_direction(forward, spread)
 		var result := _hit_scan(origin, dir)
@@ -184,6 +187,7 @@ func try_fire(is_aiming: bool, move_ratio: float, in_air: bool, crouching: bool)
 		var collider: Object = result["collider"]
 		var hit_pos: Vector3 = result["position"]
 		var normal: Vector3 = result["normal"]
+		impacts.append([hit_pos, normal, collider is Player])
 		if collider is Player:
 			var target := collider as Player
 			var distance := origin.distance_to(hit_pos)
@@ -204,6 +208,10 @@ func try_fire(is_aiming: bool, move_ratio: float, in_air: bool, crouching: bool)
 	_apply_recoil(is_aiming, crouching)
 	if is_local and hit_enemy:
 		GameEvents.local_player_hit_enemy.emit(headshot_any, killed_any)
+	elif hit_enemy and not player.is_bot and NetworkManager.is_host():
+		NetworkManager.send_hit_feedback(player.participant_id, headshot_any, killed_any)
+	if NetworkManager.is_host():
+		NetworkManager.broadcast_shot(player.participant_id, impacts)
 	GameEvents.shot_fired.emit(player.participant_id, origin)
 
 	if slide_node:
@@ -235,6 +243,16 @@ func _hit_scan(origin: Vector3, dir: Vector3) -> Dictionary:
 	query.exclude = [player.get_rid()]
 	query.collide_with_areas = false
 	return space.intersect_ray(query)
+
+
+## Client: the server fired this player's weapon; show shot, sound and impacts.
+func play_remote_shot(impacts: Array) -> void:
+	last_fire_msec = Time.get_ticks_msec()
+	_play_shot_feedback()
+	for entry in impacts:
+		if typeof(entry) == TYPE_ARRAY and entry.size() >= 3:
+			_spawn_impact(entry[0], entry[1], bool(entry[2]))
+	GameEvents.shot_fired.emit(player.participant_id, player.get_eye_position())
 
 
 func _spawn_impact(pos: Vector3, normal: Vector3, blood: bool) -> void:
@@ -272,6 +290,8 @@ func start_reload() -> bool:
 		return false
 	if magazine >= data.magazine_size or reserve <= 0:
 		return false
+	if NetworkManager.is_host():
+		NetworkManager.broadcast_weapon_event(player.participant_id, "reload")
 	_shell_cancel = false
 	_reload_elapsed = 0.0
 	_reload_sound_queue.clear()

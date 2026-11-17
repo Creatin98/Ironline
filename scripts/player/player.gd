@@ -40,6 +40,27 @@ var last_look_delta: Vector2 = Vector2.ZERO
 var horizontal_speed: float = 0.0
 var _look_accum: Vector2 = Vector2.ZERO
 
+# --- networking ---
+## Server: last input sequence number processed for this (remote) player.
+var remote_input_seq: int = 0
+## Client (local player): sequence number of the input sent this tick.
+var pending_input_seq: int = 0
+var _remote_move: Vector2 = Vector2.ZERO
+var _remote_yaw: float = 0.0
+var _remote_pitch: float = 0.0
+var _remote_held: int = 0
+var _remote_actions: int = 0
+var _remote_last_msec: int = 0
+var _remote_has_input: bool = false
+var _pos_history: Dictionary = {} # seq -> position (client prediction history)
+var _net_has: bool = false
+var _net_pos: Vector3 = Vector3.ZERO
+var _net_vel: Vector3 = Vector3.ZERO
+var _net_yaw: float = 0.0
+var _net_pitch: float = 0.0
+var _net_on_floor: bool = true
+var _net_time: float = 0.0
+
 @onready var head: PlayerCamera = $Head
 @onready var camera: Camera3D = $Head/Camera3D
 @onready var weapon_manager: WeaponManager = $Head/Camera3D/WeaponManager
@@ -104,12 +125,17 @@ func setup(participant: Participant, new_class: ClassData, local: bool) -> void:
 	set_process(true)
 
 
+## True if this machine simulates the movement of this player (the local player,
+## and on the server/offline host also every bot and every remote human).
 func has_movement_authority() -> bool:
 	if is_local:
 		return true
-	if is_bot:
-		return MatchManager.is_authority()
-	return false
+	return MatchManager.is_authority() and (is_bot or NetworkManager.is_host())
+
+
+## Server only: a human on another machine, driven by received input.
+func is_remote_human_on_server() -> bool:
+	return not is_local and not is_bot and NetworkManager.is_host()
 
 
 # ----------------------------------------------------------------------------- spawn / death
@@ -135,6 +161,10 @@ func respawn_at(spawn_transform: Transform3D) -> void:
 	health.reset()
 	weapon_manager.reset_for_spawn()
 	input.clear_all()
+	_pos_history.clear()
+	_net_has = false
+	_remote_has_input = false
+	_remote_actions = 0
 	set_physics_process(true)
 	if is_local:
 		GameEvents.local_player_spawned.emit(self)
@@ -187,6 +217,8 @@ func _kill_death_tween() -> void:
 func take_damage(amount: float, attacker_id: int, weapon_id: String, hit_position: Vector3, headshot: bool, source_position: Vector3) -> bool:
 	if not alive or not MatchManager.is_authority():
 		return false
+	if MatchManager.state != MatchManager.State.RUNNING:
+		return false
 	if MatchManager.state == MatchManager.State.ENDED:
 		return false
 	var attacker := MatchManager.get_participant(attacker_id)
@@ -199,6 +231,8 @@ func take_damage(amount: float, attacker_id: int, weapon_id: String, hit_positio
 		head.add_shake(0.35)
 		if not killed:
 			AudioManager.play_2d("hurt", -6.0, 0.1)
+	elif not is_bot and NetworkManager.is_host():
+		NetworkManager.send_damage_feedback(participant_id, amount, source_position, health.health)
 	return killed
 
 
@@ -234,6 +268,8 @@ func get_ads_sensitivity_scale() -> float:
 func _physics_process(delta: float) -> void:
 	if not alive or not has_movement_authority():
 		return
+	if is_remote_human_on_server():
+		_apply_remote_input()
 	if not controls_enabled:
 		input.clear_all()
 	_update_states(delta)
@@ -243,6 +279,10 @@ func _physics_process(delta: float) -> void:
 	_move(delta)
 	weapon_manager.process_input(input, delta)
 	input.clear_one_shot()
+	if is_local and NetworkManager.is_client():
+		_pos_history[pending_input_seq] = global_position
+		if _pos_history.size() > 240:
+			_pos_history.erase(_pos_history.keys()[0])
 
 
 ## Immediate look rotation (used by the mouse every render frame for zero latency).
@@ -256,6 +296,8 @@ func apply_look(delta_look: Vector2) -> void:
 func _process(delta: float) -> void:
 	if head == null:
 		return
+	if alive and not has_movement_authority():
+		_interpolate_remote(delta)
 	last_look_delta = _look_accum
 	_look_accum = Vector2.ZERO
 	var w := weapon_manager.get_current_weapon()
@@ -319,7 +361,7 @@ func _move(delta: float) -> void:
 	move_and_slide()
 	horizontal_speed = Vector2(velocity.x, velocity.z).length()
 	_handle_landing()
-	_handle_footsteps(delta)
+	_handle_footsteps(delta, is_on_floor())
 
 
 func _handle_landing() -> void:
@@ -335,8 +377,8 @@ func _handle_landing() -> void:
 	_was_on_floor = on_floor
 
 
-func _handle_footsteps(delta: float) -> void:
-	if not is_on_floor() or horizontal_speed < 1.0:
+func _handle_footsteps(delta: float, on_floor: bool) -> void:
+	if not on_floor or horizontal_speed < 1.0:
 		_step_distance = 0.0
 		return
 	_step_distance += horizontal_speed * delta
@@ -389,3 +431,122 @@ func set_controls_enabled(enabled: bool) -> void:
 		input.clear_all()
 		is_sprinting = false
 		is_aiming = false
+
+
+# ----------------------------------------------------------------------------- networking
+
+## Server: store the latest input packet of the owning client.
+func set_remote_input(seq: int, move: Vector2, yaw: float, pitch: float, held: int) -> void:
+	if not (is_finite(move.x) and is_finite(move.y) and is_finite(yaw) and is_finite(pitch)):
+		return
+	_remote_move = move.limit_length(1.0)
+	_remote_yaw = yaw
+	_remote_pitch = clampf(pitch, -PlayerCamera.PITCH_LIMIT, PlayerCamera.PITCH_LIMIT)
+	_remote_held = held
+	_remote_last_msec = Time.get_ticks_msec()
+	_remote_has_input = true
+	remote_input_seq = seq
+
+
+func add_remote_actions(actions: int) -> void:
+	_remote_actions |= actions
+
+
+func _apply_remote_input() -> void:
+	if not _remote_has_input:
+		return
+	var stale := Time.get_ticks_msec() - _remote_last_msec > 300
+	input.move = Vector2.ZERO if stale else _remote_move
+	var held := 0 if stale else _remote_held
+	input.sprint = held & NetworkManager.HELD_SPRINT != 0
+	input.crouch = held & NetworkManager.HELD_CROUCH != 0
+	input.aim = held & NetworkManager.HELD_AIM != 0
+	input.fire_held = held & NetworkManager.HELD_FIRE != 0
+	rotation.y = _remote_yaw
+	head.set_pitch(_remote_pitch)
+	var a := _remote_actions
+	_remote_actions = 0
+	if a & NetworkManager.ACT_FIRE:
+		input.fire_pressed = true
+	if a & NetworkManager.ACT_JUMP:
+		input.jump_pressed = true
+	if a & NetworkManager.ACT_RELOAD:
+		input.reload_pressed = true
+	if a & NetworkManager.ACT_GRENADE:
+		input.grenade_pressed = true
+	if a & NetworkManager.ACT_SWITCH:
+		input.switch_pressed = true
+	if a & NetworkManager.ACT_PRIMARY:
+		input.select_primary = true
+	if a & NetworkManager.ACT_SECONDARY:
+		input.select_secondary = true
+
+
+## Client: a snapshot of another player (or a bot) arrived.
+func push_snapshot(pos: Vector3, yaw: float, pitch: float, vel: Vector3, flags: int, weapon_index: int) -> void:
+	_net_pos = pos
+	_net_vel = vel
+	_net_yaw = yaw
+	_net_pitch = pitch
+	_net_on_floor = flags & NetworkManager.SNAP_ON_FLOOR != 0
+	_net_time = Time.get_ticks_msec() / 1000.0
+	is_sprinting = flags & NetworkManager.SNAP_SPRINT != 0
+	is_aiming = flags & NetworkManager.SNAP_AIM != 0
+	var crouch := flags & NetworkManager.SNAP_CROUCH != 0
+	if crouch != is_crouching:
+		is_crouching = crouch
+		_set_height(CROUCH_HEIGHT if crouch else STAND_HEIGHT)
+	weapon_manager.set_remote_weapon_index(weapon_index)
+	if not _net_has:
+		_net_has = true
+		global_position = pos
+		rotation.y = yaw
+
+
+func _interpolate_remote(delta: float) -> void:
+	if not _net_has:
+		return
+	var age := clampf(Time.get_ticks_msec() / 1000.0 - _net_time, 0.0, 0.12)
+	var target := _net_pos + _net_vel * age
+	if global_position.distance_to(target) > 4.0:
+		global_position = target
+	else:
+		var f := 1.0 - exp(-14.0 * delta)
+		global_position = global_position.lerp(target, f)
+	rotation.y = lerp_angle(rotation.y, _net_yaw, 1.0 - exp(-16.0 * delta))
+	head.set_pitch(lerpf(head.pitch, _net_pitch, 1.0 - exp(-16.0 * delta)))
+	horizontal_speed = Vector2(_net_vel.x, _net_vel.z).length()
+	_handle_footsteps(delta, _net_on_floor)
+
+
+## Client: the server's position of the local player; correct prediction errors.
+func reconcile_with_server(seq: int, server_pos: Vector3, server_vel: Vector3) -> void:
+	if not alive or not _pos_history.has(seq):
+		return
+	var err: Vector3 = server_pos - _pos_history[seq]
+	var d := err.length()
+	if d > 3.0:
+		global_position += err
+		velocity = server_vel
+		_pos_history.clear()
+	elif d > 0.25:
+		global_position += err * 0.25
+
+
+## Client: health/ammo values owned by the server (10 Hz).
+func apply_owner_state(new_health: float, magazine: int, reserve: int, grenades: int, weapon_index: int) -> void:
+	if not alive:
+		return
+	health.set_remote_health(new_health)
+	weapon_manager.apply_server_ammo(weapon_index, magazine, reserve, grenades)
+
+
+## Client: the server says we took damage (feedback only, health comes from the server).
+func remote_damage_feedback(amount: float, source_position: Vector3, new_health: float) -> void:
+	if not alive:
+		return
+	health.set_remote_health(new_health)
+	GameEvents.local_player_damaged.emit(amount, source_position)
+	head.add_shake(0.35)
+	AudioManager.play_2d("hurt", -6.0, 0.1)
+

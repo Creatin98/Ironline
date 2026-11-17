@@ -5,10 +5,9 @@
 * **Menschen und Bots teilen denselben Code.** `Player` (CharacterBody3D) liest jeden Physik-Tick
   einen `PlayerInputState`. `HumanController` füllt ihn aus Tastatur/Maus, `BotController` aus der KI.
   Bewegung, Waffen, Granaten, Schaden und Tod kennen keinen Unterschied.
-* **Serverautoritativ vorbereitet.** Alle Schadens-, Kill- und Punkteentscheidungen laufen nur, wenn
-  `MatchManager.is_authority()` wahr ist (offline immer). In Phase 6 werden die Aufrufe
-  `take_damage`, `report_kill`, `respawn_at` zu RPCs; die Zustandsobjekte (`Participant`,
-  `MatchConfig`, `MatchManager.to_dict()`) sind bereits serialisierbar.
+* **Serverautoritativ.** Schaden, Kills, Punkte, Respawns und Matchzustand entscheiden nur auf der Autorität
+  (`MatchManager.is_authority()`: offline immer, online der Host). Clients simulieren nur ihren eigenen Spieler
+  (Prediction) und stellen alles andere aus Server-Nachrichten dar.
 * **Signal-Bus statt Querverweise.** `GameEvents` (Autoload) trägt alle Ereignisse; HUD, Audio und
   Spielfluss hängen sich dort ein. Kein UI-Skript kennt den Spieler direkt.
 * **Daten als Ressourcen.** Waffen (`WeaponData`) und Klassen (`ClassData`) sind `.tres`-Dateien;
@@ -21,8 +20,43 @@
 | `GameSettings` | scripts/systems/game_settings.gd | Einstellungen laden/speichern/anwenden (`user://settings.cfg`) |
 | `GameEvents` | scripts/systems/game_events.gd | Signal-Bus |
 | `AudioManager` | scripts/systems/audio_manager.gd | Gepoolte 2D/3D-Soundplayer, Busse Master/Music/SFX/UI |
-| `MatchManager` | scripts/systems/match_manager.gd | Roster, Punkte, Timer, Modusregeln, Matchzustand |
+| `NetworkManager` | scripts/systems/network_manager.gd | ENet-Host/-Client, Lobby, alle RPCs, Snapshots |
+| `MatchManager` | scripts/systems/match_manager.gd | Roster, Punkte, Timer, Modusregeln, Matchzustand (Server schreibt, Clients übernehmen per `apply_*`) |
 | `GameDirector` | scripts/systems/game_director.gd | Szenenwechsel, Map-/Klassenregistry, Bot-Namen |
+
+## Netzwerk (Phase 6)
+
+**Topologie.** Host = Server und Mitspieler (Listen-Server), ENet/UDP, bis 12 Peers. Der Host simuliert alle Menschen
+(aus empfangenem Input), alle Bots und die Granaten. Protokollversion `PROTOCOL_VERSION` wird beim Beitritt geprüft.
+
+**Ablauf.** `host()`/`join()` → Client sendet `_rpc_register` (Name, Team, Klasse) → Host verteilt den Lobbyzustand
+(`_rpc_lobby_state`, Peers + `MatchConfig`) → Host startet: `_rpc_begin_match` → alle laden `game.tscn` und melden
+`_rpc_client_loaded` → Host baut Roster, sendet `_rpc_full_state`, startet Warmup und sendet pro Spawn `_rpc_spawn`.
+Wer nicht in 12 s lädt, wird nicht abgewartet und beim späten Laden nachgezogen. Während eines Matches werden keine
+neuen Verbindungen angenommen.
+
+| Richtung | Nachricht | Kanal | Inhalt |
+|---|---|---|---|
+| Client → Server | `_rpc_input` | 1, unreliable ordered | Sequenz, Bewegung, Yaw, Pitch, gehaltene Tasten (60 Hz) |
+| Client → Server | `_rpc_input_action` | 0, reliable | Einmal-Aktionen (Schuss, Sprung, Nachladen, Granate, Waffenwechsel) |
+| Server → Clients | `_rpc_snapshot` | 1, unreliable ordered | Position, Yaw, Pitch, Geschwindigkeit, Flags, Waffe, letzte verarbeitete Input-Sequenz (20 Hz) |
+| Server → Besitzer | `_rpc_owner_state` | 1 | Lebenspunkte, Munition, Granaten (10 Hz) |
+| Server → Clients | Kill, Matchende, Spawn, Zustand, Schuss, Treffer-/Schadensfeedback, Granaten | 0, reliable | Ereignisse |
+
+**Clientseitige Vorhersage.** Der lokale Spieler läuft wie offline (kein Eingabe-Lag). Pro Tick wird die Position unter der
+Input-Sequenz gemerkt; der Snapshot nennt die zuletzt verarbeitete Sequenz. Abweichung > 0.25 m: weiche Korrektur (25 %),
+> 3 m: hartes Setzen (Teleport, Respawn). Fremde Spieler und Bots werden zur Snapshot-Position interpoliert (mit
+Extrapolation um höchstens 0.12 s). Schüsse sagt der Client vorher (Mündungsfeuer, Ton, Rückstoß, Einschläge), Schaden
+entsteht nur auf dem Server: dieser führt den Hitscan mit dem übertragenen Blickwinkel des Schützen aus und schickt
+Treffermarker und Schadensanzeige zurück. Die übrigen Clients erhalten Schuss und Einschläge per `_rpc_shot`.
+
+**Granaten.** Nur der Server erzeugt die echte Granate (Zünder, Schaden). Clients bekommen eine Sichtkopie
+(`visual_only`), die fliegt und abprallt und auf Server-Befehl explodiert (Rückfall nach 1.5 s zusätzlich).
+
+**Bekannte Grenzen.** Keine Lag-Kompensation (Treffer zählen gegen die Serverpositionen zum Zeitpunkt des Schusses; bei
+üblichen Pings von unter 80 ms fühlt es sich arcadig-direkt an). Der Rückstoß wird auf Server und Client getrennt
+gewürfelt, daher können einzelne Streuschüsse abweichen. Kein Host-Wechsel: verlässt der Host, endet das Match für alle.
+Kein NAT-Durchbruch; Internetspiel braucht Port-Weiterleitung.
 
 ## Szenenfluss
 

@@ -30,6 +30,7 @@ buses/default_bus_layout="res://resources/settings/default_bus_layout.tres"
 GameSettings="*res://scripts/systems/game_settings.gd"
 GameEvents="*res://scripts/systems/game_events.gd"
 AudioManager="*res://scripts/systems/audio_manager.gd"
+NetworkManager="*res://scripts/systems/network_manager.gd"
 MatchManager="*res://scripts/systems/match_manager.gd"
 GameDirector="*res://scripts/systems/game_director.gd"
 

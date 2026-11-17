@@ -80,7 +80,10 @@ func start_match(config: MatchConfig) -> void:
 	get_tree().change_scene_to_file(GAME_SCENE)
 
 
-func return_to_main_menu() -> void:
+## keep_lobby: stay connected (host/clients returning to the online lobby).
+func return_to_main_menu(keep_lobby: bool = false) -> void:
+	if not keep_lobby:
+		NetworkManager.leave()
 	get_tree().paused = false
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	get_tree().change_scene_to_file(MAIN_MENU_SCENE)

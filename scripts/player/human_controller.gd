@@ -9,6 +9,8 @@ const BASE_SENSITIVITY := 0.0022
 
 var player: Player
 var enabled: bool = false
+## Tests drive the input state themselves; the controller then only forwards it.
+var scripted: bool = false
 
 var _pending_actions: int = 0
 
@@ -69,6 +71,9 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func _physics_process(_delta: float) -> void:
 	if not enabled or player == null:
+		return
+	if scripted:
+		send_to_server()
 		return
 	var inp := player.input
 	if Input.mouse_mode == Input.MOUSE_MODE_CAPTURED and player.controls_enabled:

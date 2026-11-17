@@ -30,7 +30,7 @@ func _ready() -> void:
 	var settings := UITheme.button("Einstellungen", 22, 320)
 	settings.pressed.connect(_open_settings)
 	main_box.add_child(settings)
-	var leave := UITheme.button("Match verlassen", 22, 320)
+	var leave := UITheme.button("Match verlassen" if not NetworkManager.is_online() else "Online-Match verlassen", 22, 320)
 	leave.pressed.connect(func() -> void: leave_requested.emit())
 	main_box.add_child(leave)
 	settings_panel = SettingsPanel.new()

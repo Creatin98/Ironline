@@ -3,7 +3,7 @@
 Schneller First-Person-Arena-Shooter im Stil der klassischen Konsolen-Multiplayer-Ära:
 drei Klassen, drei Drei-Wege-Maps, Team Deathmatch und Free for All, Bots und Online-Multiplayer.
 
-## Aktueller Stand (Phase 1–5 abgeschlossen)
+## Aktueller Stand (Phase 1–6 abgeschlossen)
 
 | Phase | Inhalt | Status |
 |---|---|---|
@@ -12,8 +12,8 @@ drei Klassen, drei Drei-Wege-Maps, Team Deathmatch und Free for All, Bots und On
 | 3 | Team Deathmatch, Free for All, Respawn, Killlimit, Scoreboard, HUD | fertig |
 | 4 | Maps Harbor, Frontier, Suburb, Bot-Navigation | fertig |
 | 5 | Bot-KI | fertig |
-| 6 | Online-Multiplayer | offen (Architektur ist serverautoritativ vorbereitet) |
-| 7 | Lobby, Map-Voting, Menü-Polish | offen (Quick-Play-Menü vorhanden) |
+| 6 | Online-Multiplayer (ENet, Host spielt mit, serverautoritativ) | fertig |
+| 7 | Map-Voting, Lobby-/Menü-Polish | offen (einfache Lobby vorhanden) |
 | 8 | Polish | offen |
 | 9 | Windows-Build, Tests | offen |
 
@@ -22,10 +22,28 @@ drei Klassen, drei Drei-Wege-Maps, Team Deathmatch und Free for All, Bots und On
 1. [Godot 4.4 oder neuer](https://godotengine.org/download) installieren (Standard-Build, kein .NET nötig).
 2. Godot starten, „Importieren“ → diesen Ordner (`project.godot`) auswählen.
 3. Beim ersten Öffnen importiert Godot Texturen und Sounds (ca. 10 Sekunden).
-4. F5 (Projekt starten) → Hauptmenü → **Multiplayer** → Modus, Klasse, Bots wählen → **Match starten**.
+4. F5 (Projekt starten) → Hauptmenü:
+   * **Training (Offline)**: Modus, Klasse, Bots wählen → **Match starten**.
+   * **Online**: siehe „Online spielen“.
 
 Steuerung: WASD bewegen, Maus zielen, Shift sprinten, Strg/C ducken, Leertaste springen,
 LMT schießen, RMT zielen (ADS), R nachladen, Q / 1 / 2 Waffe wechseln, G Granate, Tab Scoreboard, Esc Pause.
+
+## Online spielen
+
+Ein Spieler ist Host (Server und Mitspieler zugleich), die anderen treten bei.
+
+1. Host: **Online** → Port prüfen (Standard 7777) → **Hosten**. Die Lobby zeigt die IP-Adressen des Rechners.
+2. Mitspieler: **Online** → IP-Adresse des Hosts und Port eintragen → **Beitreten**.
+3. Jeder wählt in der Lobby Team (nur Team Deathmatch) und Klasse. Der Host stellt Modus, Map und Bots ein und startet das Match.
+4. Nach dem Match entscheidet der Host: **Nächste Runde** oder **Zur Lobby**.
+
+Im selben WLAN/LAN genügt die lokale IP des Hosts (z. B. `192.168.x.x`). Über das Internet muss der Host
+den **UDP**-Port am Router an seinen Rechner weiterleiten (Port-Forwarding) und die öffentliche IP weitergeben;
+eventuell muss die Windows-Firewall Godot für private/öffentliche Netzwerke erlauben. Bis zu 12 Spieler (TDM) bzw. 8 (FFA),
+freie Plätze füllen Bots (serverseitig).
+
+Zum Testen auf einem Rechner: zwei Spiel-Instanzen starten, eine hostet, die andere tritt mit `127.0.0.1` bei.
 
 ## Prüfen
 
@@ -45,6 +63,13 @@ godot --headless --path . --import --quit
 
 ```bash
 godot --headless --path . tests/smoke_test.tscn
+```
+
+Netzwerktest (startet Host und Client als zwei Godot-Prozesse auf localhost und prüft Lobby, Matchstart,
+Bewegung, Serverkorrektur, Treffer, Kill/Respawn, Granaten und Host-Abschied; ca. 40 s):
+
+```bash
+py -3 tools/run_net_test.py "C:\Pfad\zu\godot.exe"
 ```
 
 Der Import-Schritt ist nur nötig, wenn das Projekt noch nie im Editor geöffnet wurde oder neue

@@ -170,7 +170,7 @@ func _process(delta: float) -> void:
 			connection_failed.emit("Keine Antwort vom Host (Zeitüberschreitung).")
 	if _waiting_for_load:
 		_load_timer -= delta
-		if _load_timer <= 0.0:
+		if _load_timer <= 0.0 and game != null:
 			_finish_load_wait()
 
 
@@ -237,7 +237,7 @@ func _on_server_disconnected() -> void:
 	_reset()
 	disconnected.emit(reason)
 	if was_in_match:
-		GameDirector.return_to_main_menu()
+		GameDirector.return_to_main_menu(true)
 
 
 func _disconnect_peer_later(id: int) -> void:
@@ -345,7 +345,7 @@ func host_start_match(cfg: MatchConfig) -> void:
 	lobby_config = cfg.duplicate_config()
 	in_match = true
 	multiplayer.multiplayer_peer.refuse_new_connections = true
-	_loaded_peers = {1: true}
+	_loaded_peers = {}
 	_waiting_for_load = true
 	_load_timer = LOAD_TIMEOUT
 	_grenades = {}
@@ -403,10 +403,22 @@ func _rpc_client_loaded() -> void:
 		return
 	var id := multiplayer.get_remote_sender_id()
 	_loaded_peers[id] = true
-	if game != null and game.has_method("build_full_state"):
-		_rpc_full_state.rpc_id(id, game.build_full_state())
-	if _waiting_for_load and _all_loaded():
-		_finish_load_wait()
+	if _waiting_for_load:
+		if _all_loaded():
+			_finish_load_wait()
+	elif in_match and game != null:
+		# late loader (the host did not wait for it): catch it up right now
+		_rpc_full_state.rpc_id(id, MatchManager.to_dict())
+		for p in MatchManager.participants.values():
+			if p.alive and p.node != null and is_instance_valid(p.node):
+				var pl := p.node as Player
+				_rpc_spawn.rpc_id(id, p.id, pl.global_position, pl.rotation.y)
+
+
+## Host: complete roster/score/timer state to everybody (right before the warmup).
+func broadcast_full_state() -> void:
+	if mode == Mode.HOST and multiplayer.get_peers().size() > 0:
+		_rpc_full_state.rpc(MatchManager.to_dict())
 
 
 @rpc("authority", "call_remote", "reliable")
@@ -414,8 +426,6 @@ func _rpc_full_state(state: Dictionary) -> void:
 	if mode != Mode.CLIENT:
 		return
 	MatchManager.apply_full_state(state)
-	if game != null and game.has_method("apply_full_state"):
-		game.apply_full_state(state)
 
 
 # ----------------------------------------------------------------------------- server -> clients: match flow
@@ -449,7 +459,7 @@ func broadcast_time(time_left: float) -> void:
 		_rpc_time.rpc(time_left)
 
 
-@rpc("authority", "call_remote", "unreliable")
+@rpc("authority", "call_remote", "reliable")
 func _rpc_time(time_left: float) -> void:
 	if mode != Mode.CLIENT:
 		return
@@ -500,7 +510,7 @@ func host_return_to_lobby() -> void:
 	multiplayer.multiplayer_peer.refuse_new_connections = false
 	if multiplayer.get_peers().size() > 0:
 		_rpc_return_to_lobby.rpc()
-	GameDirector.return_to_main_menu()
+	GameDirector.return_to_main_menu(true)
 
 
 @rpc("authority", "call_remote", "reliable")
@@ -508,7 +518,7 @@ func _rpc_return_to_lobby() -> void:
 	if mode != Mode.CLIENT:
 		return
 	in_match = false
-	GameDirector.return_to_main_menu()
+	GameDirector.return_to_main_menu(true)
 
 
 # ----------------------------------------------------------------------------- client -> server: input
@@ -527,7 +537,7 @@ func send_input(move: Vector2, yaw: float, pitch: float, held: int, actions: int
 	return _input_seq
 
 
-@rpc("any_peer", "call_remote", "unreliable_ordered")
+@rpc("any_peer", "call_remote", "unreliable_ordered", 1)
 func _rpc_input(seq: int, move: Vector2, yaw: float, pitch: float, held: int) -> void:
 	if mode != Mode.HOST:
 		return
@@ -576,7 +586,7 @@ func _send_snapshot() -> void:
 		_rpc_snapshot.rpc(data)
 
 
-@rpc("authority", "call_remote", "unreliable_ordered")
+@rpc("authority", "call_remote", "unreliable_ordered", 1)
 func _rpc_snapshot(data: Array) -> void:
 	if mode != Mode.CLIENT:
 		return
@@ -608,7 +618,7 @@ func _send_owner_states() -> void:
 		_rpc_owner_state.rpc_id(id, pl.health.health, mag, reserve, pl.weapon_manager.grenades, pl.weapon_manager.current_index)
 
 
-@rpc("authority", "call_remote", "unreliable_ordered")
+@rpc("authority", "call_remote", "unreliable_ordered", 1)
 func _rpc_owner_state(health: float, magazine: int, reserve: int, grenades: int, weapon_index: int) -> void:
 	if mode != Mode.CLIENT:
 		return
@@ -656,7 +666,7 @@ func broadcast_shot(shooter_id: int, impacts: Array) -> void:
 			_rpc_shot.rpc_id(id, shooter_id, impacts)
 
 
-@rpc("authority", "call_remote", "unreliable")
+@rpc("authority", "call_remote", "reliable")
 func _rpc_shot(shooter_id: int, impacts: Array) -> void:
 	if mode != Mode.CLIENT:
 		return

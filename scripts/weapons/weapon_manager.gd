@@ -169,6 +169,8 @@ func begin_switch(index: int) -> void:
 	_pending_index = index
 	_switch_state = SwitchState.LOWERING
 	_switch_timer = LOWER_TIME
+	if NetworkManager.is_host():
+		NetworkManager.broadcast_weapon_event(player.participant_id, "switch")
 	if is_local:
 		AudioManager.play_2d("weapon_switch", -6.0)
 	else:
@@ -194,6 +196,8 @@ func _begin_grenade() -> void:
 	_grenade_timer = GRENADE_TOTAL_TIME
 	_grenade_thrown = false
 	get_current_weapon().cancel_actions()
+	if NetworkManager.is_host():
+		NetworkManager.broadcast_weapon_event(player.participant_id, "grenade")
 	if is_local:
 		AudioManager.play_2d("grenade_pin", -8.0)
 		GameEvents.local_grenades_changed.emit(grenades)
@@ -209,6 +213,10 @@ func _update_grenade(delta: float) -> void:
 
 
 func _spawn_grenade() -> void:
+	if NetworkManager.is_client():
+		# the server spawns the real grenade and sends it to everybody
+		AudioManager.play_2d("grenade_throw", -4.0)
+		return
 	var container := get_tree().get_first_node_in_group("projectiles_container")
 	if container == null:
 		container = get_tree().current_scene
@@ -219,7 +227,9 @@ func _spawn_grenade() -> void:
 	grenade.thrower_team = player.team
 	container.add_child(grenade)
 	grenade.global_position = origin + dir * 0.6 + Vector3(0.0, -0.1, 0.0)
-	grenade.launch(dir * GRENADE_SPEED + Vector3(0.0, 2.5, 0.0) + player.velocity * 0.5)
+	var launch_velocity := dir * GRENADE_SPEED + Vector3(0.0, 2.5, 0.0) + player.velocity * 0.5
+	grenade.launch(launch_velocity)
+	NetworkManager.register_grenade(grenade, player.participant_id, player.team, grenade.global_position, launch_velocity)
 	if is_local:
 		AudioManager.play_2d("grenade_throw", -4.0)
 	else:
@@ -272,6 +282,48 @@ func _process(delta: float) -> void:
 
 	holder.position = holder.position.lerp(pos, minf(1.0, delta * 18.0))
 	holder.rotation = holder.rotation.lerp(rot, minf(1.0, delta * 18.0))
+
+
+# ----------------------------------------------------------------------------- network (client side)
+
+## Remote players: show the weapon the server says they hold.
+func set_remote_weapon_index(index: int) -> void:
+	if index < 0 or index >= weapons.size() or index == current_index:
+		return
+	get_current_weapon().cancel_actions()
+	current_index = index
+	_show_weapon(current_index, true)
+
+
+func play_remote_shot(impacts: Array) -> void:
+	var w := get_current_weapon()
+	if w:
+		w.play_remote_shot(impacts)
+
+
+func play_remote_event(event: String) -> void:
+	var pos := player.global_position + Vector3.UP
+	match event:
+		"reload":
+			var w := get_current_weapon()
+			if w and w.data.reload_sounds.size() > 0:
+				AudioManager.play_3d(w.data.reload_sounds[0], pos, -10.0, 0.05, 25.0)
+		"switch":
+			AudioManager.play_3d("weapon_switch", pos, -10.0)
+		"grenade":
+			AudioManager.play_3d("grenade_pin", pos, -10.0, 0.05, 25.0)
+
+
+## Local client: take the server's ammo values when we are not in the middle of an action.
+func apply_server_ammo(weapon_index: int, magazine: int, reserve: int, new_grenades: int) -> void:
+	var w := get_current_weapon()
+	if w and weapon_index == current_index and w.state == Weapon.State.IDLE and Time.get_ticks_msec() - w.last_fire_msec > 500:
+		w.magazine = magazine
+		w.reserve = reserve
+	if _grenade_timer <= 0.0 and new_grenades != grenades:
+		grenades = new_grenades
+		if is_local:
+			GameEvents.local_grenades_changed.emit(grenades)
 
 
 func apply_kick(amount: float) -> void:

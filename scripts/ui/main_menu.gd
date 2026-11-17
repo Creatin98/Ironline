@@ -1,9 +1,10 @@
 extends Control
-## Main menu: Multiplayer (quick play until the lobby arrives in phase 7),
+## Main menu: Online (host/join lobby), Training (offline vs. bots),
 ## Klassen (overview), Einstellungen, Spiel verlassen.
 
 var _root: VBoxContainer
 var _quick_panel: PanelContainer
+var _lobby_panel: LobbyPanel
 var _classes_panel: PanelContainer
 var _settings: SettingsPanel
 var _mode_opt: OptionButton
@@ -48,15 +49,22 @@ func _build() -> void:
 	_root.add_child(UITheme.label("IRONLINE", 72, UITheme.ACCENT))
 	_root.add_child(UITheme.label("Arcade Multiplayer FPS", 22, UITheme.TEXT_DIM))
 	_root.add_child(UITheme.spacer(40))
-	_menu_button("Multiplayer", _show_quick_play)
+	_menu_button("Online", _show_lobby)
+	_menu_button("Training (Offline)", _show_quick_play)
 	_menu_button("Klassen", _show_classes)
 	_menu_button("Einstellungen", _show_settings)
 	_menu_button("Spiel verlassen", GameDirector.quit_game)
 	_root.add_child(UITheme.spacer(40))
-	_root.add_child(UITheme.label("Entwicklungsstand: Gunplay, Spielmodi, drei Maps, Bots\nOnline-Lobby folgt (Phase 6/7)", 14, UITheme.TEXT_DIM))
+	_root.add_child(UITheme.label("Online-Multiplayer über Lobby (Host + Beitreten)\nTraining: lokales Match gegen Bots", 14, UITheme.TEXT_DIM))
 
 	_build_quick_play()
 	_build_classes()
+	_lobby_panel = LobbyPanel.new()
+	_lobby_panel.visible = false
+	_lobby_panel.closed.connect(func() -> void: _lobby_panel.visible = false)
+	add_child(_lobby_panel)
+	if NetworkManager.is_online() or NetworkManager.pending_message != "":
+		_lobby_panel.open()
 	_settings = SettingsPanel.new()
 	_settings.visible = false
 	_settings.closed.connect(func() -> void: _settings.visible = false)
@@ -73,7 +81,13 @@ func _menu_button(text: String, callback: Callable) -> void:
 func _hide_panels() -> void:
 	_quick_panel.visible = false
 	_classes_panel.visible = false
+	_lobby_panel.visible = false
 	_settings.visible = false
+
+
+func _show_lobby() -> void:
+	_hide_panels()
+	_lobby_panel.open()
 
 
 # ----------------------------------------------------------------------------- quick play
@@ -88,7 +102,7 @@ func _build_quick_play() -> void:
 	var v := UITheme.vbox(12)
 	_quick_panel.add_child(v)
 	v.add_child(UITheme.label("MATCH ERSTELLEN", 32, UITheme.ACCENT))
-	v.add_child(UITheme.label("Lokales Match gegen Bots. Online-Lobby folgt in Phase 6/7.", 16, UITheme.TEXT_DIM))
+	v.add_child(UITheme.label("Lokales Match gegen Bots (offline). Für Mehrspieler: Menüpunkt „Online“.", 16, UITheme.TEXT_DIM))
 	v.add_child(UITheme.spacer(8))
 	var grid := GridContainer.new()
 	grid.columns = 2
