@@ -234,7 +234,11 @@ func _game_ui(state: String) -> void:
 		"killcam":
 			for i in 30:
 				await get_tree().physics_frame
-			local.take_damage(9999.0, bot.id, "ak47", local.get_center(), false, bot_node.global_position)
+			for other in MatchManager.participants.values():
+				if other.is_bot and other != bot and me.is_enemy_of(other):
+					local.take_damage(60.0, other.id, "mp5", local.get_center(), false, bot_node.global_position) # an assist
+					break
+			local.take_damage(9999.0, bot.id, "ak47", local.get_center(), true, bot_node.global_position)
 			for i in 20:
 				await get_tree().physics_frame
 			var rec: ReplayRecorder = game.recorder
@@ -242,6 +246,25 @@ func _game_ui(state: String) -> void:
 			rec._prev_cursor = rec._cursor
 			rec._apply(rec._cursor, false)
 			get_tree().paused = true # software rendering is slow: freeze the moment
+		"outro":
+			bot_node.health.max_health = 100000.0 # survives the shots until the explicit kill
+			bot_node.health.health = 100000.0
+			local.input.fire_held = true
+			for i in 150:
+				await get_tree().physics_frame
+			bot_node.health.health = 10.0
+			bot_node.take_damage(9999.0, me.id, "ak47", bot_node.get_center(), true, local.global_position)
+			for i in 5:
+				await get_tree().physics_frame
+			local.input.fire_held = false
+			MatchManager.end_match()
+			game.recorder.skip()
+			get_tree().paused = true
+			game._outro_orbit = true
+			game._update_outro(0.0)
+			game._results_shown = true # keep the scoreboard out of this frame
+			for i in 3:
+				await get_tree().process_frame
 		"lastkill":
 			bot_node.health.max_health = 100000.0 # survives the shots until the explicit kill
 			bot_node.health.health = 100000.0
@@ -258,7 +281,7 @@ func _game_ui(state: String) -> void:
 			# jump the replay to just after the kill and pose everything once
 			var rec: ReplayRecorder = game.recorder
 			rec._cursor = float(rec.kill["t"]) + 0.35
-			rec._last_index = rec._index_at(rec._cursor - 0.05)
+			rec._prev_cursor = rec._cursor - 0.05
 			rec._apply(rec._cursor, false)
 			for i in 4:
 				await get_tree().process_frame

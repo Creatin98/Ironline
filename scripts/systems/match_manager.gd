@@ -17,6 +17,8 @@ var time_left: float = 0.0
 var warmup_left: float = 0.0
 var local_participant_id: int = 1
 var winner: Dictionary = {"team": Teams.Team.NONE, "participant_id": 0}
+## victim id -> ids of the assisting players of that victim's latest death (read by the replay/killcam info)
+var kill_assists: Dictionary = {}
 
 var _next_bot_id: int = Participant.BOT_ID_START
 var _last_whole_second: int = -1
@@ -222,6 +224,7 @@ func report_kill(victim_id: int, killer_id: int, weapon_id: String, headshot: bo
 			paid_assists.append(int(aid))
 			if int(aid) == local_participant_id:
 				GameEvents.local_player_scored.emit(mode.on_assist(assistant, victim), "Assist")
+	kill_assists[victim_id] = paid_assists
 	GameEvents.participant_killed.emit(victim_id, killer_id, weapon_id, headshot)
 	GameEvents.scores_changed.emit()
 	NetworkManager.broadcast_kill(victim_id, killer_id, weapon_id, headshot, points, stats_dict(), paid_assists)
@@ -386,6 +389,7 @@ func apply_remote_time(new_time_left: float) -> void:
 
 func apply_remote_kill(victim_id: int, killer_id: int, weapon_id: String, headshot: bool, points: int, stats: Dictionary, assist_ids: Array = []) -> void:
 	_apply_stats(stats)
+	kill_assists[victim_id] = assist_ids
 	if assist_ids.has(local_participant_id):
 		GameEvents.local_player_scored.emit(GameModeBase.POINTS_ASSIST, "Assist")
 	if killer_id == local_participant_id and victim_id != killer_id and points > 0:

@@ -280,6 +280,8 @@ func _simulate_cams() -> void:
 		_fail("Killcam-Kamera ist nicht aktiv")
 	if not game.recorder.playing or not game.recorder.ghost_mode:
 		_fail("Die Killcam spielt keinen Replay (Geister-Spieler) ab")
+	if game._cam_name.text != bot.display_name:
+		_fail("Killcam zeigt den Namen des Moerders nicht (%s statt %s)" % [game._cam_name.text, bot.display_name])
 	if game.players_container.visible:
 		_fail("Echte Spieler muessen waehrend der Killcam ausgeblendet sein")
 	var real_players := get_tree().get_nodes_in_group("players").size()
@@ -316,10 +318,26 @@ func _simulate_cams() -> void:
 		_fail("Endbildschirm erschien schon waehrend des Replays")
 	for i in 20:
 		await get_tree().physics_frame
+	if game._cam_name.text == "":
+		_fail("Die Last-Kill-Cam zeigt den Namen des Schuetzen nicht")
+	# slow motion: jump to just before the kill, the time scale must drop and be restored afterwards
+	game.recorder._cursor = float(game.recorder.kill["t"]) - 0.2
+	for i in 40:
+		await get_tree().physics_frame
+	if not game.recorder.is_slow_motion():
+		_fail("Zeitlupe startete im Last-Kill-Replay nicht (Zeitskala %.2f)" % Engine.time_scale)
 	game.recorder.skip()
+	if Engine.time_scale != 1.0 or AudioServer.playback_speed_scale != 1.0:
+		_fail("Zeitskala wurde nach dem Replay nicht zurueckgesetzt (%.2f)" % Engine.time_scale)
 	await get_tree().process_frame
-	if not game.match_end.visible or game._replay_active:
-		_fail("Endbildschirm erschien nach dem Replay nicht")
+	if game._replay_active or not game._outro_active:
+		_fail("Nach dem Replay startete der Abspann (Kamera ueber die Map) nicht")
+	var outro_waited := 0.0
+	while not game.match_end.visible and outro_waited < 4.0:
+		await get_tree().process_frame
+		outro_waited += get_process_delta_time()
+	if not game.match_end.visible:
+		_fail("Endbildschirm erschien nach dem Abspann nicht")
 	print("Killcams: Killcam, Ueberspringen, Last-Kill-Replay OK")
 	GameSettings.killcams = false
 	game.free()

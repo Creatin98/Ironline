@@ -12,6 +12,8 @@ const BotControllerScript := preload("res://scripts/bots/bot_controller.gd")
 const HUMAN_RESPAWN_DELAY := 6.0
 const KILLCAM_SECONDS_BEFORE := 5.0 # how much of the killer's view leads up to our death
 const KILLCAM_SECONDS_AFTER := 0.9
+const OUTRO_TIME := 3.2 # the camera leaves the last-kill scene and rises over the map
+const OUTRO_RESULTS_DELAY := 1.6 # the scoreboard fades in while the camera is still moving
 const KILLCAM_SKIP_AFTER := 1.5
 
 @onready var map_container: Node3D = $MapContainer
@@ -38,6 +40,16 @@ var _cam_ui: Control
 var _cam_title: Label
 var _cam_sub: Label
 var _cam_hint: Label
+var _cam_name: Label
+var _cam_detail: Label
+var _cam_assist: Label
+var _outro_active: bool = false
+var _outro_orbit: bool = false
+var _outro_center: Vector3 = Vector3.ZERO
+var _outro_dir: Vector3 = Vector3(0.0, 0.8, 0.6)
+var _outro_dist: float = 60.0
+var _outro_angle: float = 0.0
+var _results_shown: bool = false
 
 
 func _ready() -> void:
@@ -137,6 +149,10 @@ func _unhandled_input(event: InputEvent) -> void:
 			recorder.skip()
 			get_viewport().set_input_as_handled()
 			return
+		if _outro_active and not _results_shown:
+			_show_results()
+			get_viewport().set_input_as_handled()
+			return
 		if local_player != null and not local_player.alive and MatchManager.state == MatchManager.State.RUNNING and _dead_elapsed >= KILLCAM_SKIP_AFTER:
 			NetworkManager.request_skip_respawn()
 			get_viewport().set_input_as_handled()
@@ -151,6 +167,7 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func _process(delta: float) -> void:
 	_update_killcam(delta)
+	_update_outro(delta)
 	if not MatchManager.is_authority() or MatchManager.state != MatchManager.State.RUNNING:
 		return
 	var ids := _respawn_queue.keys()
@@ -271,21 +288,74 @@ func _build_cam_overlay() -> void:
 	_cam_ui.visible = false
 	ui_layer.add_child(_cam_ui)
 	_cam_ui.move_to_front()
-	_cam_title = UITheme.label("", 40, UITheme.ACCENT, HORIZONTAL_ALIGNMENT_CENTER)
+	# dark vignette around the picture (killcam / last kill)
+	var shader := Shader.new()
+	shader.code = """shader_type canvas_item;
+uniform float strength = 0.82;
+void fragment() {
+	vec2 p = (UV - 0.5) * vec2(1.0, 0.9);
+	float d = length(p);
+	COLOR = vec4(0.0, 0.0, 0.0, smoothstep(0.26, 0.74, d) * strength);
+}"""
+	var vignette := ColorRect.new()
+	vignette.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	vignette.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	vignette.color = Color.WHITE
+	var mat := ShaderMaterial.new()
+	mat.shader = shader
+	vignette.material = mat
+	_cam_ui.add_child(vignette)
+	_cam_title = UITheme.label("", 34, UITheme.ACCENT, HORIZONTAL_ALIGNMENT_CENTER)
 	_cam_title.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
-	_cam_title.offset_top = 60.0
-	_cam_title.offset_bottom = 110.0
+	_cam_title.offset_top = 50.0
+	_cam_title.offset_bottom = 100.0
 	_cam_ui.add_child(_cam_title)
-	_cam_sub = UITheme.label("", 24, UITheme.TEXT, HORIZONTAL_ALIGNMENT_CENTER)
-	_cam_sub.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
-	_cam_sub.offset_top = 112.0
-	_cam_sub.offset_bottom = 150.0
+	_cam_sub = UITheme.label("", 24, UITheme.TEXT, HORIZONTAL_ALIGNMENT_CENTER) # unused, kept for compatibility
+	_cam_sub.visible = false
 	_cam_ui.add_child(_cam_sub)
+	# bottom block: who killed us (name), with what, and who assisted
+	_cam_name = UITheme.label("", 46, UITheme.TEXT, HORIZONTAL_ALIGNMENT_CENTER)
+	_cam_name.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
+	_cam_name.offset_top = -215.0
+	_cam_name.offset_bottom = -155.0
+	_cam_ui.add_child(_cam_name)
+	_cam_detail = UITheme.label("", 24, UITheme.TEXT_DIM, HORIZONTAL_ALIGNMENT_CENTER)
+	_cam_detail.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
+	_cam_detail.offset_top = -152.0
+	_cam_detail.offset_bottom = -118.0
+	_cam_ui.add_child(_cam_detail)
+	_cam_assist = UITheme.label("", 22, Color(0.5, 0.78, 1.0), HORIZONTAL_ALIGNMENT_CENTER)
+	_cam_assist.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
+	_cam_assist.offset_top = -116.0
+	_cam_assist.offset_bottom = -84.0
+	_cam_ui.add_child(_cam_assist)
 	_cam_hint = UITheme.label("", 20, UITheme.TEXT_DIM, HORIZONTAL_ALIGNMENT_CENTER)
 	_cam_hint.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
-	_cam_hint.offset_top = -120.0
-	_cam_hint.offset_bottom = -80.0
+	_cam_hint.offset_top = -64.0
+	_cam_hint.offset_bottom = -30.0
 	_cam_ui.add_child(_cam_hint)
+
+
+## Fills the bottom block: killer name (team colour), weapon + headshot, assists.
+func _fill_cam_info(kill: Dictionary, show_victim: bool) -> void:
+	var killer := MatchManager.get_participant(int(kill["killer"]))
+	var victim := MatchManager.get_participant(int(kill["victim"]))
+	_cam_name.text = killer.display_name if killer else "?"
+	_cam_name.add_theme_color_override("font_color", Teams.color_of(killer.team) if killer else UITheme.TEXT)
+	var weapon_name: String = HUD.WEAPON_LABELS.get(String(kill["weapon"]), String(kill["weapon"]))
+	var detail := weapon_name
+	if bool(kill["headshot"]):
+		detail += "   •   KOPFSCHUSS"
+	if show_victim and victim != null:
+		detail += "   ▸   %s" % victim.display_name
+	_cam_detail.text = detail
+	_cam_detail.add_theme_color_override("font_color", Color(1.0, 0.35, 0.25) if bool(kill["headshot"]) else UITheme.TEXT_DIM)
+	var names: Array[String] = []
+	for aid in kill.get("assists", []):
+		var a := MatchManager.get_participant(int(aid))
+		if a != null:
+			names.append(a.display_name)
+	_cam_assist.text = ("Assist: %s" % ", ".join(names)) if not names.is_empty() else ""
 
 
 ## Killcam: replay of the last seconds of the killer's view, ending with our death.
@@ -306,8 +376,7 @@ func _start_killcam(killer_id: int) -> bool:
 	hud.visible = false
 	_cam.fov = GameSettings.fov
 	_cam_title.text = "KILLCAM"
-	_cam_sub.text = killer.display_name
-	_cam_sub.add_theme_color_override("font_color", Teams.color_of(killer.team))
+	_fill_cam_info(kill, false)
 	_cam_hint.text = ""
 	_cam_ui.visible = true
 	return true
@@ -423,6 +492,9 @@ func _on_match_ended(_winner_team: int, _winner_id: int) -> void:
 
 
 func _show_results() -> void:
+	if _results_shown:
+		return
+	_results_shown = true
 	match_end.show_results()
 	if NetworkManager.is_host() and MatchManager.config.map_voting:
 		NetworkManager.host_open_vote(GameDirector.ROTATION_MAPS)
@@ -443,8 +515,7 @@ func _start_last_kill_cam() -> bool:
 	projectiles_container.visible = false
 	_cam.fov = GameSettings.fov
 	_cam_title.text = "LAST KILL"
-	_cam_sub.text = "%s  ▸  %s" % [killer.display_name, victim.display_name]
-	_cam_sub.add_theme_color_override("font_color", Teams.color_of(killer.team))
+	_fill_cam_info(final_kill, true)
 	_cam_hint.text = "Leertaste: überspringen"
 	_cam_ui.visible = true
 	return true
@@ -464,9 +535,51 @@ func _on_replay_finished() -> void:
 	_replay_active = false
 	_cam_ui.visible = false
 	projectiles_container.visible = true
-	if local_player != null and is_instance_valid(local_player):
-		local_player.camera.current = true
-	_show_results()
+	_start_outro()
+
+
+## After the last kill: the camera leaves the scene, rises over the map and the scoreboard fades in.
+func _start_outro() -> void:
+	var box := _map_bounds()
+	var fov := 55.0
+	var fit := maxf(box.size.x / 1.7, box.size.z * 0.78 + 6.0)
+	_outro_center = box.get_center()
+	_outro_dist = fit * 0.5 / tan(deg_to_rad(fov * 0.5)) * 1.15
+	_outro_angle = 0.0
+	_outro_active = true
+	var from := _cam.global_transform
+	var from_fov := _cam.fov
+	var to_pos := _outro_center + _outro_dir.normalized() * _outro_dist
+	var to := Transform3D(Basis.looking_at(_outro_center - to_pos, Vector3.UP), to_pos)
+	var tw := create_tween()
+	tw.tween_method(func(k: float) -> void:
+		_cam.global_transform = from.interpolate_with(to, k)
+		_cam.fov = lerpf(from_fov, fov, k), 0.0, 1.0, OUTRO_TIME).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN_OUT)
+	tw.tween_callback(func() -> void: _outro_orbit = true)
+	get_tree().create_timer(OUTRO_RESULTS_DELAY).timeout.connect(_show_results)
+
+
+func _map_bounds() -> AABB:
+	var box := AABB(Vector3(-30, 0, -22), Vector3(60, 6, 44))
+	var first := true
+	if map != null:
+		for n in map.find_children("*", "MeshInstance3D", true, false):
+			var mi := n as MeshInstance3D
+			var a: AABB = mi.global_transform * mi.get_aabb()
+			if a.size.length() > 160.0 or not mi.visible:
+				continue
+			box = a if first else box.merge(a)
+			first = false
+	return box
+
+
+## Slow orbit around the map while the scoreboard is shown.
+func _update_outro(delta: float) -> void:
+	if not _outro_orbit:
+		return
+	_outro_angle += delta * 0.07
+	var pos := _outro_center + (Basis(Vector3.UP, _outro_angle) * _outro_dir.normalized()) * _outro_dist
+	_cam.global_transform = Transform3D(Basis.looking_at(_outro_center - pos, Vector3.UP), pos)
 
 
 func _on_class_selected(class_id: String) -> void:

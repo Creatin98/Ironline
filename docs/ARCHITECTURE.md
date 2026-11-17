@@ -221,6 +221,14 @@ Visierlinie bleiben, sonst verdecken sie das Bild.
   nicht in der Gruppe `players`). Mündungsfeuer und Schussgeräusch kommen aus dem Schuss-Flag der Aufzeichnung. Danach
   normale Todesansicht bis zum Respawn. Menschen respawnen nach `HUMAN_RESPAWN_DELAY` = 6 s (Killcam), Leertaste
   überspringt ab 1.5 s (`NetworkManager.request_skip_respawn` → Server `Game.skip_respawn`), Bots nach der Moduszeit (1.5 s).
+* **Anzeige:** Beide Kameras haben einen **Vignette-Shader** (dunkle Ränder) und unten einen Infoblock: Name des
+  Schützen in Teamfarbe, Waffe (+ „KOPFSCHUSS“), **Assist: Namen** (aus `MatchManager.kill_assists`, wird mit dem Kill am
+  Eintrag des Recorders gespeichert), dazu Respawn-Zähler und Skip-Hinweis.
+* **Last Kill – Zeitlupe:** Normale Geschwindigkeit, ab dem ersten Schuss der tödlichen Salve (spätestens 0.35 s vor dem Kill)
+  läuft der Replay mit `Engine.time_scale` 0.3 und dumpferem Ton bis zum Ende (`ReplayRecorder.SLOWMO_SCALE`). Die
+  Zeitskala wird bei Ende, Abbruch und Verlassen der Szene zurückgesetzt.
+* **Last Kill – Abspann:** Danach löst sich die Kamera aus der Szene (die eingefrorenen Spieler bleiben stehen), fährt über die
+  Map (`Game._start_outro`, 3.2 s) und umkreist sie langsam; das Scoreboard blendet nach 1.6 s ein. Leertaste überspringt.
 * **Last Kill:** `ReplayRecorder` zeichnet auf jeder Maschine mit 30 Hz die sichtbaren Posen aller Spieler der letzten 12 s
   auf (Position, Blick, Ducken, lebt, Waffe, Schuss). Am Rundenende sucht er den letzten Kill des Siegers (Team/Spieler),
   friert die Welt ein und spielt 3 s davor bis 1.6 s danach die echten Spieler-Nodes ab, Kamera in den Augen des Schützen.

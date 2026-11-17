@@ -12,6 +12,8 @@ signal finished
 
 const WINDOW := 12.0
 const RATE := 30.0
+const SLOWMO_SCALE := 0.3 # speed of the slow motion part of the last kill cam
+const SLOWMO_RAMP := 6.0 # time scale change per real second when slowing down
 
 var playing: bool = false
 var ghost_mode: bool = false
@@ -29,6 +31,8 @@ var _camera: Camera3D
 var _killer_id: int = 0
 var _victim_dead_shown: bool = false
 var ghost_scene: PackedScene
+var _slow_from: float = -1.0 # replay time at which the slow motion starts (< 0 = none)
+var _time_changed: bool = false # we touched Engine.time_scale, so we must restore it
 
 
 func _physics_process(delta: float) -> void:
@@ -61,7 +65,7 @@ func _record() -> void:
 
 
 func note_kill(victim_id: int, killer_id: int, weapon_id: String, headshot: bool) -> void:
-	_kills.append({"t": _now(), "killer": killer_id, "victim": victim_id, "weapon": weapon_id, "headshot": headshot})
+	_kills.append({"t": _now(), "killer": killer_id, "victim": victim_id, "weapon": weapon_id, "headshot": headshot, "assists": MatchManager.kill_assists.get(victim_id, [])})
 
 
 ## The most recent kill that counts for the winner (team or player) and is still covered by the recording.
@@ -99,9 +103,27 @@ func find_kill(victim_id: int, killer_id: int) -> Dictionary:
 	return {}
 
 
-## Last kill cam: poses the real (frozen) player nodes.
-func start(final_kill: Dictionary, camera: Camera3D, pre: float = 3.0, post: float = 1.6) -> bool:
-	return _begin(final_kill, camera, false, null, pre, post)
+## Last kill cam: poses the real (frozen) player nodes. Runs at normal speed first and switches to
+## slow motion when the killing burst begins (first shot shortly before the kill) until the end.
+func start(final_kill: Dictionary, camera: Camera3D, pre: float = 3.0, post: float = 1.0) -> bool:
+	var ok := _begin(final_kill, camera, false, null, pre, post)
+	if ok:
+		_slow_from = _find_slowmo_start(float(final_kill["t"]), int(final_kill["killer"]))
+	return ok
+
+
+## The first shot of the killer within the last 1.2 s before the kill (at least 0.35 s before it).
+func _find_slowmo_start(kill_t: float, killer_id: int) -> float:
+	var start := kill_t - 0.5
+	for f in _frames:
+		var ft: float = f["t"]
+		if ft < kill_t - 1.2 or ft > kill_t:
+			continue
+		var s: Variant = (f["p"] as Dictionary).get(killer_id)
+		if s != null and bool((s as Array)[6]):
+			start = minf(ft, kill_t - 0.35)
+			break
+	return maxf(start, _cursor + 0.1)
 
 
 ## Killcam: poses ghost copies, `parent` receives them.
@@ -128,6 +150,7 @@ func _begin(final_kill: Dictionary, camera: Camera3D, ghosts: bool, parent: Node
 	_end_time = kill_t + post
 	_alive_state.clear()
 	_victim_dead_shown = false
+	_slow_from = -1.0
 	_targets.clear()
 	var start_frame: Dictionary = _frames[_index_at(_cursor)]
 	for id in start_frame["p"]:
@@ -180,6 +203,7 @@ func skip() -> void:
 
 ## Stops a running replay without emitting `finished` (the caller restores the scene itself).
 func abort() -> void:
+	_restore_time()
 	if not playing:
 		return
 	playing = false
@@ -189,6 +213,13 @@ func abort() -> void:
 func _process(delta: float) -> void:
 	if not playing:
 		return
+	# delta is already scaled by Engine.time_scale, so the slow motion only has to set the scale
+	if _slow_from >= 0.0:
+		var real_dt := delta / maxf(Engine.time_scale, 0.01)
+		var target := SLOWMO_SCALE if _cursor >= _slow_from else 1.0
+		Engine.time_scale = move_toward(Engine.time_scale, target, SLOWMO_RAMP * real_dt)
+		AudioServer.playback_speed_scale = Engine.time_scale # deeper sound in slow motion
+		_time_changed = true
 	_cursor += delta
 	if _cursor >= _end_time:
 		_finish()
@@ -198,8 +229,25 @@ func _process(delta: float) -> void:
 
 func _finish() -> void:
 	playing = false
+	_restore_time()
 	_clear_targets()
 	finished.emit()
+
+
+func _restore_time() -> void:
+	_slow_from = -1.0
+	if _time_changed:
+		_time_changed = false
+		Engine.time_scale = 1.0
+		AudioServer.playback_speed_scale = 1.0
+
+
+func is_slow_motion() -> bool:
+	return playing and Engine.time_scale < 0.95
+
+
+func _exit_tree() -> void:
+	_restore_time() # never leave the game in slow motion
 
 
 ## Index of the last frame with time <= t.
