@@ -280,7 +280,7 @@ func _play_shot_feedback() -> void:
 func _apply_recoil(is_aiming: bool, crouching: bool) -> void:
 	var mult := 1.0
 	if is_aiming:
-		mult *= 0.72
+		mult *= 0.55
 	if crouching:
 		mult *= 0.85
 	player.head.add_recoil(data.recoil_vertical * mult, randf_range(-data.recoil_horizontal, data.recoil_horizontal) * mult, data.recoil_recovery)

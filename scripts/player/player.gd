@@ -21,6 +21,9 @@ const EYE_BELOW_TOP := 0.18
 const HEADSHOT_ZONE := 0.36
 const SPRINT_FIRE_DELAY := 0.22
 const LAND_SOUND_SPEED := 4.0
+## Curbs and low steps up to this height are walked over without jumping.
+const STEP_HEIGHT := 0.4
+const STEP_VIEW_SPEED := 1.7 # m/s the camera needs to catch up with a step
 
 var participant_id: int = 0
 var team: int = Teams.Team.NONE
@@ -80,6 +83,7 @@ var _sprint_block_timer: float = 0.0
 var _team_material: StandardMaterial3D
 var _death_tween: Tween
 var _walk_phase: float = 0.0
+var _step_view_offset: float = 0.0 # camera lag after a step so the view glides instead of popping
 ## Set whenever this player fired (read by the replay recorder).
 var shot_flag: bool = false
 var replay_mode: bool = false
@@ -383,7 +387,8 @@ func _process(delta: float) -> void:
 	var w := weapon_manager.get_current_weapon()
 	var ads_fov := w.data.ads_fov if w else GameSettings.fov
 	var ads_time := w.data.ads_time if w else 0.2
-	head.update_camera(delta, horizontal_speed, is_on_floor(), current_height - EYE_BELOW_TOP, is_aiming, ads_fov, ads_time, is_sprinting)
+	_step_view_offset = move_toward(_step_view_offset, 0.0, delta * STEP_VIEW_SPEED)
+	head.update_camera(delta, horizontal_speed, is_on_floor(), current_height - EYE_BELOW_TOP + _step_view_offset, is_aiming, ads_fov, ads_time, is_sprinting)
 
 
 ## Cheap procedural animation of the visible body: walking bob, sprint lean,
@@ -452,10 +457,43 @@ func _move(delta: float) -> void:
 		else:
 			AudioManager.play_3d("jump", global_position, -8.0)
 	_prev_vertical_velocity = velocity.y
+	var y_before := global_position.y
+	var was_on_floor := on_floor
+	if on_floor and not input.jump_pressed:
+		_try_step_up(delta)
 	move_and_slide()
+	# a curb up or down moves the body at once; let the camera follow smoothly instead
+	if was_on_floor and is_on_floor():
+		var dy := y_before - global_position.y
+		if absf(dy) >= 0.05 and absf(dy) <= STEP_HEIGHT + 0.1:
+			_step_view_offset = clampf(_step_view_offset + dy, -STEP_HEIGHT, STEP_HEIGHT)
 	horizontal_speed = Vector2(velocity.x, velocity.z).length()
 	_handle_landing()
 	_handle_footsteps(delta, is_on_floor())
+
+
+## Lifts the body onto a low obstacle in front of it (curb, step) so that walking over it needs no jump.
+func _try_step_up(delta: float) -> void:
+	var motion := Vector3(velocity.x, 0.0, velocity.z) * maxf(delta, 0.001)
+	if motion.length() < 0.004:
+		return
+	if not test_move(global_transform, motion):
+		return # nothing in the way
+	var up := Vector3(0.0, STEP_HEIGHT, 0.0)
+	if test_move(global_transform, up):
+		return # no room above
+	var raised := global_transform.translated(up)
+	if test_move(raised, motion):
+		return # still blocked: a real wall
+	var ahead := raised.translated(motion)
+	var down := KinematicCollision3D.new()
+	if not test_move(ahead, Vector3(0.0, -STEP_HEIGHT - 0.05, 0.0), down):
+		return # no floor behind the edge
+	if down.get_normal().y < 0.7:
+		return
+	var rise := STEP_HEIGHT - down.get_travel().length()
+	if rise > 0.03:
+		global_position.y += rise
 
 
 func _handle_landing() -> void:

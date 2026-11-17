@@ -129,8 +129,8 @@ func _build() -> void:
 	health_panel.add_child(hv)
 	var hh := UITheme.hbox(10)
 	hv.add_child(hh)
-	health_label = UITheme.label("200", 34, UITheme.TEXT)
-	health_label.custom_minimum_size = Vector2(70, 0)
+	health_label = UITheme.label("100%", 34, UITheme.TEXT)
+	health_label.custom_minimum_size = Vector2(110, 0)
 	hh.add_child(health_label)
 	var hl := UITheme.label("GESUNDHEIT", 14, UITheme.TEXT_DIM)
 	hl.size_flags_vertical = Control.SIZE_SHRINK_END
@@ -443,7 +443,7 @@ func _on_local_damaged(amount: float, source_position: Vector3) -> void:
 
 func _on_health_changed(current: float, maximum: float) -> void:
 	_health_ratio = clampf(current / maximum, 0.0, 1.0)
-	health_label.text = str(int(ceil(current)))
+	health_label.text = "%d%%" % int(ceil(_health_ratio * 100.0))
 	health_bar_fill.size.x = 260.0 * _health_ratio
 	health_bar_fill.color = UITheme.SUCCESS.lerp(UITheme.DANGER, 1.0 - _health_ratio)
 
@@ -457,15 +457,15 @@ func _on_hit_enemy(headshot: bool, killed: bool) -> void:
 	if killed:
 		# the thunk/chime gets higher with every kill in a row (max +8 steps)
 		var pitch := 1.0 + 0.045 * float(mini(streak - 1, 8))
-		AudioManager.play_2d("hitmarker_headshot" if headshot else "hitmarker", -9.0, 0.0)
-		var p := AudioManager.play_2d("kill_headshot" if headshot else "kill_confirm", -3.0, 0.0)
+		AudioManager.play_2d("hitmarker_headshot" if headshot else "hitmarker", -12.0, 0.0)
+		var p := AudioManager.play_2d("kill_headshot" if headshot else "kill_confirm", -6.0, 0.0)
 		if p != null:
 			p.pitch_scale = pitch
 		_kill_flash.color.a = 0.16 if headshot else 0.1
 		if _player != null and is_instance_valid(_player):
 			_player.head.kick_fov(5.5 if headshot else 3.5)
 	else:
-		AudioManager.play_2d("hitmarker_headshot" if headshot else "hitmarker", -3.0 if headshot else -5.0, 0.03)
+		AudioManager.play_2d("hitmarker_headshot" if headshot else "hitmarker", -7.0 if headshot else -9.0, 0.03)
 		if headshot and _player != null and is_instance_valid(_player):
 			_player.head.kick_fov(1.5)
 

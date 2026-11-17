@@ -182,3 +182,4 @@ func _apply() -> void:
 	GameSettings.show_fps = _fps.button_pressed
 	GameSettings.killcams = _killcams.button_pressed
 	GameSettings.save()
+	closed.emit() # "Übernehmen" applies and closes the window

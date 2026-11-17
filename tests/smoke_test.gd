@@ -20,6 +20,7 @@ func _ready() -> void:
 	_instantiate_core_scenes()
 	await _simulate_match()
 	await _simulate_cams()
+	await _simulate_steps()
 	await _check_maps()
 	await _simulate_bots()
 	AudioManager.stop_all()
@@ -97,6 +98,58 @@ func _instantiate_core_scenes() -> void:
 			_fail("Klassen-Ressource unvollstaendig: " + path)
 		elif c.primary.model_scene == null:
 			_fail("Waffenmodell fehlt fuer " + path)
+
+
+## Curbs: a 0.2 m edge is walked over without jumping, a 0.7 m wall still blocks.
+func _simulate_steps() -> void:
+	var cfg := MatchConfig.new()
+	cfg.mode_id = MatchConfig.MODE_FFA
+	cfg.map_id = "test_arena"
+	cfg.bots_enabled = false
+	cfg.time_limit = 0.0
+	MatchManager.prepare_match(cfg)
+	var game: Node = (load("res://scenes/game/game.tscn") as PackedScene).instantiate()
+	add_child(game)
+	await get_tree().process_frame
+	var waited := 0.0
+	while MatchManager.state != MatchManager.State.RUNNING and waited < 8.0:
+		await get_tree().process_frame
+		waited += get_process_delta_time()
+	var local: Player = MatchManager.get_local_participant().node as Player
+	local.human_controller.deactivate()
+	for spec in [[Vector3(0.0, 0.1, -12.0), Vector3(6.0, 0.2, 2.0)], [Vector3(0.0, 0.35, -7.0), Vector3(6.0, 0.7, 1.0)]]:
+		var body := StaticBody3D.new()
+		body.collision_layer = 1
+		var shape := CollisionShape3D.new()
+		var box := BoxShape3D.new()
+		box.size = spec[1]
+		shape.shape = box
+		body.add_child(shape)
+		body.position = spec[0]
+		game.add_child(body)
+	await get_tree().physics_frame
+	local.global_position = Vector3(0.0, 0.1, -17.0)
+	local.rotation.y = PI # looks towards +z
+	local.velocity = Vector3.ZERO
+	await get_tree().physics_frame
+	local.input.move = Vector2(0, 1)
+	var airborne := 0
+	var max_y := 0.0
+	for i in 130:
+		await get_tree().physics_frame
+		if not local.is_on_floor():
+			airborne += 1
+		max_y = maxf(max_y, local.global_position.y)
+	local.input.move = Vector2.ZERO
+	if local.global_position.z < -8.2 or max_y < 0.15:
+		_fail("Die 0.2 m hohe Kante wurde nicht uebersprungen (z=%.2f, hoechste y=%.2f)" % [local.global_position.z, max_y])
+	if local.global_position.z > -6.4:
+		_fail("Die 0.7 m hohe Wand hat nicht blockiert (z=%.2f)" % local.global_position.z)
+	if airborne > 12:
+		_fail("Beim Ueberlaufen der Kante war der Spieler %d Ticks in der Luft (soll ohne Springen gehen)" % airborne)
+	print("Stufen: Kante 0.2 m ohne Springen ueberlaufen (z=%.2f, y=%.2f, Luft-Ticks %d), 0.7 m Wand blockiert" % [local.global_position.z, max_y, airborne])
+	game.free()
+	await get_tree().process_frame
 
 
 ## Killcam after death (live view of the killer, skippable) and the last-kill replay at the round end.

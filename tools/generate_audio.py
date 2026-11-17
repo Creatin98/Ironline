@@ -227,59 +227,76 @@ def tone(freq, length, kind="sine"):
 
 
 def make_hit_feedback():
-    """Hit / headshot / kill confirmation sounds. Own random generator so the other
-    sounds stay byte-identical when this is changed."""
+    """Hit / headshot / kill confirmation sounds: dry flesh thwack, metallic clatter and a
+    heavy low punch (no pure sine pings, that sounds electronic). Own random generator so the
+    other sounds stay byte-identical when this is changed."""
     local = random.Random(4711)
 
     def nz(seconds):
         return [local.uniform(-1, 1) for _ in range(int(seconds * SR))]
 
-    def ping(freq, length, decay):
-        return env_exp(sine(freq, length), decay)
+    def modal(freqs, decays, gains, length, pitch=1.0):
+        """Struck metal: sum of exponentially decaying partials (inharmonic frequencies)."""
+        out = [0.0] * int(length * SR)
+        for f, d, g in zip(freqs, decays, gains):
+            part = env_exp(sine(f * pitch, length), d)
+            for k, s in enumerate(part):
+                out[k] += s * g
+        return out
 
-    # body hit: dry transient + short body tick + low thud (a satisfying "tck")
+    def tremolo(samples, rate, depth):
+        return [s * (1.0 - depth + depth * (0.5 + 0.5 * math.sin(2 * math.pi * rate * i / SR))) for i, s in enumerate(samples)]
+
+    def punch(length, f0, f1, decay, noise_gain=0.5):
+        body = env_exp(sweep(f0, f1, length), decay)
+        flesh = env_exp(lowpass(nz(length), 900), decay * 0.5)
+        return mix(body, gain(flesh, noise_gain))
+
+    def clang(pitch=1.0, length=0.5, strength=1.0):
+        partials = modal([610, 1030, 1670, 2480, 3560, 4900, 6400], [0.20, 0.16, 0.12, 0.09, 0.06, 0.04, 0.025],
+                         [0.9, 0.8, 0.7, 0.5, 0.4, 0.25, 0.15], length, pitch)
+        rattle = tremolo(partials, 41, 0.45) # the "scheppern"
+        crack = env_exp(highpass(nz(0.03), 2500), 0.006)
+        return gain(mix(rattle, gain(crack, 0.9)), strength)
+
+    # body hit: very short, dry and hard
     hit = mix(
-        gain(env_exp(highpass(nz(0.03), 2500), 0.004), 0.9),
-        gain(ping(1900, 0.09, 0.016), 0.75),
-        gain(ping(2850, 0.09, 0.010), 0.35),
-        gain(env_exp(sweep(260, 110, 0.07), 0.025), 0.8),
+        gain(env_exp(highpass(nz(0.02), 2200), 0.0035), 1.0),
+        gain(env_exp(lowpass(nz(0.06), 2200), 0.018), 0.9),
+        gain(env_exp(sweep(240, 85, 0.08), 0.024), 1.1),
+        gain(modal([3100, 4700], [0.012, 0.008], [1.0, 0.6], 0.05), 0.35),
     )
-    write_wav("hitmarker", hit, 0.8)
+    write_wav("hitmarker", soft_clip(hit, 1.6), 0.85)
 
-    # headshot: sharper crack, metallic inharmonic ping and a snap sweep on top
-    head = mix(
-        gain(env_exp(highpass(nz(0.04), 3500), 0.006), 1.0),
-        gain(env_exp(sweep(6200, 2600, 0.05), 0.012), 0.6),
-        gain(ping(2950, 0.22, 0.05), 0.7),
-        gain(ping(4400, 0.22, 0.035), 0.5),
-        gain(ping(6150, 0.22, 0.02), 0.3),
-        gain(env_exp(sweep(300, 120, 0.09), 0.03), 0.9),
+    # headshot hit: hard crack, a short clatter and a second quick tap
+    head_a = mix(
+        gain(env_exp(highpass(nz(0.03), 3200), 0.007), 1.3),
+        gain(modal([1450, 2330, 3410, 5100], [0.05, 0.04, 0.03, 0.02], [0.8, 0.6, 0.45, 0.3], 0.25), 0.9),
+        gain(env_exp(sweep(300, 100, 0.1), 0.03), 1.1),
     )
-    write_wav("hitmarker_headshot", head, 0.9)
+    head_b = gain(mix(
+        gain(env_exp(highpass(nz(0.03), 3200), 0.006), 1.0),
+        gain(modal([1740, 2790, 4090, 6120], [0.04, 0.03, 0.022, 0.015], [0.8, 0.6, 0.45, 0.3], 0.2), 0.9),
+    ), 0.75)
+    head = mix(head_a, delay(head_b, 0.055))
+    write_wav("hitmarker_headshot", soft_clip(head, 1.6), 0.92)
 
-    # kill: heavy thunk + bright rising two-note chime + tiny click
-    thunk = mix(env_exp(sweep(190, 62, 0.16), 0.06), gain(env_exp(lowpass(nz(0.12), 900), 0.03), 0.5))
-    chime = mix(
-        delay(mix(ping(880, 0.3, 0.07), gain(ping(1760, 0.3, 0.05), 0.35)), 0.04),
-        delay(mix(ping(1320, 0.3, 0.09), gain(ping(2640, 0.3, 0.06), 0.3)), 0.11),
+    # kill: heavy punch + rattling metal crash
+    kill = mix(
+        gain(punch(0.22, 170, 42, 0.09), 1.3),
+        delay(clang(1.0, 0.55, 1.0), 0.012),
     )
-    kill = mix(gain(thunk, 1.0), gain(chime, 0.75), gain(env_exp(highpass(nz(0.02), 3000), 0.004), 0.5))
-    write_wav("kill_confirm", kill, 0.85)
+    write_wav("kill_confirm", soft_clip(kill, 2.0), 0.95)
 
-    # headshot kill: same body, higher and brighter, three-note run with a glassy shimmer
-    shimmer = mix(ping(3520, 0.4, 0.12), ping(5280, 0.4, 0.09), ping(7040, 0.4, 0.05))
-    chime_h = mix(
-        delay(mix(ping(1047, 0.35, 0.07), gain(ping(2094, 0.35, 0.05), 0.35)), 0.03),
-        delay(mix(ping(1568, 0.35, 0.09), gain(ping(3136, 0.35, 0.06), 0.3)), 0.08),
-        delay(mix(ping(2093, 0.4, 0.12), gain(ping(4186, 0.4, 0.08), 0.3)), 0.13),
-    )
+    # headshot kill: three clatters in a rising run, harder punch, crack on top (rings out longer)
     kill_h = mix(
-        gain(thunk, 1.0),
-        gain(chime_h, 0.8),
-        gain(delay(shimmer, 0.13), 0.25),
-        gain(env_exp(highpass(nz(0.03), 3500), 0.006), 0.7),
+        gain(punch(0.26, 190, 38, 0.11, 0.7), 1.5),
+        delay(clang(1.0, 0.5, 1.0), 0.008),
+        delay(clang(1.22, 0.5, 0.9), 0.065),
+        delay(clang(1.5, 0.6, 0.85), 0.125),
+        gain(delay(env_exp(highpass(nz(0.05), 3800), 0.012), 0.125), 0.8),
     )
-    write_wav("kill_headshot", kill_h, 0.9)
+    write_wav("kill_headshot", soft_clip(kill_h, 2.2), 0.97)
 
 
 def make_ui():

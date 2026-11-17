@@ -29,6 +29,7 @@ var _kick_rot: float = 0.0
 var _sprint_blend: float = 0.0
 var _ads_blend: float = 0.0
 var _lower_blend: float = 0.0
+var _walk_amp: float = 0.0
 var _grenade_timer: float = 0.0
 var _grenade_thrown: bool = true
 var _tp_models: Array[Node3D] = []
@@ -282,9 +283,19 @@ func _process(delta: float) -> void:
 	# sway
 	pos += Vector3(-_sway.x, _sway.y, 0.0)
 	rot += Vector3(_sway.y * 2.0, -_sway.x * 2.0, -_sway.x * 3.0)
-	# weapon kick
-	pos += Vector3(0.0, _kick * 0.25, _kick)
-	rot += Vector3(_kick_rot, 0.0, 0.0)
+	# walking / sprinting: the weapon swings with the steps (less when aiming down the sights)
+	var on_floor := player.is_on_floor()
+	var speed_ratio := clampf(player.horizontal_speed / Player.SPRINT_SPEED, 0.0, 1.0)
+	_walk_amp = lerpf(_walk_amp, speed_ratio if on_floor else 0.0, minf(1.0, delta * 7.0))
+	if GameSettings.weapon_sway and _walk_amp > 0.001:
+		var ph := player.head.get_bob_phase()
+		var amp := _walk_amp * (1.0 - 0.8 * _ads_blend) * (1.0 + 0.9 * _sprint_blend)
+		pos += Vector3(cos(ph * 0.5) * 0.013, -absf(sin(ph)) * 0.017, 0.0) * amp
+		rot += Vector3(sin(ph) * 0.014, cos(ph * 0.5) * 0.032, cos(ph * 0.5) * 0.04) * amp
+	# weapon kick: strongly damped while aiming so the iron sight stays in view
+	var kick_scale := lerpf(1.0, 0.15, _ads_blend)
+	pos += Vector3(0.0, _kick * 0.25, _kick) * kick_scale
+	rot += Vector3(_kick_rot, 0.0, 0.0) * kick_scale
 	# weapon's own animation (reload, pump)
 	pos += w.anim_offset
 	rot += w.anim_rotation
@@ -344,8 +355,8 @@ func apply_server_ammo(weapon_index: int, magazine: int, reserve: int, new_grena
 
 
 func apply_kick(amount: float) -> void:
-	_kick += amount
-	_kick_rot += amount * 1.8
+	_kick = minf(_kick + amount, 0.09)
+	_kick_rot = minf(_kick_rot + amount * 1.8, 0.14)
 
 
 func get_ammo_text() -> String:
