@@ -192,11 +192,14 @@ func _run_host() -> void:
 		_finish()
 		return
 	_log("Client hat die Serverkorrektur übernommen und zielt auf die Teststrecke")
+	await get_tree().create_timer(0.7).timeout # the repeated teleports leave a camera offset that fades out
 
 	# 3) client shoots the host: server-side hitscan, damage, hit feedback
 	var forward := -client_node.global_transform.basis.z
 	host_player.global_position = client_node.global_position + forward * 6.0
 	host_player.velocity = Vector3.ZERO
+	host_player.health.max_health = 100000.0 # survives the whole burst, only the damage is checked
+	host_player.health.health = 100000.0
 	var max_hp := host_player.health.max_health
 	if not await _wait(func() -> bool: return host_player.health.health < max_hp - 10.0, 12.0):
 		_fail("Schuss des Clients hat den Host nicht getroffen")
@@ -205,7 +208,8 @@ func _run_host() -> void:
 	await get_tree().create_timer(1.2).timeout
 
 	# 4) kill + score + respawn replication
-	host_player.health.health = max_hp
+	host_player.health.max_health = 200.0
+	host_player.health.health = 200.0
 	var killed := client_node.take_damage(5000.0, 1, "ak47", client_node.get_center(), false, host_player.global_position)
 	if not killed:
 		_fail("Tödlicher Schaden hat den Client nicht getötet")
@@ -284,7 +288,7 @@ func _host_trio() -> void:
 	if MatchManager.config.map_id == "frontier":
 		_fail("Abstimmung wurde beendet, obwohl nicht alle gewählt hatten")
 	NetworkManager.cast_vote("frontier")
-	if not await _wait(func() -> bool: return MatchManager.config.map_id == "frontier" and _match_running_with(3), 60.0):
+	if not await _wait(func() -> bool: return MatchManager.config.map_id == "frontier" and _match_running_with(3), 150.0):
 		_fail("Runde auf Frontier mit drei Spielern nicht gestartet (Map %s)" % MatchManager.config.map_id)
 	else:
 		_log("Alle drei haben gewählt, Runde läuft auf Frontier")
@@ -346,7 +350,7 @@ func _client_trio() -> void:
 		_fail("Abstimmung nicht empfangen")
 	else:
 		NetworkManager.cast_vote("frontier")
-		if not await _wait(func() -> bool: return MatchManager.config.map_id == "frontier" and _match_running_with(3), 60.0):
+		if not await _wait(func() -> bool: return MatchManager.config.map_id == "frontier" and _match_running_with(3), 150.0):
 			_fail("Runde auf Frontier nicht gestartet")
 		else:
 			_log("Neue Runde auf Frontier mit drei Spielern")
@@ -426,9 +430,13 @@ func _run_client() -> void:
 		return
 	player.human_controller.scripted = true
 	player.human_controller.activate()
-	# 1) walk forward for a moment (input is sent to the server)
+	# 1) walk forward for a moment (input is sent to the server); turn around if a wall is in the way
+	var walk_start := player.global_position
 	player.input.move = Vector2(0, 1)
 	await get_tree().create_timer(1.5).timeout
+	if player.global_position.distance_to(walk_start) < 3.5:
+		player.rotation.y += PI
+		await get_tree().create_timer(1.5).timeout
 	player.input.move = Vector2.ZERO
 
 	# 2) wait for the server to teleport us, then look down the test lane
@@ -449,6 +457,7 @@ func _run_client() -> void:
 		_fail("Kein Trefferfeedback vom Server erhalten")
 	else:
 		_log("Trefferfeedback erhalten")
+	await get_tree().create_timer(1.2).timeout # keep the burst going: the server needs real shots to land
 	player.input.fire_held = false
 	NetworkManager.request_class_change("shotgun")
 

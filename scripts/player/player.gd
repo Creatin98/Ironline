@@ -241,6 +241,7 @@ func respawn_at(spawn_transform: Transform3D) -> void:
 	weapon_manager.reset_for_spawn()
 	input.clear_all()
 	_pos_history.clear()
+	_step_view_offset = 0.0
 	_net_has = false
 	_remote_has_input = false
 	_remote_actions = 0
