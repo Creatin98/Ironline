@@ -26,14 +26,22 @@ var _name: LineEdit
 
 
 func _ready() -> void:
-	set_anchors_preset(Control.PRESET_FULL_RECT)
+	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var panel := UITheme.panel(Color(0.05, 0.06, 0.08, 0.95), 6)
+	# dimmed backdrop (blocks clicks on the menu behind) + panel centred on screen
+	var dim := ColorRect.new()
+	dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	dim.color = Color(0, 0, 0, 0.6)
+	dim.mouse_filter = Control.MOUSE_FILTER_STOP
+	add_child(dim)
+	var center := CenterContainer.new()
+	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	center.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(center)
+	var panel := UITheme.panel(Color(0.05, 0.06, 0.08, 0.97), 6)
 	panel.mouse_filter = Control.MOUSE_FILTER_STOP
-	panel.set_anchors_preset(Control.PRESET_CENTER)
-	panel.position = Vector2(-420, -400)
-	panel.custom_minimum_size = Vector2(840, 800)
-	add_child(panel)
+	panel.custom_minimum_size = Vector2(840, 0)
+	center.add_child(panel)
 	var v := UITheme.vbox(10)
 	panel.add_child(v)
 	v.add_child(UITheme.label("EINSTELLUNGEN", 34, UITheme.ACCENT, HORIZONTAL_ALIGNMENT_CENTER))
@@ -127,6 +135,7 @@ func _row(grid: GridContainer, title: String, control: Control, value_label: Lab
 
 func open() -> void:
 	_load_values()
+	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT) # always cover the whole screen
 	visible = true
 
 

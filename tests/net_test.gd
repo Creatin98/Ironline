@@ -36,6 +36,7 @@ func _ready() -> void:
 		elif arg.begins_with("--scenario="):
 			scenario = arg.substr(11)
 	_started_msec = Time.get_ticks_msec()
+	GameSettings.persist = false
 	GameSettings.player_name = role
 	GameSettings.preferred_team = Teams.Team.RED if role == "host" else Teams.Team.BLUE
 	GameSettings.preferred_class_id = "assault"

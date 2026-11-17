@@ -6,6 +6,9 @@ signal settings_changed
 
 const SAVE_PATH := "user://settings.cfg"
 
+## Tests switch this off so they never overwrite the player's real settings.
+var persist: bool = true
+
 # Controls
 var mouse_sensitivity: float = 1.0
 var invert_y: bool = false
@@ -94,7 +97,8 @@ func save() -> void:
 	cfg.set_value("player", "class_id", preferred_class_id)
 	cfg.set_value("network", "last_address", last_address)
 	cfg.set_value("network", "last_port", last_port)
-	cfg.save(SAVE_PATH)
+	if persist:
+		cfg.save(SAVE_PATH)
 	apply()
 
 
