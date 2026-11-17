@@ -20,6 +20,7 @@ const SNAPSHOT_EVERY_TICKS := 3 # 20 Hz at 60 physics ticks
 const OWNER_STATE_EVERY_TICKS := 6 # 10 Hz
 const LOAD_TIMEOUT := 12.0
 const CONNECT_TIMEOUT := 8.0
+const VOTE_TIME := 15.0
 
 # held input bits (client -> server, every tick)
 const HELD_SPRINT := 1
@@ -46,6 +47,9 @@ signal connection_failed(reason: String)
 signal disconnected(reason: String)
 signal all_peers_loaded
 signal network_state_changed
+signal vote_opened(maps: Array, duration: float)
+signal vote_tally_changed(tally: Dictionary)
+signal vote_closed
 
 var mode: int = Mode.OFFLINE
 ## peer_id -> {"name": String, "team": int, "class_id": String}
@@ -65,6 +69,9 @@ var _connecting: bool = false
 var _tick: int = 0
 var _next_grenade_id: int = 1
 var _grenades: Dictionary = {} # net id -> Grenade
+var _vote_active: bool = false
+var _vote_timer: float = 0.0
+var _votes: Dictionary = {} # peer id -> map id
 
 
 func _ready() -> void:
@@ -158,6 +165,7 @@ func _reset() -> void:
 	_waiting_for_load = false
 	_loaded_peers = {}
 	_grenades = {}
+	_vote_active = false
 	network_state_changed.emit()
 
 
@@ -168,6 +176,10 @@ func _process(delta: float) -> void:
 			_connecting = false
 			_reset()
 			connection_failed.emit("Keine Antwort vom Host (Zeitüberschreitung).")
+	if _vote_active and mode == Mode.HOST:
+		_vote_timer -= delta
+		if _vote_timer <= 0.0:
+			_finish_vote()
 	if _waiting_for_load:
 		_load_timer -= delta
 		if _load_timer <= 0.0 and game != null:
@@ -206,6 +218,11 @@ func _on_peer_disconnected(id: int) -> void:
 		return
 	peers.erase(id)
 	_loaded_peers.erase(id)
+	if _vote_active:
+		_votes.erase(id)
+		_broadcast_tally()
+		if _all_voted():
+			_finish_vote()
 	if in_match:
 		var p := MatchManager.get_participant(id)
 		if p != null and game != null and game.has_method("remove_player_node"):
@@ -735,3 +752,108 @@ func _rpc_grenade_explode(gid: int, center: Vector3) -> void:
 		grenade.explode_visual_at(center)
 	elif game != null:
 		game.play_explosion_at(center)
+
+
+# ----------------------------------------------------------------------------- map voting
+
+## Host: opens the vote for the next map (called when a match has ended).
+func host_open_vote(maps: Array) -> void:
+	if mode != Mode.HOST or _vote_active:
+		return
+	_vote_active = true
+	_vote_timer = VOTE_TIME
+	_votes = {}
+	if multiplayer.get_peers().size() > 0:
+		_rpc_vote_open.rpc(maps, VOTE_TIME)
+	vote_opened.emit(maps, VOTE_TIME)
+	vote_tally_changed.emit(_tally())
+
+
+@rpc("authority", "call_remote", "reliable")
+func _rpc_vote_open(maps: Array, duration: float) -> void:
+	if mode != Mode.CLIENT:
+		return
+	vote_opened.emit(maps, duration)
+	vote_tally_changed.emit({})
+
+
+## Everyone: cast (or change) the own vote.
+func cast_vote(map_id: String) -> void:
+	if mode == Mode.HOST:
+		_register_vote(1, map_id)
+	elif mode == Mode.CLIENT:
+		_rpc_cast_vote.rpc_id(1, map_id)
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func _rpc_cast_vote(map_id: String) -> void:
+	if mode != Mode.HOST:
+		return
+	_register_vote(multiplayer.get_remote_sender_id(), map_id)
+
+
+func _register_vote(id: int, map_id: String) -> void:
+	if not _vote_active or not peers.has(id) or not GameDirector.ROTATION_MAPS.has(map_id):
+		return
+	_votes[id] = map_id
+	_broadcast_tally()
+	if _all_voted():
+		_finish_vote()
+
+
+func _tally() -> Dictionary:
+	var out: Dictionary = {}
+	for id in _votes:
+		var m: String = _votes[id]
+		out[m] = int(out.get(m, 0)) + 1
+	return out
+
+
+func _all_voted() -> bool:
+	for id in peers:
+		if not _votes.has(id):
+			return false
+	return true
+
+
+func _broadcast_tally() -> void:
+	vote_tally_changed.emit(_tally())
+	if multiplayer.get_peers().size() > 0:
+		_rpc_vote_tally.rpc(_tally())
+
+
+@rpc("authority", "call_remote", "reliable")
+func _rpc_vote_tally(tally: Dictionary) -> void:
+	if mode != Mode.CLIENT:
+		return
+	vote_tally_changed.emit(tally)
+
+
+## Host: picks the winner (ties and no votes are decided randomly) and starts the next round.
+func _finish_vote() -> void:
+	if not _vote_active:
+		return
+	_vote_active = false
+	var tally := _tally()
+	var best := 0
+	for m in tally:
+		best = maxi(best, int(tally[m]))
+	var winners: Array = []
+	for m in GameDirector.ROTATION_MAPS:
+		if best > 0 and int(tally.get(m, 0)) == best:
+			winners.append(m)
+	if winners.is_empty():
+		winners = GameDirector.ROTATION_MAPS.duplicate()
+	var cfg := MatchManager.config.duplicate_config()
+	cfg.map_id = winners[randi() % winners.size()]
+	if multiplayer.get_peers().size() > 0:
+		_rpc_vote_close.rpc()
+	vote_closed.emit()
+	host_start_match(cfg)
+
+
+@rpc("authority", "call_remote", "reliable")
+func _rpc_vote_close() -> void:
+	if mode != Mode.CLIENT:
+		return
+	vote_closed.emit()

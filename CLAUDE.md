@@ -1,6 +1,6 @@
 # Ironline (Godot 4.7, GDScript)
 
-Arcade-Multiplayer-FPS. Phasen 1-6 fertig (siehe README.md), offen: 7 Lobby/Map-Voting, 8 Polish, 9 Windows-Build.
+Arcade-Multiplayer-FPS. Phasen 1-7 fertig (siehe README.md), offen: 8 Polish, 9 Windows-Build.
 Architektur: docs/ARCHITECTURE.md (nur bei Bedarf lesen). Sprache: Deutsch.
 
 ## Arbeitsregeln

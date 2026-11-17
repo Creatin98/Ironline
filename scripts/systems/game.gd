@@ -34,6 +34,7 @@ func _ready() -> void:
 	GameEvents.match_ended.connect(_on_match_ended)
 	match_end.next_round_requested.connect(_on_next_round)
 	match_end.lobby_requested.connect(_on_back_to_lobby)
+	match_end.map_chosen.connect(_on_map_chosen)
 	match_end.leave_requested.connect(_leave_to_menu)
 	pause_menu.resumed.connect(_close_pause)
 	pause_menu.leave_requested.connect(_leave_to_menu)
@@ -254,6 +255,14 @@ func _on_match_ended(_winner_team: int, _winner_id: int) -> void:
 	else:
 		AudioManager.play_2d("round_lose", -2.0)
 	match_end.show_results()
+	if NetworkManager.is_host() and MatchManager.config.map_voting:
+		NetworkManager.host_open_vote(GameDirector.ROTATION_MAPS)
+
+
+func _on_map_chosen(map_id: String) -> void:
+	var cfg := MatchManager.config.duplicate_config()
+	cfg.map_id = map_id
+	GameDirector.start_match(cfg)
 
 
 func _on_next_round() -> void:

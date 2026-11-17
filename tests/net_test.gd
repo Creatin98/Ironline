@@ -16,7 +16,7 @@ const TEST_SPOT := Vector3(0.0, 0.1, -17.0)
 var role: String = "host"
 var port: int = 7791
 var _failures: Array[String] = []
-var _stats: Dictionary = {"hits": 0, "died": 0, "explosions": 0, "kills_seen": 0, "disconnected": 0}
+var _stats: Dictionary = {"hits": 0, "died": 0, "explosions": 0, "kills_seen": 0, "disconnected": 0, "votes": 0}
 var _started_msec: int = 0
 
 
@@ -40,6 +40,7 @@ func _ready() -> void:
 	GameEvents.local_player_died.connect(func(_k: int, _d: float) -> void: _stats["died"] += 1)
 	GameEvents.explosion_at.connect(func(_p: Vector3, _r: float) -> void: _stats["explosions"] += 1)
 	GameEvents.participant_killed.connect(func(_v: int, _k: int, _w: String, _h: bool) -> void: _stats["kills_seen"] += 1)
+	NetworkManager.vote_opened.connect(func(_m: Array, _d: float) -> void: _stats["votes"] += 1)
 	NetworkManager.disconnected.connect(func(_r: String) -> void: _stats["disconnected"] += 1)
 	if role == "host":
 		await _run_host()
@@ -204,6 +205,17 @@ func _run_host() -> void:
 	else:
 		_log("Granate explodiert")
 	await get_tree().create_timer(2.0).timeout
+
+	# 6) match end -> map vote -> next round on the voted map
+	MatchManager.end_match()
+	if not await _wait(func() -> bool: return int(_stats["votes"]) >= 1, 5.0):
+		_fail("Kartenabstimmung wurde nicht geöffnet")
+	NetworkManager.cast_vote("harbor")
+	if not await _wait(func() -> bool: return MatchManager.config.map_id == "harbor" and _match_running_with(2), 60.0):
+		_fail("Nächste Runde auf der abgestimmten Map startete nicht (Map %s, Zustand %d)" % [MatchManager.config.map_id, MatchManager.state])
+	else:
+		_log("Abstimmung ausgewertet, neue Runde läuft auf Harbor")
+	await get_tree().create_timer(2.0).timeout
 	_log("Host beendet die Lobby")
 	_finish()
 
@@ -289,7 +301,17 @@ func _run_client() -> void:
 	else:
 		_log("Granatenexplosion empfangen")
 
-	# 6) host leaves -> we notice and are sent back
+	# 6) match end -> vote, then the next round starts on the voted map
+	if not await _wait(func() -> bool: return int(_stats["votes"]) >= 1, 15.0):
+		_fail("Abstimmung nicht empfangen")
+	else:
+		NetworkManager.cast_vote("harbor")
+		if not await _wait(func() -> bool: return MatchManager.config.map_id == "harbor" and _match_running_with(2), 60.0):
+			_fail("Nächste Runde auf Harbor nicht gestartet (Map %s, Zustand %d)" % [MatchManager.config.map_id, MatchManager.state])
+		else:
+			_log("Neue Runde auf der abgestimmten Map läuft")
+
+	# 7) host leaves -> we notice and are sent back
 	if not await _wait(func() -> bool: return int(_stats["disconnected"]) >= 1 or not NetworkManager.is_online(), 20.0):
 		_fail("Verlassen des Hosts wurde nicht erkannt")
 	else:

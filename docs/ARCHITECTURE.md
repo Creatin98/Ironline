@@ -50,6 +50,11 @@ Extrapolation um höchstens 0.12 s). Schüsse sagt der Client vorher (Mündungsf
 entsteht nur auf dem Server: dieser führt den Hitscan mit dem übertragenen Blickwinkel des Schützen aus und schickt
 Treffermarker und Schadensanzeige zurück. Die übrigen Clients erhalten Schuss und Einschläge per `_rpc_shot`.
 
+**Map-Voting.** Nach `match_ended` öffnet der Host `host_open_vote(ROTATION_MAPS)` (15 s). Clients stimmen per
+`_rpc_cast_vote` ab, der Host verteilt die Zwischenstände (`_rpc_vote_tally`) und wertet aus, sobald alle Spieler gewählt
+haben oder die Zeit abläuft (Gleichstand zufällig). Danach startet `host_start_match` mit der gewählten Map. Verlässt ein
+Spieler die Abstimmung, zählt sie ohne ihn. Offline wählt `MatchEndScreen` die Map direkt (`map_chosen`).
+
 **Granaten.** Nur der Server erzeugt die echte Granate (Zünder, Schaden). Clients bekommen eine Sichtkopie
 (`visual_only`), die fliegt und abprallt und auf Server-Befehl explodiert (Rückfall nach 1.5 s zusätzlich).
 

@@ -3,7 +3,7 @@
 Schneller First-Person-Arena-Shooter im Stil der klassischen Konsolen-Multiplayer-Ära:
 drei Klassen, drei Drei-Wege-Maps, Team Deathmatch und Free for All, Bots und Online-Multiplayer.
 
-## Aktueller Stand (Phase 1–6 abgeschlossen)
+## Aktueller Stand (Phase 1–7 abgeschlossen)
 
 | Phase | Inhalt | Status |
 |---|---|---|
@@ -13,7 +13,7 @@ drei Klassen, drei Drei-Wege-Maps, Team Deathmatch und Free for All, Bots und On
 | 4 | Maps Harbor, Frontier, Suburb, Bot-Navigation | fertig |
 | 5 | Bot-KI | fertig |
 | 6 | Online-Multiplayer (ENet, Host spielt mit, serverautoritativ) | fertig |
-| 7 | Map-Voting, Lobby-/Menü-Polish | offen (einfache Lobby vorhanden) |
+| 7 | Lobby (Team/Klasse/Bots), Map-Voting nach jeder Runde | fertig |
 | 8 | Polish | offen |
 | 9 | Windows-Build, Tests | offen |
 
@@ -36,7 +36,7 @@ Ein Spieler ist Host (Server und Mitspieler zugleich), die anderen treten bei.
 1. Host: **Online** → Port prüfen (Standard 7777) → **Hosten**. Die Lobby zeigt die IP-Adressen des Rechners.
 2. Mitspieler: **Online** → IP-Adresse des Hosts und Port eintragen → **Beitreten**.
 3. Jeder wählt in der Lobby Team (nur Team Deathmatch) und Klasse. Der Host stellt Modus, Map und Bots ein und startet das Match.
-4. Nach dem Match entscheidet der Host: **Nächste Runde** oder **Zur Lobby**.
+4. Nach dem Match stimmen alle 15 Sekunden über die nächste Karte ab (Harbor, Frontier, Suburb). Bei Gleichstand oder ohne Stimmen entscheidet der Zufall, sobald alle gewählt haben startet die Runde sofort. Der Host kann stattdessen **Zur Lobby** wählen. Offline wählst du die nächste Karte direkt im Endbildschirm.
 
 Im selben WLAN/LAN genügt die lokale IP des Hosts (z. B. `192.168.x.x`). Über das Internet muss der Host
 den **UDP**-Port am Router an seinen Rechner weiterleiten (Port-Forwarding) und die öffentliche IP weitergeben;
@@ -66,7 +66,7 @@ godot --headless --path . tests/smoke_test.tscn
 ```
 
 Netzwerktest (startet Host und Client als zwei Godot-Prozesse auf localhost und prüft Lobby, Matchstart,
-Bewegung, Serverkorrektur, Treffer, Kill/Respawn, Granaten und Host-Abschied; ca. 40 s):
+Bewegung, Serverkorrektur, Treffer, Kill/Respawn, Granaten, Map-Voting und Host-Abschied; ca. 60 s):
 
 ```bash
 py -3 tools/run_net_test.py "C:\Pfad\zu\godot.exe"
