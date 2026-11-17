@@ -245,65 +245,58 @@ def make_hit_feedback():
     def body(length, cutoff, decay):
         return env_exp(lowpass(nz(length), cutoff), decay)
 
-    def ping(f, length, decay):
-        """Soft triangle-like 'ting' (odd harmonics 1/n^2): clear and bright, rings only very briefly."""
-        return env_exp(mix(sine(f, length), gain(sine(f * 3, length), 0.11), gain(sine(f * 5, length), 0.04)), decay)
+    def metal(freqs, length, decay, amps=None):
+        """Short metallic impulse: inharmonic partials (thin plate / casing) with a fast decay.
+        All partials sit above 2 kHz, so there is no hollow 'tank' body."""
+        amps = amps or [1.0] * len(freqs)
+        parts = [gain(env_exp(sine(f, length), decay * (1.0 - 0.12 * k)), a) for k, (f, a) in enumerate(zip(freqs, amps))]
+        return mix(*parts)
 
-    # body hit: dry snap + soft flesh thump + a short bright ting (the 'batz' on every bullet)
+    def tick(f0, scale=1.0):
+        """Dry transient: bright noise crack + metal click, f0 shifts the whole colour."""
+        return mix(
+            gain(band(0.03, 2800 * f0, 11000, 0.0045), 1.2 * scale),
+            gain(band(0.012, 6500 * f0, 14000, 0.0022), 0.8 * scale),
+            gain(metal([3150 * f0, 4780 * f0, 7420 * f0], 0.05, 0.011, [1.0, 0.7, 0.45]), 0.55 * scale),
+        )
+
+    # normal hit: very short, dry, metallic snap with a clean attack and a tiny punch below it
     hit = mix(
-        gain(band(0.04, 1800, 6000, 0.008), 1.0),
-        gain(body(0.05, 1300, 0.016), 0.6),
-        gain(thump(0.07, 230, 90, 0.022), 0.8),
-        gain(ping(2350, 0.12, 0.028), 0.55),
+        tick(1.0),
+        gain(thump(0.035, 260, 120, 0.009), 0.55),
+        gain(body(0.03, 2200, 0.007), 0.4),
     )
-    write_wav("hitmarker", soft_clip(hit, 1.8), 0.95)
+    write_wav("hitmarker", soft_clip(hit, 2.4), 0.9)
 
-    # headshot hit: two quick rising tings on a sharper crack
-    head_a = mix(
-        gain(band(0.05, 3000, 9500, 0.008), 1.15),
-        gain(body(0.06, 1500, 0.016), 0.5),
-        gain(thump(0.08, 190, 75, 0.028), 1.0),
-        gain(ping(3000, 0.16, 0.04), 0.7),
-    )
-    head_b = mix(
-        gain(band(0.04, 3500, 10000, 0.007), 0.8),
-        gain(ping(4000, 0.2, 0.06), 0.8),
-        gain(thump(0.05, 150, 70, 0.02), 0.4),
-    )
-    head = mix(head_a, delay(head_b, 0.055))
-    write_wav("hitmarker_headshot", soft_clip(head, 1.8), 0.98)
+    # headshot hit: sharper and higher, an instantly recognisable double snap (second one higher)
+    head_a = mix(tick(1.25, 1.0), gain(thump(0.04, 300, 130, 0.01), 0.6))
+    head_b = mix(tick(1.7, 1.0), gain(metal([5200, 8100, 11800], 0.08, 0.02, [1.0, 0.6, 0.35]), 0.5))
+    head = mix(head_a, delay(gain(head_b, 0.95), 0.042))
+    write_wav("hitmarker_headshot", soft_clip(head, 2.4), 0.96)
 
-    # kill: heavy thump + crack + a warm two-note ting (major third) that rings a little longer
+    # kill: the reward - heavy impact, big metallic clang (higher, ringing for ~0.2 s), crack and a short sub punch
+    clang = metal([2480, 3770, 5650, 8300, 11200], 0.34, 0.085, [1.0, 0.85, 0.7, 0.5, 0.3])
     kill = mix(
-        gain(thump(0.22, 130, 42, 0.08), 1.4),
-        gain(body(0.12, 950, 0.045), 0.8),
-        gain(band(0.05, 2200, 7000, 0.011), 1.0),
-        gain(body(0.25, 450, 0.11), 0.35),
-        gain(ping(1760, 0.34, 0.09), 0.55),
-        gain(delay(ping(2217, 0.3, 0.08), 0.045), 0.5),
+        tick(1.1, 1.15),
+        gain(clang, 0.95),
+        gain(delay(metal([3300, 5100, 7700], 0.25, 0.06, [1.0, 0.7, 0.5]), 0.03), 0.6),
+        gain(thump(0.16, 180, 55, 0.055), 1.25),
+        gain(body(0.12, 1700, 0.035), 0.7),
     )
-    write_wav("kill_confirm", soft_clip(kill, 2.0), 0.98)
+    write_wav("kill_confirm", soft_clip(kill, 2.8), 0.98)
 
-    # headshot kill: three rising cracks + tings (the 'rattle'), bigger thump, bright snap on top
-    cracks = mix(
-        gain(band(0.05, 2600, 8000, 0.011), 1.0),
-        gain(delay(band(0.05, 3200, 9500, 0.010), 0.05), 0.9),
-        gain(delay(band(0.05, 4200, 11500, 0.009), 0.10), 0.8),
-    )
-    tings = mix(
-        gain(ping(2093, 0.3, 0.07), 0.6),
-        gain(delay(ping(2637, 0.3, 0.07), 0.05), 0.6),
-        gain(delay(ping(3136, 0.4, 0.1), 0.10), 0.7),
-    )
+    # headshot kill: the best of all - double snap into a bigger, brighter clang, a third crack and extra punch
+    clang_h = metal([2900, 4400, 6600, 9400, 12500], 0.45, 0.11, [1.0, 0.9, 0.75, 0.55, 0.35])
     kill_h = mix(
-        gain(thump(0.28, 145, 38, 0.10), 1.5),
-        gain(body(0.14, 1000, 0.05), 0.85),
-        cracks,
-        tings,
-        gain(band(0.03, 7000, 13500, 0.004), 0.7),
-        gain(body(0.30, 500, 0.13), 0.4),
+        tick(1.3, 1.2),
+        gain(delay(tick(1.7, 1.0), 0.04), 0.95),
+        gain(delay(tick(2.1, 0.9), 0.085), 0.85),
+        gain(delay(clang_h, 0.02), 1.0),
+        gain(delay(metal([3700, 5700, 8600], 0.32, 0.07, [1.0, 0.7, 0.5]), 0.07), 0.7),
+        gain(thump(0.22, 200, 50, 0.075), 1.45),
+        gain(body(0.14, 1900, 0.04), 0.8),
     )
-    write_wav("kill_headshot", soft_clip(kill_h, 2.0), 1.0)
+    write_wav("kill_headshot", soft_clip(kill_h, 3.0), 1.0)
 
 
 def make_slide_sound():

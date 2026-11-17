@@ -125,6 +125,7 @@ func _load_map() -> void:
 	var scene: PackedScene = load(info["scene"])
 	map = scene.instantiate()
 	map_container.add_child(map)
+	hud.minimap.build_from(map)
 
 
 func _create_roster() -> void:

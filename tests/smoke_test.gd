@@ -336,6 +336,15 @@ func _simulate_slide() -> void:
 		local.input.clear_all()
 		for i in 30:
 			await get_tree().physics_frame
+	# hit feedback: the four situations (hit, headshot, kill, headshot kill) play their sounds without errors
+	for name in ["hitmarker", "hitmarker_headshot", "kill_confirm", "kill_headshot"]:
+		var st := AudioManager.get_stream(name)
+		if st == null or st.get_length() < 0.03:
+			_fail("Sound %s fehlt oder ist leer" % name)
+	for combo in [[false, false], [true, false], [false, true], [true, true]]:
+		game.hud._on_hit_enemy(combo[0], combo[1])
+		await get_tree().process_frame
+	print("Hit-Feedback: Treffer, Kopfschuss, Kill, Kopfschuss-Kill ausgeloest")
 	game.free()
 	await get_tree().process_frame
 

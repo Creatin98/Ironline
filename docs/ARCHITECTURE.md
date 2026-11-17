@@ -279,3 +279,8 @@ Python-Skripten in `tools/` erzeugt – keine Fremdinhalte, alles reproduzierbar
   zurück, 0.5 s vor Ablauf voll farbig.
 * **Killcam:** Aufnahme enthält `is_aiming`; `ReplayRecorder.killer_aim` schiebt die Waffe in die Visierlinie (`Player.replay_aim`), FOV und
   Fadenkreuz (`Game._draw_cam_cross`) folgen. Bildschirm-Blut (`HUD`, eigene CanvasLayer) bleibt im Tod/Killcam stehen und verblasst erst nach dem Respawn.
+
+* **Minimap (neu):** keine Kamera mehr; `Minimap.build_from` sammelt die Grundrisse der Kollisionsformen (Boden dunkel, Wände/Häuser/Kisten
+  hell mit Umriss) und zeichnet sie gedreht. Mates dauerhaft als Pfeile, Gegner nur als roter Pfeil beim Schuss (1.6 s, mit Blickrichtung).
+* **Hit-/Kill-Sounds:** `make_hit_feedback` – Transienten aus Rauschen + inharmonische Metall-Partiale (> 2 kHz), Kill mit Clang und Sub-Punch,
+  Kopfschuss als Doppel-Snap, Kopfschuss-Kill als Kombination aus beidem (Lautheit: Treffer < Kopfschuss < Kill < Kopfschuss-Kill).
