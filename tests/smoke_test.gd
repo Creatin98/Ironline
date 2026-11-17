@@ -15,9 +15,12 @@ var _loaded := 0
 func _ready() -> void:
 	print("== Ironline Smoke Test ==")
 	GameSettings.persist = false
+	GameDirector._skip_loading_screen = true
+	MatchManager.warmup_time = 0.5
 	GameSettings.killcams = false # the main simulations expect the results screen right at the end
 	_scan("res://")
 	_instantiate_core_scenes()
+	await _check_loading_screen()
 	await _simulate_match()
 	_check_reload_rigs()
 	await _simulate_reloads()
@@ -243,6 +246,27 @@ func _simulate_steps() -> void:
 	await get_tree().process_frame
 
 
+## Loading screen: shows for DURATION, then reports "finished" and removes itself.
+func _check_loading_screen() -> void:
+	var ls := LoadingScreen.new()
+	add_child(ls)
+	ls.begin("harbor")
+	var done := [false]
+	ls.finished.connect(func() -> void: done[0] = true)
+	var t := 0.0
+	while not done[0] and t < LoadingScreen.DURATION + 2.0:
+		await get_tree().process_frame
+		t += get_process_delta_time()
+	if not done[0]:
+		_fail("Ladebildschirm meldete nach %.1f s kein Ende" % t)
+	elif t < LoadingScreen.DURATION - 0.5:
+		_fail("Ladebildschirm war nach %.1f s schon fertig" % t)
+	await get_tree().create_timer(1.0).timeout
+	if is_instance_valid(ls):
+		_fail("Ladebildschirm blieb nach dem Ausblenden bestehen")
+	print("Ladebildschirm: %.1f s, danach entfernt" % t)
+
+
 ## Knee slide: sprint + crouch glides ~1-2 m; Space ends it and stands up, a second Space jumps.
 func _simulate_slide() -> void:
 	var cfg := MatchConfig.new()
@@ -286,8 +310,8 @@ func _simulate_slide() -> void:
 				await get_tree().physics_frame
 				ticks += 1
 			var dist := absf(local.global_position.z - start_z)
-			if dist < 1.5 or dist > 3.2:
-				_fail("Slide-Test: Slidelaenge %.2f m ausserhalb von 1.5-3.2 m" % dist)
+			if dist < 2.2 or dist > 4.5:
+				_fail("Slide-Test: Slidelaenge %.2f m ausserhalb von 2.2-4.5 m" % dist)
 			if not local.is_crouching:
 				_fail("Slide-Test: nach dem Slide mit gehaltener Duck-Taste soll der Spieler geduckt bleiben")
 			# Space while crouched: stand up, no jump

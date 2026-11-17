@@ -76,14 +76,14 @@ func play_music() -> void:
 	_music_tween.tween_property(_music_player, "volume_db", MUSIC_DB, 1.5)
 
 
-func stop_music() -> void:
+func stop_music(fade: float = 0.6) -> void:
 	_music_wanted = false
 	if not _music_player.playing:
 		return
 	if _music_tween != null and _music_tween.is_valid():
 		_music_tween.kill()
 	_music_tween = create_tween()
-	_music_tween.tween_property(_music_player, "volume_db", -40.0, 0.6)
+	_music_tween.tween_property(_music_player, "volume_db", -40.0, fade)
 	_music_tween.tween_callback(_music_player.stop)
 
 

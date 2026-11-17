@@ -265,7 +265,7 @@ func _begin_grenade() -> void:
 	if NetworkManager.is_host():
 		NetworkManager.broadcast_weapon_event(player.participant_id, "grenade")
 	if is_local:
-		AudioManager.play_2d("grenade_pin", -8.0)
+		AudioManager.play_2d("grenade_pin", -3.0)
 		GameEvents.local_grenades_changed.emit(grenades)
 
 
@@ -281,7 +281,7 @@ func _update_grenade(delta: float) -> void:
 func _spawn_grenade() -> void:
 	if NetworkManager.is_client():
 		# the server spawns the real grenade and sends it to everybody
-		AudioManager.play_2d("grenade_throw", -4.0)
+		AudioManager.play_2d("grenade_throw", 1.0)
 		return
 	var container := get_tree().get_first_node_in_group("projectiles_container")
 	if container == null:
@@ -297,9 +297,9 @@ func _spawn_grenade() -> void:
 	grenade.launch(launch_velocity)
 	NetworkManager.register_grenade(grenade, player.participant_id, player.team, grenade.global_position, launch_velocity)
 	if is_local:
-		AudioManager.play_2d("grenade_throw", -4.0)
+		AudioManager.play_2d("grenade_throw", 1.0)
 	else:
-		AudioManager.play_3d("grenade_throw", origin, -4.0)
+		AudioManager.play_3d("grenade_throw", origin, 0.0)
 
 
 # ----------------------------------------------------------------------------- view model

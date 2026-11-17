@@ -5,7 +5,9 @@ extends Node
 
 enum State { IDLE, WARMUP, RUNNING, ENDED }
 
-const WARMUP_TIME := 3.0
+const WARMUP_TIME := 8.0
+## Tests set this lower so they do not wait for the real countdown.
+var warmup_time: float = WARMUP_TIME
 const KILL_LIMIT_SAFETY := 999
 
 var config: MatchConfig = MatchConfig.new()
@@ -94,7 +96,7 @@ func _make_mode(mode_id: String) -> GameModeBase:
 
 
 func begin_warmup() -> void:
-	warmup_left = WARMUP_TIME
+	warmup_left = warmup_time
 	_set_state(State.WARMUP)
 
 

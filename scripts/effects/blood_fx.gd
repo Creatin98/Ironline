@@ -160,6 +160,4 @@ static func _place_splat(parent: Node3D, pos: Vector3, normal: Vector3, size: fl
 		var oldest = _live.pop_front()
 		if is_instance_valid(oldest):
 			oldest.queue_free()
-	parent.get_tree().create_timer(SPLAT_LIFETIME).timeout.connect(func() -> void:
-		if is_instance_valid(mi):
-			mi.queue_free())
+	parent.get_tree().create_timer(SPLAT_LIFETIME).timeout.connect(mi.queue_free)

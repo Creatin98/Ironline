@@ -5,7 +5,7 @@ extends Control
 ## layout scales with GameSettings.hud_scale.
 
 const KILLFEED_LIFETIME := 6.0
-const BLOOD_LIFETIME := 4.5
+const BLOOD_LIFETIME := 7.0
 const KILLFEED_MAX := 6
 const WEAPON_LABELS := {
 	"ak47": "AK-47", "mp5": "MP5", "shotgun": "Shotgun", "pistol": "Pistole",
@@ -97,7 +97,11 @@ func _build() -> void:
 	_blood_layer.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_blood_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_blood_layer.draw.connect(_draw_blood)
-	add_child(_blood_layer)
+	# own canvas layer: stays visible while the HUD is hidden (killcam)
+	var blood_canvas := CanvasLayer.new()
+	blood_canvas.layer = 3
+	add_child(blood_canvas)
+	blood_canvas.add_child(_blood_layer)
 
 	# --- crosshair / hitmarker ---
 	crosshair = Control.new()
@@ -353,10 +357,12 @@ func _process(delta: float) -> void:
 	_damage_dirs = _damage_dirs.filter(func(d: Dictionary) -> bool: return float(d["time"]) > 0.0)
 	crosshair.queue_redraw()
 	minimap.player = _player
-	for sp in _blood_splats:
-		sp["age"] = float(sp["age"]) + delta
-		sp["p"] = (sp["p"] as Vector2) + Vector2(0.0, float(sp["vy"]) * delta * clampf(float(sp["age"]) * 0.6, 0.0, 1.0))
-	_blood_splats = _blood_splats.filter(func(sp: Dictionary) -> bool: return float(sp["age"]) < BLOOD_LIFETIME)
+	# the blood stays while we are dead (killcam) and fades only after the respawn
+	if _player != null and is_instance_valid(_player) and _player.alive:
+		for sp in _blood_splats:
+			sp["age"] = float(sp["age"]) + delta
+			sp["p"] = (sp["p"] as Vector2) + Vector2(0.0, float(sp["vy"]) * delta * clampf(float(sp["age"]) * 0.6, 0.0, 1.0))
+		_blood_splats = _blood_splats.filter(func(sp: Dictionary) -> bool: return float(sp["age"]) < BLOOD_LIFETIME)
 	if not _blood_splats.is_empty() or _blood_layer.visible:
 		_blood_layer.queue_redraw()
 	# damage vignette decay
@@ -402,8 +408,15 @@ func _draw_crosshair() -> void:
 			var arm := 9.0
 			var col := Color(1, 1, 1, 0.9 * alpha)
 			var shadow := Color(0, 0, 0, 0.6 * alpha)
-			_draw_cross_lines(center + Vector2(1, 1), gap, arm, shadow, 2.0)
-			_draw_cross_lines(center, gap, arm, col, 2.0)
+			var cw := _player.weapon_manager.get_current_weapon()
+			if cw != null and cw.data.pellets > 1:
+				# shotgun: ring that shows the pellet spread
+				var radius := 20.0 + _spread_display * 9.0
+				crosshair.draw_arc(center + Vector2(1, 1), radius, 0.0, TAU, 48, shadow, 2.5, true)
+				crosshair.draw_arc(center, radius, 0.0, TAU, 48, col, 2.0, true)
+			else:
+				_draw_cross_lines(center + Vector2(1, 1), gap, arm, shadow, 2.0)
+				_draw_cross_lines(center, gap, arm, col, 2.0)
 			crosshair.draw_circle(center, 1.5, col)
 	_draw_damage_indicators(center)
 	if _hitmarker_time > 0.0:
@@ -550,6 +563,7 @@ func _on_local_spawned(player: Node) -> void:
 
 
 func _on_local_died(killer_id: int, respawn_delay: float) -> void:
+	_add_blood_splats(110.0)
 	var killer := MatchManager.get_participant(killer_id)
 	if killer and killer.id != MatchManager.local_participant_id:
 		center_label.text = "Getötet von %s" % killer.display_name
@@ -563,23 +577,68 @@ func _draw_blood() -> void:
 	for sp in _blood_splats:
 		var age := float(sp["age"])
 		var a := clampf((BLOOD_LIFETIME - age) / 1.8, 0.0, 1.0) * 0.88
-		var sz: float = float(sp["size"]) * (0.75 + 0.25 * clampf(age * 6.0, 0.0, 1.0))
-		_blood_layer.draw_set_transform(sp["p"], float(sp["rot"]), Vector2.ONE)
-		_blood_layer.draw_texture_rect(BloodFx.splat_texture(int(sp["tex"])), Rect2(-sz * 0.5, -sz * 0.5 * 1.15, sz, sz * 1.15), false, Color(0.5, 0.03, 0.03, a))
-	_blood_layer.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+		var col := Color(0.5, 0.03, 0.03, a)
+		var grow := clampf(age * 5.0, 0.0, 1.0)
+		var p: Vector2 = sp["p"]
+		match int(sp["kind"]):
+			0:
+				var sz: float = float(sp["size"]) * (0.75 + 0.25 * grow)
+				_blood_layer.draw_set_transform(p, float(sp["rot"]), Vector2.ONE)
+				_blood_layer.draw_texture_rect(BloodFx.splat_texture(int(sp["tex"])), Rect2(-sz * 0.5, -sz * 0.5 * 1.15, sz, sz * 1.15), false, col)
+				_blood_layer.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+			1: # smear / drip: tapered streak with a drop at its end
+				var d: Vector2 = sp["dir"]
+				var len: float = float(sp["size"]) * grow
+				var w: float = float(sp["w"])
+				var n := d.orthogonal()
+				var pts := PackedVector2Array([p + n * w * 0.5, p + d * len * 0.55 + n * w * 0.32, p + d * len, p + d * len * 0.55 - n * w * 0.32, p - n * w * 0.5])
+				if len > 6.0:
+					_blood_layer.draw_colored_polygon(pts, col)
+				_blood_layer.draw_circle(p + d * len, w * 0.34, col)
+				_blood_layer.draw_circle(p, w * 0.55, col)
+			_: # spray / scratches: thin fan of lines with droplets at the ends
+				var d2: Vector2 = sp["dir"]
+				var rays: Array = sp["rays"]
+				for r in rays:
+					var dir := d2.rotated(float(r[0]))
+					var l := float(r[1]) * grow
+					_blood_layer.draw_line(p, p + dir * l, col, float(r[2]), true)
+					_blood_layer.draw_circle(p + dir * l, float(r[2]) * 0.9, col)
 
 
-## Individual blood splats on the screen (stronger hits = more and bigger ones).
+## Blood on the screen: splats, smears/drips and thin scratch sprays, spread over the whole picture
+## (kept away from the very middle). Stronger hits = more of them.
 func _add_blood_splats(amount: float) -> void:
-	var count := clampi(1 + int(amount / 18.0), 1, 5)
+	var count := clampi(2 + int(amount / 12.0), 2, 8)
 	var s := _blood_layer.size
+	var k := s.y / 1080.0
 	for i in count:
-		var ang := randf() * TAU
-		var radius := randf_range(0.18, 0.5)
-		var pos := s * 0.5 + Vector2(cos(ang) * s.x * radius, sin(ang) * s.y * radius)
-		_blood_splats.append({"p": pos, "size": randf_range(90.0, 210.0) * (s.y / 1080.0), "rot": randf() * TAU,
-				"tex": randi() % BloodFx.VARIANTS, "age": 0.0, "vy": randf_range(10.0, 45.0)})
-	while _blood_splats.size() > 14:
+		var pos := Vector2.ZERO
+		for attempt in 8:
+			pos = Vector2(randf_range(0.03, 0.97) * s.x, randf_range(0.03, 0.97) * s.y)
+			var rel := (pos - s * 0.5) / s
+			if absf(rel.x) > 0.17 or absf(rel.y) > 0.2:
+				break
+		var kind_roll := randf()
+		var sp := {"p": pos, "age": 0.0, "vy": randf_range(8.0, 40.0), "kind": 0}
+		if kind_roll < 0.45:
+			sp["size"] = randf_range(80.0, 200.0) * k
+			sp["rot"] = randf() * TAU
+			sp["tex"] = randi() % BloodFx.VARIANTS
+		elif kind_roll < 0.78:
+			sp["kind"] = 1
+			sp["dir"] = Vector2.DOWN.rotated(randf_range(-0.7, 0.7)) if randf() < 0.7 else Vector2.from_angle(randf() * TAU)
+			sp["size"] = randf_range(160.0, 420.0) * k
+			sp["w"] = randf_range(16.0, 46.0) * k
+		else:
+			sp["kind"] = 2
+			sp["dir"] = Vector2.from_angle(randf() * TAU)
+			var rays: Array = []
+			for r in randi_range(5, 9):
+				rays.append([randf_range(-0.55, 0.55), randf_range(70.0, 260.0) * k, randf_range(2.0, 5.0) * k])
+			sp["rays"] = rays
+		_blood_splats.append(sp)
+	while _blood_splats.size() > 26:
 		_blood_splats.pop_front()
 
 

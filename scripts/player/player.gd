@@ -26,7 +26,7 @@ const STEP_HEIGHT := 0.4
 const STEP_VIEW_SPEED := 1.7 # m/s the camera needs to catch up with a step
 ## Knee slide (sprint + crouch): ~1.5 m, decelerating; a small gadget, not a movement tech.
 const DEATH_FALL_TIME := 0.34
-const SLIDE_TIME := 0.62
+const SLIDE_TIME := 0.8
 const SLIDE_MIN_SPEED := 5.2
 const SLIDE_MIN_START_SPEED := 6.6
 const SLIDE_COOLDOWN := 0.9
@@ -47,6 +47,7 @@ var is_sliding: bool = false
 var _slide_t: float = 0.0
 var _slide_dir: Vector3 = Vector3.ZERO
 var _slide_speed: float = 0.0
+var _slide_entry: float = 0.0
 var _slide_cd: float = 0.0
 var _prev_crouch_in: bool = false
 ## Space stood us up while crouch is still held: crouch stays off until the key is released.
@@ -205,6 +206,13 @@ func _play_death_animation_replay() -> void:
 	_death_tween.set_parallel(true)
 	_death_tween.tween_property(body, "rotation", Vector3(0.0, 0.0, deg_to_rad(88.0)), 0.45).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 	_death_tween.tween_property(body, "position", Vector3(0.0, 0.25, 0.0), 0.45)
+
+
+## Killcam: the killer's weapon moves into the line of sight when aiming (0 = hip, 1 = sights).
+func replay_aim(a: float) -> void:
+	var hip := Vector3(0.22, 1.25, -0.25)
+	var sights := Vector3(0.0, current_height - EYE_BELOW_TOP - 0.07, -0.36)
+	hands.position = hip.lerp(sights, a)
 
 
 func replay_shot() -> void:
@@ -451,7 +459,7 @@ func _update_states(delta: float) -> void:
 		if input.jump_pressed:
 			input.jump_pressed = false # Space ends the slide and stands up; a second Space jumps
 			_end_slide(true)
-		elif _slide_t >= SLIDE_TIME or not is_on_floor() or horizontal_speed < SLIDE_MIN_SPEED * 0.3:
+		elif _slide_t >= SLIDE_TIME or not is_on_floor() or horizontal_speed < 0.9 and _slide_t > 0.2:
 			_end_slide(false)
 	if not is_sliding:
 		if is_crouching and input.jump_pressed and is_on_floor():
@@ -482,7 +490,8 @@ func _start_slide() -> void:
 	is_sliding = true
 	_slide_t = 0.0
 	_slide_dir = flat.normalized()
-	_slide_speed = maxf(horizontal_speed * 1.12, 8.6)
+	_slide_speed = maxf(horizontal_speed * 1.25, 10.0)
+	_slide_entry = horizontal_speed
 	_slide_cd = SLIDE_COOLDOWN
 	is_sprinting = false
 	if not is_crouching:
@@ -528,7 +537,9 @@ func _move(delta: float) -> void:
 			var steered := _slide_dir.lerp(wish_dir, minf(1.0, 1.6 * delta))
 			if steered.length() > 0.1:
 				_slide_dir = steered.normalized()
-		horizontal = _slide_dir * (_slide_speed * pow(maxf(0.0, 1.0 - _slide_t / SLIDE_TIME), 1.4))
+		# ramps from the entry speed to the slide speed (no jolt), then glides out
+		var profile := _slide_speed * pow(maxf(0.0, 1.0 - _slide_t / SLIDE_TIME), 1.4)
+		horizontal = _slide_dir * lerpf(_slide_entry, profile, smoothstep(0.0, 0.14, _slide_t))
 		if not on_floor:
 			velocity.y -= GRAVITY * delta
 	elif on_floor:

@@ -81,9 +81,9 @@ var _slide_blend: float = 0.0
 
 func update_camera(delta: float, horizontal_speed: float, on_floor: bool, eye_height: float, is_aiming: bool, ads_fov: float, ads_time: float, sprinting: bool) -> void:
 	# --- eye height (crouch) ---
-	_slide_blend = move_toward(_slide_blend, 1.0 if sliding else 0.0, delta * 5.0)
+	_slide_blend = move_toward(_slide_blend, 1.0 if sliding else 0.0, delta * 4.0)
 	var slide_s := _slide_blend * _slide_blend * (3.0 - 2.0 * _slide_blend)
-	position.y = lerpf(position.y, lerpf(eye_height - 0.14 * slide_s, 0.22, fall), 1.0 - exp(-delta * (8.0 if (sliding or slide_s > 0.01) else 14.0)))
+	position.y = lerpf(position.y, lerpf(eye_height - 0.2 * slide_s, 0.22, fall), 1.0 - exp(-delta * (8.0 if (sliding or slide_s > 0.01) else 14.0)))
 
 	# --- bobbing ---
 	var bob_target := Vector3.ZERO

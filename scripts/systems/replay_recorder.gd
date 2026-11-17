@@ -17,6 +17,9 @@ const SLOWMO_RAMP := 6.0 # time scale change per real second when slowing down
 
 var playing: bool = false
 var ghost_mode: bool = false
+## Killcam: how far the killer aims down the sights (0..1, smoothed); drives hands position, FOV and crosshair.
+var killer_aim: float = 0.0
+var _killer_aim_target: float = 0.0
 var kill: Dictionary = {}
 
 var _frames: Array = [] # {"t": float, "p": {id: [pos, yaw, pitch, crouch, alive, weapon, fired]}}
@@ -55,7 +58,7 @@ func _record() -> void:
 		var n := p.node as Player
 		if n == null or not is_instance_valid(n) or n.replay_mode:
 			continue
-		snap[p.id] = [n.global_position, n.rotation.y, n.head.pitch, n.is_crouching, n.alive, n.weapon_manager.current_index, n.consume_shot_flag()]
+		snap[p.id] = [n.global_position, n.rotation.y, n.head.pitch, n.is_crouching, n.alive, n.weapon_manager.current_index, n.consume_shot_flag(), n.is_aiming]
 	var t := _now()
 	_frames.append({"t": t, "p": snap})
 	while _frames.size() > 2 and float(_frames[0]["t"]) < t - WINDOW:
@@ -149,6 +152,8 @@ func _begin(final_kill: Dictionary, camera: Camera3D, ghosts: bool, parent: Node
 	_prev_cursor = _cursor
 	_end_time = kill_t + post
 	_alive_state.clear()
+	killer_aim = 0.0
+	_killer_aim_target = 0.0
 	_victim_dead_shown = false
 	_slow_from = -1.0
 	_targets.clear()
@@ -187,7 +192,23 @@ func _make_ghost(p: Participant, parent: Node3D) -> Player:
 	return g
 
 
+## FOV the killer's weapon has when aiming down the sights.
+func killer_ads_fov() -> float:
+	var n: Player = _targets.get(_killer_id)
+	if n != null and is_instance_valid(n):
+		var w := n.weapon_manager.get_current_weapon()
+		if w != null:
+			return w.data.ads_fov
+	return GameSettings.fov
+
+
 func _clear_targets() -> void:
+	killer_aim = 0.0
+	if not ghost_mode:
+		for id in _targets:
+			var rn: Player = _targets[id]
+			if rn != null and is_instance_valid(rn):
+				rn.replay_aim(0.0)
 	if ghost_mode:
 		for id in _targets:
 			var n: Player = _targets[id]
@@ -220,6 +241,11 @@ func _process(delta: float) -> void:
 		Engine.time_scale = move_toward(Engine.time_scale, target, SLOWMO_RAMP * real_dt)
 		AudioServer.playback_speed_scale = Engine.time_scale # deeper sound in slow motion
 		_time_changed = true
+	var real_step := delta / maxf(Engine.time_scale, 0.01)
+	killer_aim = move_toward(killer_aim, _killer_aim_target, real_step * 7.0)
+	var kn: Player = _targets.get(_killer_id)
+	if kn != null and is_instance_valid(kn):
+		kn.replay_aim(killer_aim)
 	_cursor += delta
 	if _cursor >= _end_time:
 		_finish()
@@ -303,6 +329,7 @@ func _apply(t: float, first: bool) -> void:
 	if a["p"].has(_killer_id) and _targets.has(_killer_id):
 		var s: Array = a["p"][_killer_id]
 		var sb2: Array = b["p"].get(_killer_id, s)
+		_killer_aim_target = 1.0 if (s.size() > 7 and bool(s[7])) else 0.0
 		var kpos: Vector3 = (s[0] as Vector3).lerp(sb2[0], w)
 		var kyaw := lerp_angle(float(s[1]), float(sb2[1]), w)
 		var kpitch := lerpf(float(s[2]), float(sb2[2]), w)

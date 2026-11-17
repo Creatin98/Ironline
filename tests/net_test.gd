@@ -28,6 +28,8 @@ func _ready() -> void:
 		runner.set_meta("runner", true)
 		get_tree().root.add_child.call_deferred(runner)
 		return
+	GameDirector._skip_loading_screen = true
+	MatchManager.warmup_time = 1.0
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("--role="):
 			role = arg.substr(7)

@@ -271,3 +271,11 @@ Python-Skripten in `tools/` erzeugt – keine Fremdinhalte, alles reproduzierbar
   zeigt 60 m Breite; Overlay: eigener Pfeil, Teammates, gegnerische Schüsse (`GameEvents.shot_fired`, 1.4 s Blitz).
 * **Abbrechen:** Sprint bricht Nachladen/Granate ab (`WeaponManager.cancel_for_sprint`), Waffenwechsel bricht Granate ab und
   darf das Hochnehmen unterbrechen (schnelles Wechseln); `LOWER_TIME` 0.11 s, `draw_time` ~35 % kürzer.
+
+* **Ladebildschirm:** `LoadingScreen` (CanvasLayer 100 unter dem Root, überlebt den Szenenwechsel) wird von `GameDirector.start_match` gestartet:
+  Kartenbild, Zufalls-Tipp, Ladebalken, 7 s; Menümusik läuft weiter und blendet die letzten 2.2 s aus. `Game._ready` wartet auf
+  `GameDirector.loading_finished`, erst danach Roster/„alle Spieler geladen“/Countdown. Tests/Shots setzen `_skip_loading_screen`.
+* **Countdown:** `MatchManager.WARMUP_TIME` = 8 s (`warmup_time` für Tests). Schwarz-Weiß-Shader `Game._update_gray`: Farbe kehrt linear
+  zurück, 0.5 s vor Ablauf voll farbig.
+* **Killcam:** Aufnahme enthält `is_aiming`; `ReplayRecorder.killer_aim` schiebt die Waffe in die Visierlinie (`Player.replay_aim`), FOV und
+  Fadenkreuz (`Game._draw_cam_cross`) folgen. Bildschirm-Blut (`HUD`, eigene CanvasLayer) bleibt im Tod/Killcam stehen und verblasst erst nach dem Respawn.

@@ -45,7 +45,7 @@ func _on_body_entered(_body: Node) -> void:
 	if _bounce_cooldown > 0.0 or linear_velocity.length() < 1.5:
 		return
 	_bounce_cooldown = BOUNCE_SOUND_COOLDOWN
-	AudioManager.play_3d("grenade_bounce", global_position, -8.0, 0.1, 30.0)
+	AudioManager.play_3d("grenade_bounce", global_position, -1.0, 0.1, 30.0)
 
 
 func explode() -> void:

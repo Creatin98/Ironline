@@ -104,10 +104,28 @@ func get_map_info(map_id: String) -> Dictionary:
 	return MAPS.get(map_id, MAPS["harbor"])
 
 
+## Tests and screenshot tools switch the loading screen off.
+var _skip_loading_screen: bool = false
+signal loading_finished
+
+var loading_screen: LoadingScreen
+
+
+func is_loading() -> bool:
+	return loading_screen != null and is_instance_valid(loading_screen)
+
+
 func start_match(config: MatchConfig) -> void:
 	pending_config = config.duplicate_config()
 	MatchManager.prepare_match(pending_config)
 	get_tree().paused = false
+	if not is_loading() and not _skip_loading_screen:
+		loading_screen = LoadingScreen.new()
+		get_tree().root.add_child.call_deferred(loading_screen)
+		await get_tree().process_frame
+		loading_screen.begin(pending_config.map_id)
+		loading_screen.finished.connect(func() -> void: loading_finished.emit())
+		await get_tree().process_frame # let the loading screen appear before the (short) scene load
 	get_tree().change_scene_to_file(GAME_SCENE)
 
 

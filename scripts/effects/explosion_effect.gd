@@ -18,7 +18,7 @@ func play() -> void:
 	debris.emitting = true
 	light.visible = true
 	light.light_energy = _light_energy_start
-	AudioManager.play_3d("explosion", global_position, 6.0, 0.08, 160.0)
+	AudioManager.play_3d("explosion", global_position, 14.0, 0.08, 200.0)
 	# shake nearby local camera
 	var local := get_tree().get_first_node_in_group("local_player") as Player
 	if local and local.alive:

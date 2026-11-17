@@ -19,6 +19,8 @@ var wait_frames: int = 12
 
 
 func _ready() -> void:
+	GameDirector._skip_loading_screen = true
+	MatchManager.warmup_time = 0.5
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("--target="):
 			target = arg.substr(9)
@@ -31,7 +33,16 @@ func _ready() -> void:
 
 func _run() -> void:
 	var node: Node = null
-	if target.begins_with("menu"):
+	if target == "loading":
+		var ls := LoadingScreen.new()
+		get_tree().root.add_child.call_deferred(ls)
+		await get_tree().process_frame
+		ls.begin("harbor")
+		ls._t = 3.6
+		await get_tree().process_frame
+		await get_tree().process_frame
+		ls.set_process(false)
+	elif target.begins_with("menu"):
 		var menu: Control = (load("res://scenes/main_menu/main_menu.tscn") as PackedScene).instantiate()
 		get_tree().root.add_child.call_deferred(menu)
 		await get_tree().process_frame
@@ -209,6 +220,16 @@ func _game_ui(state: String) -> void:
 	get_tree().root.add_child.call_deferred(game)
 	await get_tree().process_frame
 	await get_tree().process_frame
+	if state == "warmup":
+		# start countdown: picture still mostly grey
+		MatchManager.warmup_time = 8.0
+		MatchManager.warmup_left = 5.5
+		for i in 5:
+			await get_tree().physics_frame
+		MatchManager.warmup_left = 5.5
+		get_tree().paused = true
+		await get_tree().process_frame
+		return
 	MatchManager.warmup_left = 0.05
 	for i in 90:
 		await get_tree().physics_frame
@@ -245,6 +266,12 @@ func _game_ui(state: String) -> void:
 			rec._cursor = float(rec.kill["t"]) - 0.3 # shortly before the fatal shot
 			rec._prev_cursor = rec._cursor
 			rec._apply(rec._cursor, false)
+			if "--aim=1" in OS.get_cmdline_user_args():
+				rec._killer_aim_target = 1.0
+				rec.killer_aim = 1.0
+				(rec._targets[rec._killer_id] as Player).replay_aim(1.0)
+				game._cam.fov = lerpf(GameSettings.fov, rec.killer_ads_fov(), 1.0)
+				game._cam_cross.queue_redraw()
 			get_tree().paused = true # software rendering is slow: freeze the moment
 		"outro":
 			bot_node.health.max_health = 100000.0 # survives the shots until the explicit kill

@@ -36,6 +36,8 @@ var _cam: Camera3D # shared by killcam and last-kill replay
 var _killcam_active: bool = false
 var _dead_elapsed: float = 0.0
 var _fade: ColorRect
+var _gray: ColorRect
+var _cam_cross: Control
 var _death_seq: int = 0 # invalidates a running death sequence (respawn, round end)
 var _replay_active: bool = false
 var _cam_ui: Control
@@ -56,7 +58,10 @@ var _results_shown: bool = false
 
 func _ready() -> void:
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
-	AudioManager.stop_music()
+	if not GameDirector.is_loading():
+		AudioManager.stop_music() # with a loading screen the music runs on and fades out there
+	ui_layer.layer = 2
+	_build_gray_layer()
 	_load_map()
 	spawn_system = SpawnSystem.new(get_tree())
 	MatchManager.local_participant_id = multiplayer.get_unique_id()
@@ -84,6 +89,8 @@ func _ready() -> void:
 	_build_cam_overlay()
 	AudioManager.play_2d("round_start", -2.0)
 
+	if GameDirector.is_loading():
+		await GameDirector.loading_finished
 	if NetworkManager.is_client():
 		# the server owns the roster; wait for its state and spawn messages
 		hud.center_label.text = "Verbinde mit Match …"
@@ -168,7 +175,41 @@ func _unhandled_input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 
 
+## Black-and-white picture during the start countdown; the colour returns until 0.5 s before the start.
+func _build_gray_layer() -> void:
+	var layer := CanvasLayer.new()
+	layer.layer = 1
+	add_child(layer)
+	_gray = ColorRect.new()
+	_gray.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_gray.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var sh := Shader.new()
+	sh.code = """shader_type canvas_item;
+uniform sampler2D screen_tex : hint_screen_texture, filter_linear_mipmap;
+uniform float gray : hint_range(0.0, 1.0) = 1.0;
+void fragment() {
+	vec3 c = texture(screen_tex, SCREEN_UV).rgb;
+	float l = dot(c, vec3(0.299, 0.587, 0.114));
+	COLOR = vec4(mix(c, vec3(l), gray), 1.0);
+}"""
+	var mat := ShaderMaterial.new()
+	mat.shader = sh
+	_gray.material = mat
+	_gray.visible = false
+	layer.add_child(_gray)
+
+
+func _update_gray() -> void:
+	var g := 0.0
+	if MatchManager.state == MatchManager.State.WARMUP:
+		g = clampf((MatchManager.warmup_left - 0.5) / maxf(0.1, MatchManager.warmup_time - 0.5), 0.0, 1.0)
+	_gray.visible = g > 0.005
+	if _gray.visible:
+		(_gray.material as ShaderMaterial).set_shader_parameter("gray", g)
+
+
 func _process(delta: float) -> void:
+	_update_gray()
 	_update_killcam(delta)
 	_update_outro(delta)
 	if not MatchManager.is_authority() or MatchManager.state != MatchManager.State.RUNNING:
@@ -340,6 +381,11 @@ void fragment() {
 	_cam_hint.offset_top = -64.0
 	_cam_hint.offset_bottom = -30.0
 	_cam_ui.add_child(_cam_hint)
+	_cam_cross = Control.new()
+	_cam_cross.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_cam_cross.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_cam_cross.draw.connect(_draw_cam_cross)
+	_cam_ui.add_child(_cam_cross)
 	_fade = ColorRect.new()
 	_fade.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_fade.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -436,14 +482,36 @@ func _end_killcam() -> void:
 		local_player.camera.current = true
 
 
+## Crosshair of the killer's view in the killcam / last kill (a dot only while aiming down the sights).
+func _draw_cam_cross() -> void:
+	if not recorder.playing:
+		return
+	var c := _cam_cross.size * 0.5
+	var aim := recorder.killer_aim
+	var a := 1.0 - clampf((aim - 0.5) * 2.0, 0.0, 1.0)
+	var col := Color(1, 1, 1, 0.9)
+	_cam_cross.draw_circle(c, 1.6, col)
+	if a > 0.01:
+		var line_col := Color(1, 1, 1, 0.9 * a)
+		var shadow := Color(0, 0, 0, 0.6 * a)
+		for off in [Vector2.ZERO, Vector2(1, 1)]:
+			var lc := shadow if off != Vector2.ZERO else line_col
+			for d in [Vector2.LEFT, Vector2.RIGHT, Vector2.UP, Vector2.DOWN]:
+				_cam_cross.draw_line(c + off + d * 6.0, c + off + d * 15.0, lc, 2.0)
+
+
 func _update_killcam(delta: float) -> void:
 	if local_player != null and is_instance_valid(local_player) and not local_player.alive and MatchManager.state == MatchManager.State.RUNNING:
 		_dead_elapsed += delta
 	else:
 		_dead_elapsed = 0.0
+	if _replay_active and recorder.playing:
+		_cam.fov = lerpf(GameSettings.fov, recorder.killer_ads_fov(), recorder.killer_aim)
+		_cam_cross.queue_redraw()
 	if not _killcam_active:
 		return
-	_cam.fov = GameSettings.fov
+	_cam.fov = lerpf(GameSettings.fov, recorder.killer_ads_fov(), recorder.killer_aim)
+	_cam_cross.queue_redraw()
 	var remaining := maxf(0.0, _respawn_delay_for(MatchManager.get_local_participant()) - _dead_elapsed)
 	var hint := "Respawn in %d" % int(ceil(remaining))
 	if _dead_elapsed >= KILLCAM_SKIP_AFTER:
