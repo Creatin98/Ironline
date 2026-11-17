@@ -30,6 +30,12 @@ var show_fps: bool = false
 
 # Spieler
 var player_name: String = "Spieler"
+var preferred_team: int = 1 # Teams.Team.RED
+var preferred_class_id: String = "assault"
+
+# Netzwerk
+var last_address: String = "127.0.0.1"
+var last_port: int = 7777
 
 const RESOLUTIONS: Array[Vector2i] = [
 	Vector2i(1280, 720), Vector2i(1600, 900), Vector2i(1920, 1080),
@@ -61,6 +67,10 @@ func load_settings() -> void:
 	screen_shake = cfg.get_value("hud", "screen_shake", screen_shake)
 	show_fps = cfg.get_value("hud", "show_fps", show_fps)
 	player_name = cfg.get_value("player", "name", player_name)
+	preferred_team = cfg.get_value("player", "team", preferred_team)
+	preferred_class_id = cfg.get_value("player", "class_id", preferred_class_id)
+	last_address = cfg.get_value("network", "last_address", last_address)
+	last_port = cfg.get_value("network", "last_port", last_port)
 
 
 func save() -> void:
@@ -80,6 +90,10 @@ func save() -> void:
 	cfg.set_value("hud", "screen_shake", screen_shake)
 	cfg.set_value("hud", "show_fps", show_fps)
 	cfg.set_value("player", "name", player_name)
+	cfg.set_value("player", "team", preferred_team)
+	cfg.set_value("player", "class_id", preferred_class_id)
+	cfg.set_value("network", "last_address", last_address)
+	cfg.set_value("network", "last_port", last_port)
 	cfg.save(SAVE_PATH)
 	apply()
 

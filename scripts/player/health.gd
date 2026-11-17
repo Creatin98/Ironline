@@ -57,10 +57,23 @@ func apply_damage(amount: float, attacker_id: int, weapon_id: String, headshot: 
 	return false
 
 
-func kill(attacker_id: int = 0, weapon_id: String = "world") -> void:
+func kill(attacker_id: int = 0, weapon_id: String = "world", headshot: bool = false) -> void:
 	if not alive:
 		return
-	apply_damage(health + 1.0, attacker_id, weapon_id, false)
+	apply_damage(health + 1.0, attacker_id, weapon_id, headshot)
+
+
+## Client side: adopt the server's health value (no death handling here).
+func set_remote_health(value: float) -> void:
+	if not alive:
+		return
+	var clamped := clampf(value, 0.0, max_health)
+	if absf(clamped - health) < 0.01:
+		return
+	if clamped < health:
+		_time_since_damage = 0.0
+	health = clamped
+	health_changed.emit(health, max_health)
 
 
 func ratio() -> float:

@@ -1,7 +1,7 @@
 extends Node
 ## Autoload "MatchManager": authoritative match state (roster, scores, timer, rules).
-## In online play only the server mutates this; clients receive replicated copies
-## (see scripts/multiplayer). Offline the local machine is the server.
+## Online only the server mutates this; clients receive replicated copies through
+## NetworkManager (apply_* functions). Offline the local machine is the server.
 
 enum State { IDLE, WARMUP, RUNNING, ENDED }
 
@@ -28,6 +28,12 @@ func _ready() -> void:
 
 func _process(delta: float) -> void:
 	if not is_authority():
+		# client: count down locally for a smooth display, the server corrects us
+		if state == State.WARMUP:
+			warmup_left = maxf(0.0, warmup_left - delta)
+		elif state == State.RUNNING and config.time_limit > 0.0:
+			time_left = maxf(0.0, time_left - delta)
+			_emit_whole_second()
 		return
 	if state == State.WARMUP:
 		warmup_left -= delta
@@ -36,12 +42,19 @@ func _process(delta: float) -> void:
 			GameEvents.match_started.emit()
 	elif state == State.RUNNING and config.time_limit > 0.0:
 		time_left = maxf(0.0, time_left - delta)
-		var whole := int(ceil(time_left))
-		if whole != _last_whole_second:
-			_last_whole_second = whole
-			GameEvents.time_changed.emit(time_left)
+		if _emit_whole_second():
+			NetworkManager.broadcast_time(time_left)
 		if time_left <= 0.0:
 			end_match()
+
+
+func _emit_whole_second() -> bool:
+	var whole := int(ceil(time_left))
+	if whole != _last_whole_second:
+		_last_whole_second = whole
+		GameEvents.time_changed.emit(time_left)
+		return true
+	return false
 
 
 func is_authority() -> bool:
@@ -66,6 +79,7 @@ func prepare_match(new_config: MatchConfig) -> void:
 	team_scores = {Teams.Team.RED: 0, Teams.Team.BLUE: 0}
 	winner = {"team": Teams.Team.NONE, "participant_id": 0}
 	time_left = config.time_limit
+	warmup_left = 0.0
 	_last_whole_second = -1
 	_next_bot_id = Participant.BOT_ID_START
 	_set_state(State.IDLE)
@@ -86,6 +100,8 @@ func _set_state(new_state: int) -> void:
 	if state == new_state:
 		return
 	state = new_state
+	if is_authority():
+		NetworkManager.broadcast_match_state(state, time_left, warmup_left)
 	GameEvents.match_state_changed.emit(state)
 
 
@@ -121,6 +137,7 @@ func remove_participant(id: int) -> void:
 	if participants.has(id):
 		participants.erase(id)
 		GameEvents.participant_removed.emit(id)
+		GameEvents.scores_changed.emit()
 
 
 func count_participants() -> int:
@@ -175,11 +192,12 @@ func report_kill(victim_id: int, killer_id: int, weapon_id: String, headshot: bo
 	victim.deaths += 1
 	victim.killstreak = 0
 	victim.alive = false
+	var points := 0
 	var killer: Participant = participants.get(killer_id)
 	if killer != null and killer_id != victim_id and killer.is_enemy_of(victim):
 		killer.kills += 1
 		killer.killstreak += 1
-		var points := mode.on_kill(killer, victim, headshot)
+		points = mode.on_kill(killer, victim, headshot)
 		killer.score += points
 		if mode.uses_teams and team_scores.has(killer.team):
 			team_scores[killer.team] = int(team_scores[killer.team]) + 1
@@ -193,6 +211,7 @@ func report_kill(victim_id: int, killer_id: int, weapon_id: String, headshot: bo
 		victim.score = maxi(0, victim.score - 25)
 	GameEvents.participant_killed.emit(victim_id, killer_id, weapon_id, headshot)
 	GameEvents.scores_changed.emit()
+	NetworkManager.broadcast_kill(victim_id, killer_id, weapon_id, headshot, points, stats_dict())
 	if mode.is_kill_limit_reached(team_scores, participants):
 		end_match()
 
@@ -223,6 +242,7 @@ func end_match() -> void:
 		return
 	winner = mode.get_leader(team_scores, participants)
 	_set_state(State.ENDED)
+	NetworkManager.broadcast_match_end(winner, stats_dict())
 	GameEvents.match_ended.emit(int(winner["team"]), int(winner["participant_id"]))
 
 
@@ -266,6 +286,8 @@ func get_score_for_hud() -> Dictionary:
 	}
 
 
+# ----------------------------------------------------------------------------- replication
+
 ## Full state snapshot (used by the network layer and the post-match screen).
 func to_dict() -> Dictionary:
 	var roster: Array = []
@@ -274,5 +296,90 @@ func to_dict() -> Dictionary:
 	return {
 		"config": config.to_dict(), "participants": roster,
 		"team_scores": {"red": team_scores[Teams.Team.RED], "blue": team_scores[Teams.Team.BLUE]},
-		"state": state, "time_left": time_left, "winner": winner,
+		"state": state, "time_left": time_left, "warmup_left": warmup_left, "winner": winner,
 	}
+
+
+## Compact score state sent with every kill: {"p": {id: [kills, deaths, score, killstreak, alive]}, "red", "blue"}
+func stats_dict() -> Dictionary:
+	var p_stats: Dictionary = {}
+	for p in participants.values():
+		p_stats[p.id] = [p.kills, p.deaths, p.score, p.killstreak, p.alive]
+	return {"p": p_stats, "red": int(team_scores[Teams.Team.RED]), "blue": int(team_scores[Teams.Team.BLUE])}
+
+
+func _apply_stats(stats: Dictionary) -> void:
+	var p_stats: Dictionary = stats.get("p", {})
+	for id in p_stats:
+		var p: Participant = participants.get(int(id))
+		if p == null:
+			continue
+		var arr: Array = p_stats[id]
+		if arr.size() < 5:
+			continue
+		p.kills = int(arr[0])
+		p.deaths = int(arr[1])
+		p.score = int(arr[2])
+		p.killstreak = int(arr[3])
+		p.alive = bool(arr[4])
+	team_scores[Teams.Team.RED] = int(stats.get("red", team_scores[Teams.Team.RED]))
+	team_scores[Teams.Team.BLUE] = int(stats.get("blue", team_scores[Teams.Team.BLUE]))
+
+
+## Client: complete state from the server (roster, config, scores, timers).
+func apply_full_state(d: Dictionary) -> void:
+	config.apply_dict(d.get("config", {}))
+	mode = _make_mode(config.mode_id)
+	mode.setup(config)
+	# keep nodes of participants we already know
+	var old_nodes: Dictionary = {}
+	for p in participants.values():
+		if p.node != null:
+			old_nodes[p.id] = p.node
+	participants.clear()
+	for entry in d.get("participants", []):
+		var p := Participant.new()
+		p.apply_dict(entry)
+		p.node = old_nodes.get(p.id)
+		participants[p.id] = p
+		GameEvents.participant_added.emit(p.id)
+	var ts: Dictionary = d.get("team_scores", {})
+	team_scores[Teams.Team.RED] = int(ts.get("red", 0))
+	team_scores[Teams.Team.BLUE] = int(ts.get("blue", 0))
+	winner = d.get("winner", winner)
+	time_left = float(d.get("time_left", time_left))
+	warmup_left = float(d.get("warmup_left", warmup_left))
+	_set_state(int(d.get("state", state)))
+	GameEvents.scores_changed.emit()
+	GameEvents.time_changed.emit(time_left)
+
+
+func apply_remote_state(new_state: int, new_time_left: float, new_warmup_left: float) -> void:
+	time_left = new_time_left
+	warmup_left = new_warmup_left
+	var was := state
+	_set_state(new_state)
+	if was != State.RUNNING and new_state == State.RUNNING:
+		GameEvents.match_started.emit()
+	GameEvents.time_changed.emit(time_left)
+
+
+func apply_remote_time(new_time_left: float) -> void:
+	time_left = new_time_left
+	_emit_whole_second()
+
+
+func apply_remote_kill(victim_id: int, killer_id: int, weapon_id: String, headshot: bool, points: int, stats: Dictionary) -> void:
+	_apply_stats(stats)
+	if killer_id == local_participant_id and victim_id != killer_id and points > 0:
+		GameEvents.local_player_scored.emit(points, "Kopfschuss" if headshot else "Kill")
+	GameEvents.participant_killed.emit(victim_id, killer_id, weapon_id, headshot)
+	GameEvents.scores_changed.emit()
+
+
+func apply_remote_end(new_winner: Dictionary, stats: Dictionary) -> void:
+	_apply_stats(stats)
+	winner = new_winner
+	GameEvents.scores_changed.emit()
+	_set_state(State.ENDED)
+	GameEvents.match_ended.emit(int(winner["team"]), int(winner["participant_id"]))
