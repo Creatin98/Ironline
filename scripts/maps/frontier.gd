@@ -203,7 +203,7 @@ func get_spawns() -> Array:
 	s.append(spawn(Vector3(21, WALL_H + 0.4, -10), -90.0, Teams.Team.NONE))
 	s.append(spawn(Vector3(14, 0.1, 0), -90.0, Teams.Team.NONE))
 	s.append(spawn(Vector3(-8, 0.1, -9), 180.0, Teams.Team.NONE))
-	s.append(spawn(Vector3(8, 0.1, 9), 0.0, Teams.Team.NONE))
+	s.append(spawn(Vector3(7.3, 0.1, 7.8), 0.0, Teams.Team.NONE))
 	return s
 
 

@@ -296,3 +296,8 @@ Python-Skripten in `tools/` erzeugt – keine Fremdinhalte, alles reproduzierbar
   **Neue Soundkategorie = ein Eintrag in `ENTRIES`** (Regler, Speichern, Bus entstehen automatisch); neue Sounddatei = Zeile in `EXACT_SOUNDS`/`SOUND_PREFIXES`.
 * **Umgebung:** `AmbienceSystem` (pro Map-Profil): Wind-/Wasser-Loops, Vogel-/Möwenrufe, ferner Jet; eigener Atem nach langem Sprint (`Player._update_states`).
   Sounds per `tools/generate_audio.py ambience`.
+
+* **Spawns:** `SpawnSystem.is_blocked/free_position_near` prüfen die Spieler-Kapsel gegen die Welt; blockierte Punkte werden beim Wählen stark abgewertet und
+  notfalls zur nächsten freien Stelle verschoben. Der Smoke-Test prüft alle Spawnpunkte aller Maps (Punkte in Kisten/Wänden wurden korrigiert).
+* **Bildschirm-Blut:** verblasst beim Tod schnell (0.5 s) und wird beim Respawn gelöscht – nichts im Todesblick/Killcam. Killcam-Vignette stärker.
+  Killer-Ansicht (Killcam/Last Kill) blendet die langen Ärmel aus (`Player.set_replay_sleeves_hidden`), damit sie beim Nachladen nicht durchs Bild schwingen.

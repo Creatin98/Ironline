@@ -360,12 +360,10 @@ func _process(delta: float) -> void:
 	_damage_dirs = _damage_dirs.filter(func(d: Dictionary) -> bool: return float(d["time"]) > 0.0)
 	crosshair.queue_redraw()
 	minimap.player = _player
-	# the blood stays while we are dead (killcam) and fades only after the respawn
-	if _player != null and is_instance_valid(_player) and _player.alive:
-		for sp in _blood_splats:
-			sp["age"] = float(sp["age"]) + delta
-			sp["p"] = (sp["p"] as Vector2) + Vector2(0.0, float(sp["vy"]) * delta * clampf(float(sp["age"]) * 0.6, 0.0, 1.0))
-		_blood_splats = _blood_splats.filter(func(sp: Dictionary) -> bool: return float(sp["age"]) < BLOOD_LIFETIME)
+	for sp in _blood_splats:
+		sp["age"] = float(sp["age"]) + delta
+		sp["p"] = (sp["p"] as Vector2) + Vector2(0.0, float(sp["vy"]) * delta * clampf(float(sp["age"]) * 0.6, 0.0, 1.0))
+	_blood_splats = _blood_splats.filter(func(sp: Dictionary) -> bool: return float(sp["age"]) < BLOOD_LIFETIME)
 	if not _blood_splats.is_empty() or _blood_layer.visible:
 		_blood_layer.queue_redraw()
 	# damage vignette decay
@@ -557,6 +555,7 @@ func _clear_center_after(seconds: float) -> void:
 
 func _on_local_spawned(player: Node) -> void:
 	_player = player as Player
+	_blood_splats.clear() # no blood carried over from the previous life
 	_respawn_time_left = -1.0
 	center_label.text = ""
 	sub_label.text = ""
@@ -567,7 +566,9 @@ func _on_local_spawned(player: Node) -> void:
 
 
 func _on_local_died(killer_id: int, respawn_delay: float) -> void:
-	_add_blood_splats(110.0)
+	# screen blood fades out quickly on death: nothing in the death view / killcam, nothing after the respawn
+	for sp in _blood_splats:
+		sp["age"] = maxf(float(sp["age"]), BLOOD_LIFETIME - 0.5)
 	var killer := MatchManager.get_participant(killer_id)
 	if killer and killer.id != MatchManager.local_participant_id:
 		center_label.text = "Getötet von %s" % killer.display_name

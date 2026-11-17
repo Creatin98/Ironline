@@ -16,6 +16,31 @@ func _init(tree: SceneTree) -> void:
 	refresh()
 
 
+## True if a standing player capsule at `pos` (feet position) would overlap solid world geometry.
+static func is_blocked(space: PhysicsDirectSpaceState3D, pos: Vector3) -> bool:
+	var capsule := CapsuleShape3D.new()
+	capsule.radius = 0.38
+	capsule.height = 1.7
+	var q := PhysicsShapeQueryParameters3D.new()
+	q.shape = capsule
+	q.transform = Transform3D(Basis.IDENTITY, pos + Vector3(0.0, 0.95, 0.0))
+	q.collision_mask = 1
+	return not space.intersect_shape(q, 1).is_empty()
+
+
+## A free position near `pos` (the point itself if free; otherwise the closest free spot on rings around it).
+static func free_position_near(space: PhysicsDirectSpaceState3D, pos: Vector3) -> Vector3:
+	if not is_blocked(space, pos):
+		return pos
+	for radius in [0.8, 1.4, 2.0, 3.0]:
+		for i in 12:
+			var a := TAU * float(i) / 12.0
+			var cand: Vector3 = pos + Vector3(cos(a) * radius, 0.0, sin(a) * radius)
+			if not is_blocked(space, cand):
+				return cand
+	return pos
+
+
 func refresh() -> void:
 	points.clear()
 	for n in _tree.get_nodes_in_group("spawn_points"):
@@ -53,6 +78,8 @@ func pick_spawn(participant: Participant, use_teams: bool) -> Transform3D:
 	var best_score := -INF
 	for p in candidates:
 		var score := randf() * 2.0
+		if space and is_blocked(space, p.global_position):
+			score -= 500.0 # inside a wall / crate: only if nothing else is left
 		var min_enemy := 999.0
 		for e in enemies:
 			min_enemy = minf(min_enemy, e.distance_to(p.global_position))
@@ -85,4 +112,7 @@ func pick_spawn(participant: Participant, use_teams: bool) -> Transform3D:
 	if best == null:
 		best = candidates[0]
 	best.last_used_time = now
-	return best.global_transform
+	var t := best.global_transform
+	if space:
+		t.origin = free_position_near(space, t.origin)
+	return t

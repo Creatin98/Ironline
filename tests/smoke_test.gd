@@ -668,6 +668,12 @@ func _check_maps() -> void:
 			if sp.global_position.y - 0.5 < kill_top:
 				_fail("%s: Kill-Zone (Oberkante %.1f) reicht bis an Spawnpunkt %s" % [map_id, kill_top, sp.global_position])
 				break
+		# no spawn point may lie inside solid geometry (player capsule free of the world)
+		await get_tree().physics_frame
+		await get_tree().physics_frame
+		for sp in get_tree().get_nodes_in_group("spawn_points"):
+			if SpawnSystem.is_blocked(map.get_world_3d().direct_space_state, sp.global_position):
+				_fail("%s: Spawnpunkt %s liegt in fester Geometrie (freie Stelle in der Naehe: %s)" % [map_id, sp.global_position, SpawnSystem.free_position_near(map.get_world_3d().direct_space_state, sp.global_position)])
 		var polys := map.nav_region.navigation_mesh.get_polygon_count() if map.nav_region.navigation_mesh else 0
 		if polys == 0:
 			_fail("%s: Navigation-Mesh ist leer" % map_id)

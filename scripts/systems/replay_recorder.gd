@@ -209,6 +209,7 @@ func _clear_targets() -> void:
 			var rn: Player = _targets[id]
 			if rn != null and is_instance_valid(rn):
 				rn.replay_aim(0.0)
+				rn.set_replay_sleeves_hidden(false)
 	if ghost_mode:
 		for id in _targets:
 			var n: Player = _targets[id]

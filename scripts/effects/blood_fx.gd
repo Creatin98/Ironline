@@ -4,7 +4,7 @@ extends RefCounted
 ## textures shared with the HUD's screen splatter. Fully procedural, no assets.
 
 const MAX_WORLD_SPLATS := 90
-const SPLAT_LIFETIME := 40.0
+const SPLAT_LIFETIME := 25.0
 const VARIANTS := 4
 const TEX_SIZE := 96
 

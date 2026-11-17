@@ -349,11 +349,11 @@ func _build_cam_overlay() -> void:
 	# dark vignette around the picture (killcam / last kill)
 	var shader := Shader.new()
 	shader.code = """shader_type canvas_item;
-uniform float strength = 0.82;
+uniform float strength = 1.0;
 void fragment() {
 	vec2 p = (UV - 0.5) * vec2(1.0, 0.9);
 	float d = length(p);
-	COLOR = vec4(0.0, 0.0, 0.0, smoothstep(0.26, 0.74, d) * strength);
+	COLOR = vec4(0.0, 0.0, 0.0, smoothstep(0.16, 0.62, d) * strength);
 }"""
 	var vignette := ColorRect.new()
 	vignette.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)

@@ -132,9 +132,9 @@ func get_spawns() -> Array:
 		s.append(spawn(Vector3(x, 0.1, 20), 0.0, Teams.Team.BLUE))
 	# neutrale Punkte an den Flanken (FFA + Nachspawns)
 	s.append(spawn(Vector3(-26.5, 2.9, 0), 90.0, Teams.Team.NONE))
-	s.append(spawn(Vector3(-15, 0.1, -12), 135.0, Teams.Team.NONE))
-	s.append(spawn(Vector3(-15, 0.1, 12), 45.0, Teams.Team.NONE))
-	s.append(spawn(Vector3(23, 0.1, -13), -90.0, Teams.Team.NONE))
+	s.append(spawn(Vector3(-14.6, 0.1, -11.3), 135.0, Teams.Team.NONE))
+	s.append(spawn(Vector3(-14.6, 0.1, 12.7), 45.0, Teams.Team.NONE))
+	s.append(spawn(Vector3(22.6, 0.1, -12.3), -90.0, Teams.Team.NONE))
 	s.append(spawn(Vector3(25, 3.1, 11), -90.0, Teams.Team.NONE))
 	s.append(spawn(Vector3(15, 0.1, 0), -90.0, Teams.Team.NONE))
 	return s

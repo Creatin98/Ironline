@@ -175,8 +175,18 @@ func enter_replay_mode(is_killer: bool) -> void:
 	torso_mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 	head_mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 	name_label.visible = not is_killer
+	set_replay_sleeves_hidden(is_killer)
 	if is_local:
 		camera.current = false
+
+
+## The camera sits in the killer's head: the long sleeves (they reach back to the elbows) would
+## swing through the picture while reloading, so only the hands and the weapon stay visible.
+func set_replay_sleeves_hidden(hidden: bool) -> void:
+	for m in weapon_manager._tp_models:
+		for n in m.find_children("*Forearm", "", true, false):
+			if n.name == "LeftForearm" or n.name == "RightForearm":
+				(n as Node3D).visible = not hidden
 
 
 func replay_pose(pos: Vector3, yaw: float, pitch: float, crouch: bool) -> void:

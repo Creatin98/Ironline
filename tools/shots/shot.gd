@@ -270,6 +270,12 @@ func _game_ui(state: String) -> void:
 			rec._cursor = float(rec.kill["t"]) - 0.3 # shortly before the fatal shot
 			rec._prev_cursor = rec._cursor
 			rec._apply(rec._cursor, false)
+			if "--reload=1" in OS.get_cmdline_user_args():
+				var kn: Player = rec._targets[rec._killer_id]
+				kn.weapon_manager.begin_tp_reload(true, 1)
+				kn.weapon_manager._tp_reload_progress = float(OS.get_cmdline_user_args()[OS.get_cmdline_user_args().find("--reload=1") + 0] != "") * 0.4
+				var rig: ReloadRig = kn.weapon_manager._tp_rigs[kn.weapon_manager.current_index]
+				rig.apply(0.4, 1.0)
 			if "--aim=1" in OS.get_cmdline_user_args():
 				rec._killer_aim_target = 1.0
 				rec.killer_aim = 1.0
