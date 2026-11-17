@@ -79,6 +79,15 @@ static func option(items: Array, selected: int = 0, min_width: float = 260.0) ->
 	return o
 
 
+## Class dropdown: items in GameDirector order, current class preselected.
+static func class_option(current_class_id: String, min_width: float = 320.0) -> OptionButton:
+	var names: Array = []
+	for id in GameDirector.get_class_ids():
+		names.append(GameDirector.get_class_data(id).display_name)
+	var o := option(names, maxi(0, GameDirector.get_class_ids().find(current_class_id)), min_width)
+	return o
+
+
 static func hslider(min_value: float, max_value: float, step: float, value: float, min_width: float = 260.0) -> HSlider:
 	var s := HSlider.new()
 	s.min_value = min_value

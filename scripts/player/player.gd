@@ -127,6 +127,12 @@ func setup(participant: Participant, new_class: ClassData, local: bool) -> void:
 
 ## True if this machine simulates the movement of this player (the local player,
 ## and on the server/offline host also every bot and every remote human).
+## Swaps the loadout (weapons, grenades). Called right before a respawn.
+func apply_class(new_class: ClassData) -> void:
+	class_data = new_class
+	weapon_manager.setup(self, class_data, is_local)
+
+
 func has_movement_authority() -> bool:
 	if is_local:
 		return true

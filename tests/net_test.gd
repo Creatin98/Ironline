@@ -195,7 +195,9 @@ func _run_host() -> void:
 	if not await _wait(func() -> bool: return other.alive and _player_of(cid) != null and _player_of(cid).alive, 8.0):
 		_fail("Client ist nicht respawnt")
 	client_node = _player_of(cid)
-	_log("Kill gewertet, Client respawnt")
+	if client_node.class_data.class_id != "shotgun" or client_node.weapon_manager.weapons[0].data.weapon_id != "shotgun":
+		_fail("Klassenwechsel des Clients wurde beim Respawn nicht angewendet")
+	_log("Kill gewertet, Client respawnt als Shotgun-Klasse")
 	await get_tree().create_timer(1.0).timeout
 
 	# 5) grenade replication
@@ -285,6 +287,7 @@ func _run_client() -> void:
 	else:
 		_log("Trefferfeedback erhalten")
 	player.input.fire_held = false
+	NetworkManager.request_class_change("shotgun")
 
 	# 4) server kills us -> death, score, respawn must arrive
 	if not await _wait(func() -> bool: return int(_stats["died"]) >= 1, 20.0):
@@ -293,7 +296,10 @@ func _run_client() -> void:
 		_fail("Spielstand nach dem Tod falsch (Tode %d, Host-Kills %d)" % [me.deaths, host_participant.kills])
 	if not await _wait(func() -> bool: return _player_of(my_id) != null and _player_of(my_id).alive and me.alive, 10.0):
 		_fail("Respawn wurde nicht repliziert")
-	_log("Tod und Respawn repliziert")
+	var respawned := _player_of(my_id)
+	if respawned == null or respawned.weapon_manager.get_current_weapon().data.weapon_id != "shotgun":
+		_fail("Neue Klasse (Shotgun) ist nach dem Respawn nicht aktiv")
+	_log("Tod und Respawn repliziert, neue Klasse aktiv")
 
 	# 5) grenade explosion thrown by the host
 	if not await _wait(func() -> bool: return int(_stats["explosions"]) >= 1, 15.0):

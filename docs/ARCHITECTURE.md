@@ -50,6 +50,10 @@ Extrapolation um höchstens 0.12 s). Schüsse sagt der Client vorher (Mündungsf
 entsteht nur auf dem Server: dieser führt den Hitscan mit dem übertragenen Blickwinkel des Schützen aus und schickt
 Treffermarker und Schadensanzeige zurück. Die übrigen Clients erhalten Schuss und Einschläge per `_rpc_shot`.
 
+**Klassenwechsel.** Jederzeit (Lobby, Pausemenü, Endbildschirm) über `NetworkManager.request_class_change`. Der Host
+speichert die Wahl im Teilnehmer, beim nächsten Spawn tauscht `Game._sync_class` die Waffen (`Player.apply_class`), und
+`_rpc_spawn` überträgt die Klasse an alle Clients. Ein lebender Spieler behält seine Waffen bis zum Respawn.
+
 **Map-Voting.** Nach `match_ended` öffnet der Host `host_open_vote(ROTATION_MAPS)` (15 s). Clients stimmen per
 `_rpc_cast_vote` ab, der Host verteilt die Zwischenstände (`_rpc_vote_tally`) und wertet aus, sobald alle Spieler gewählt
 haben oder die Zeit abläuft (Gleichstand zufällig). Danach startet `host_start_match` mit der gewählten Map. Verlässt ein
@@ -96,7 +100,7 @@ Shotgun lädt einzelne Patronen und kann durch Schießen abgebrochen werden.
 |---|---|---|---|---|---|
 | AK-47 | 35 → 25 | 22–48 m | 650 | 30/90 | spürbarer Rückstoß |
 | MP5 | 26 → 18 | 14–32 m | 850 | 30/120 | schnell, wenig Rückstoß, +5 % Tempo |
-| Shotgun | 8 × 22 → 4 | 7–18 m | 75 | 6/24 | Pumpen 0.7 s, Einzelladen |
+| Shotgun | 8 × 25 → 4.5 | 7–18 m | 75 | 6/24 | Pumpen 0.7 s, Einzelladen |
 | Pistole | 34 → 20 | 12–30 m | 420 | 12/48 | halbautomatisch, Kopfschuss ×1.5 |
 
 Granate: RigidBody, Zünder 2.4 s nach Wurf, Radius 6.5 m, 135 → 15 Schaden (quadratischer Falloff),

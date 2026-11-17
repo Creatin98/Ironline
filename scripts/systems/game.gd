@@ -36,6 +36,8 @@ func _ready() -> void:
 	match_end.lobby_requested.connect(_on_back_to_lobby)
 	match_end.map_chosen.connect(_on_map_chosen)
 	match_end.leave_requested.connect(_leave_to_menu)
+	pause_menu.class_selected.connect(_on_class_selected)
+	match_end.class_selected.connect(_on_class_selected)
 	pause_menu.resumed.connect(_close_pause)
 	pause_menu.leave_requested.connect(_leave_to_menu)
 	match_end.configure_for_network()
@@ -155,9 +157,17 @@ func _ensure_player(p: Participant) -> Player:
 
 func _spawn_participant(p: Participant) -> void:
 	var player := _ensure_player(p)
+	_sync_class(p, player)
 	var t := spawn_system.pick_spawn(p, MatchManager.mode.uses_teams)
 	_finish_spawn(p, player, t)
-	NetworkManager.broadcast_spawn(p.id, t.origin, t.basis.get_euler().y)
+	NetworkManager.broadcast_spawn(p.id, t.origin, t.basis.get_euler().y, p.class_id)
+
+
+## A class chosen since the last spawn takes effect now.
+func _sync_class(p: Participant, player: Player) -> void:
+	var wanted := GameDirector.get_class_data(p.class_id)
+	if player.class_data != wanted:
+		player.apply_class(wanted)
 
 
 func _finish_spawn(p: Participant, player: Player, t: Transform3D) -> void:
@@ -195,12 +205,15 @@ func _death_camera(killer_id: int) -> void:
 # ----------------------------------------------------------------------------- network (called by NetworkManager)
 
 ## Client: the server spawned (or respawned) a participant.
-func remote_spawn(id: int, t: Transform3D) -> void:
+func remote_spawn(id: int, t: Transform3D, class_id: String) -> void:
 	var p := MatchManager.get_participant(id)
 	if p == null:
 		return
 	_respawn_queue.erase(id)
-	_finish_spawn(p, _ensure_player(p), t)
+	p.class_id = class_id
+	var player := _ensure_player(p)
+	_sync_class(p, player)
+	_finish_spawn(p, player, t)
 
 
 ## Client: the server says this player died.
@@ -257,6 +270,13 @@ func _on_match_ended(_winner_team: int, _winner_id: int) -> void:
 	match_end.show_results()
 	if NetworkManager.is_host() and MatchManager.config.map_voting:
 		NetworkManager.host_open_vote(GameDirector.ROTATION_MAPS)
+
+
+func _on_class_selected(class_id: String) -> void:
+	NetworkManager.request_class_change(class_id)
+	var name: String = GameDirector.get_class_data(class_id).display_name
+	hud.hint_label.text = "Klasse „%s“ ab dem nächsten Respawn" % name
+	get_tree().create_timer(5.0).timeout.connect(func() -> void: hud.hint_label.text = "")
 
 
 func _on_map_chosen(map_id: String) -> void:

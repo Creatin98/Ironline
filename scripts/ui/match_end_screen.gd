@@ -7,6 +7,7 @@ signal next_round_requested
 signal lobby_requested
 signal leave_requested
 signal map_chosen(map_id: String)
+signal class_selected(class_id: String)
 
 var result_label: Label
 var detail_label: Label
@@ -61,6 +62,13 @@ func _ready() -> void:
 	wait_label = UITheme.label("Der Host entscheidet über die nächste Runde …", 18, UITheme.TEXT_DIM, HORIZONTAL_ALIGNMENT_CENTER)
 	wait_label.visible = false
 	v.add_child(wait_label)
+	var class_row := UITheme.hbox(12)
+	class_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	class_row.add_child(UITheme.label("Klasse für die nächste Runde:", 18, UITheme.TEXT_DIM))
+	var class_opt := UITheme.class_option(GameSettings.preferred_class_id, 260)
+	class_opt.item_selected.connect(func(i: int) -> void: class_selected.emit(GameDirector.get_class_ids()[i]))
+	class_row.add_child(class_opt)
+	v.add_child(class_row)
 	vote_box = UITheme.vbox(8)
 	vote_box.visible = false
 	vote_title = UITheme.label("", 22, UITheme.ACCENT, HORIZONTAL_ALIGNMENT_CENTER)

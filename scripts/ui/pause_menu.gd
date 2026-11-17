@@ -5,9 +5,11 @@ extends Control
 
 signal resumed
 signal leave_requested
+signal class_selected(class_id: String)
 
 var settings_panel: SettingsPanel
 var main_box: VBoxContainer
+var class_opt: OptionButton
 
 
 func _ready() -> void:
@@ -27,6 +29,10 @@ func _ready() -> void:
 	var resume := UITheme.button("Weiter", 22, 320)
 	resume.pressed.connect(func() -> void: resumed.emit())
 	main_box.add_child(resume)
+	main_box.add_child(UITheme.label("Klasse (ab nächstem Respawn)", 16, UITheme.TEXT_DIM))
+	class_opt = UITheme.class_option(GameSettings.preferred_class_id)
+	class_opt.item_selected.connect(func(i: int) -> void: class_selected.emit(GameDirector.get_class_ids()[i]))
+	main_box.add_child(class_opt)
 	var settings := UITheme.button("Einstellungen", 22, 320)
 	settings.pressed.connect(_open_settings)
 	main_box.add_child(settings)
@@ -47,6 +53,7 @@ func _open_settings() -> void:
 
 
 func open() -> void:
+	class_opt.selected = maxi(0, GameDirector.get_class_ids().find(GameSettings.preferred_class_id))
 	visible = true
 	main_box.visible = true
 	settings_panel.visible = false

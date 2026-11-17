@@ -329,6 +329,38 @@ func host_set_config(cfg: MatchConfig) -> void:
 	lobby_updated.emit()
 
 
+## Everyone, also during a match: choose the class that is used from the next respawn on.
+func request_class_change(class_id: String) -> void:
+	if not GameDirector.CLASSES.has(class_id):
+		return
+	GameSettings.preferred_class_id = class_id
+	GameSettings.save()
+	MatchManager.config.local_class_id = class_id
+	if mode == Mode.HOST:
+		_apply_class_choice(1, class_id)
+	elif mode == Mode.CLIENT:
+		_rpc_class_choice.rpc_id(1, class_id)
+	else:
+		_apply_class_choice(MatchManager.local_participant_id, class_id)
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func _rpc_class_choice(class_id: String) -> void:
+	if mode != Mode.HOST:
+		return
+	_apply_class_choice(multiplayer.get_remote_sender_id(), class_id)
+
+
+func _apply_class_choice(id: int, class_id: String) -> void:
+	if not GameDirector.CLASSES.has(class_id):
+		return
+	if peers.has(id):
+		peers[id]["class_id"] = class_id
+	var p := MatchManager.get_participant(id)
+	if p != null and not p.is_bot:
+		p.class_id = class_id
+
+
 ## Everyone: own team / class choice for the next match.
 func set_local_loadout(team: int, class_id: String) -> void:
 	GameSettings.preferred_team = team
@@ -429,7 +461,7 @@ func _rpc_client_loaded() -> void:
 		for p in MatchManager.participants.values():
 			if p.alive and p.node != null and is_instance_valid(p.node):
 				var pl := p.node as Player
-				_rpc_spawn.rpc_id(id, p.id, pl.global_position, pl.rotation.y)
+				_rpc_spawn.rpc_id(id, p.id, pl.global_position, pl.rotation.y, p.class_id)
 
 
 ## Host: complete roster/score/timer state to everybody (right before the warmup).
@@ -447,16 +479,16 @@ func _rpc_full_state(state: Dictionary) -> void:
 
 # ----------------------------------------------------------------------------- server -> clients: match flow
 
-func broadcast_spawn(id: int, origin: Vector3, yaw: float) -> void:
+func broadcast_spawn(id: int, origin: Vector3, yaw: float, class_id: String) -> void:
 	if mode == Mode.HOST and in_match and multiplayer.get_peers().size() > 0:
-		_rpc_spawn.rpc(id, origin, yaw)
+		_rpc_spawn.rpc(id, origin, yaw, class_id)
 
 
 @rpc("authority", "call_remote", "reliable")
-func _rpc_spawn(id: int, origin: Vector3, yaw: float) -> void:
+func _rpc_spawn(id: int, origin: Vector3, yaw: float, class_id: String) -> void:
 	if mode != Mode.CLIENT or game == null:
 		return
-	game.remote_spawn(id, Transform3D(Basis(Vector3.UP, yaw), origin))
+	game.remote_spawn(id, Transform3D(Basis(Vector3.UP, yaw), origin), class_id)
 
 
 func broadcast_match_state(state: int, time_left: float, warmup_left: float) -> void:
