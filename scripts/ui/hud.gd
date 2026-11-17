@@ -5,6 +5,7 @@ extends Control
 ## layout scales with GameSettings.hud_scale.
 
 const KILLFEED_LIFETIME := 6.0
+const BLOOD_LIFETIME := 4.5
 const KILLFEED_MAX := 6
 const WEAPON_LABELS := {
 	"ak47": "AK-47", "mp5": "MP5", "shotgun": "Shotgun", "pistol": "Pistole",
@@ -38,6 +39,9 @@ var _kill_flash: ColorRect
 var _spread_display: float = 0.0
 var _respawn_time_left: float = -1.0
 var _killfeed_entries: Array = [] # [{node, time}]
+var minimap: Minimap
+var _blood_layer: Control
+var _blood_splats: Array = [] # [{p: Vector2, size: float, rot: float, tex: int, age: float, vy: float}]
 var _damage_dirs: Array = [] # [{dir: Vector2 (world x/z), time: float}]
 var _warmup: bool = false
 ## name -> {"node": Control, "corner": Vector2 (0/0.5/1 = left/centre/right, top/bottom)}
@@ -89,6 +93,11 @@ func _build() -> void:
 	damage_flash.color = Color(0.8, 0.05, 0.0, 0.0)
 	damage_flash.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(damage_flash)
+	_blood_layer = Control.new()
+	_blood_layer.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_blood_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_blood_layer.draw.connect(_draw_blood)
+	add_child(_blood_layer)
 
 	# --- crosshair / hitmarker ---
 	crosshair = Control.new()
@@ -162,6 +171,11 @@ func _build() -> void:
 	add_child(ammo_panel)
 	_blocks["ammo"] = {"node": ammo_panel, "corner": Vector2(1, 1), "label": "Munition"}
 
+	# --- minimap (top left, below the score) ---
+	minimap = Minimap.new()
+	add_child(minimap)
+	_blocks["minimap"] = {"node": minimap, "corner": Vector2(0, 0), "label": "Minimap"}
+
 	# --- center messages ---
 	center_label = UITheme.label("", 44, UITheme.TEXT, HORIZONTAL_ALIGNMENT_CENTER)
 	center_label.set_anchors_preset(Control.PRESET_CENTER)
@@ -215,6 +229,9 @@ func _layout() -> void:
 		c.scale = Vector2(k, k)
 		var s := c.get_combined_minimum_size() * k
 		var pos := Vector2(m + corner.x * (area.x - s.x - 2.0 * m), m + corner.y * (area.y - s.y - 2.0 * m))
+		if block_name == "minimap":
+			var score_node: Control = _blocks["score"]["node"]
+			pos.y += score_node.get_combined_minimum_size().y * k + 8.0 * k
 		pos += _offset_of(block_name)
 		c.position = _clamp_to_screen(pos, s, area)
 	fps_label.visible = GameSettings.show_fps
@@ -335,6 +352,13 @@ func _process(delta: float) -> void:
 		d["time"] = float(d["time"]) - delta
 	_damage_dirs = _damage_dirs.filter(func(d: Dictionary) -> bool: return float(d["time"]) > 0.0)
 	crosshair.queue_redraw()
+	minimap.player = _player
+	for sp in _blood_splats:
+		sp["age"] = float(sp["age"]) + delta
+		sp["p"] = (sp["p"] as Vector2) + Vector2(0.0, float(sp["vy"]) * delta * clampf(float(sp["age"]) * 0.6, 0.0, 1.0))
+	_blood_splats = _blood_splats.filter(func(sp: Dictionary) -> bool: return float(sp["age"]) < BLOOD_LIFETIME)
+	if not _blood_splats.is_empty() or _blood_layer.visible:
+		_blood_layer.queue_redraw()
 	# damage vignette decay
 	damage_flash.color.a = maxf(0.0, damage_flash.color.a - delta * 1.6)
 	_kill_flash.color.a = maxf(0.0, _kill_flash.color.a - delta * 1.1)
@@ -535,8 +559,33 @@ func _on_local_died(killer_id: int, respawn_delay: float) -> void:
 	sub_label.text = "Respawn in %d" % int(ceil(respawn_delay))
 
 
+func _draw_blood() -> void:
+	for sp in _blood_splats:
+		var age := float(sp["age"])
+		var a := clampf((BLOOD_LIFETIME - age) / 1.8, 0.0, 1.0) * 0.88
+		var sz: float = float(sp["size"]) * (0.75 + 0.25 * clampf(age * 6.0, 0.0, 1.0))
+		_blood_layer.draw_set_transform(sp["p"], float(sp["rot"]), Vector2.ONE)
+		_blood_layer.draw_texture_rect(BloodFx.splat_texture(int(sp["tex"])), Rect2(-sz * 0.5, -sz * 0.5 * 1.15, sz, sz * 1.15), false, Color(0.5, 0.03, 0.03, a))
+	_blood_layer.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+
+
+## Individual blood splats on the screen (stronger hits = more and bigger ones).
+func _add_blood_splats(amount: float) -> void:
+	var count := clampi(1 + int(amount / 18.0), 1, 5)
+	var s := _blood_layer.size
+	for i in count:
+		var ang := randf() * TAU
+		var radius := randf_range(0.18, 0.5)
+		var pos := s * 0.5 + Vector2(cos(ang) * s.x * radius, sin(ang) * s.y * radius)
+		_blood_splats.append({"p": pos, "size": randf_range(90.0, 210.0) * (s.y / 1080.0), "rot": randf() * TAU,
+				"tex": randi() % BloodFx.VARIANTS, "age": 0.0, "vy": randf_range(10.0, 45.0)})
+	while _blood_splats.size() > 14:
+		_blood_splats.pop_front()
+
+
 func _on_local_damaged(amount: float, source_position: Vector3) -> void:
-	damage_flash.color.a = clampf(damage_flash.color.a + amount / 100.0 * 0.8, 0.0, 0.7)
+	damage_flash.color.a = clampf(damage_flash.color.a + amount / 100.0 * 0.4, 0.0, 0.4)
+	_add_blood_splats(amount)
 	if _player != null and is_instance_valid(_player):
 		var to := Vector2(source_position.x - _player.global_position.x, source_position.z - _player.global_position.z)
 		if to.length() > 1.0:
@@ -561,15 +610,15 @@ func _on_hit_enemy(headshot: bool, killed: bool) -> void:
 	if killed:
 		# the thunk/chime gets higher with every kill in a row (max +8 steps)
 		var pitch := 1.0 + 0.045 * float(mini(streak - 1, 8))
-		AudioManager.play_2d("hitmarker_headshot" if headshot else "hitmarker", -12.0, 0.0)
-		var p := AudioManager.play_2d("kill_headshot" if headshot else "kill_confirm", -6.0, 0.0)
+		AudioManager.play_2d("hitmarker_headshot" if headshot else "hitmarker", -8.0, 0.0)
+		var p := AudioManager.play_2d("kill_headshot" if headshot else "kill_confirm", -1.0, 0.0)
 		if p != null:
 			p.pitch_scale = pitch
 		_kill_flash.color.a = 0.16 if headshot else 0.1
 		if _player != null and is_instance_valid(_player):
 			_player.head.kick_fov(5.5 if headshot else 3.5)
 	else:
-		AudioManager.play_2d("hitmarker_headshot" if headshot else "hitmarker", -7.0 if headshot else -9.0, 0.03)
+		AudioManager.play_2d("hitmarker_headshot" if headshot else "hitmarker", -1.0 if headshot else -3.0, 0.03)
 		if headshot and _player != null and is_instance_valid(_player):
 			_player.head.kick_fov(1.5)
 

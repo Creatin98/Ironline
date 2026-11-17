@@ -286,8 +286,8 @@ func _simulate_slide() -> void:
 				await get_tree().physics_frame
 				ticks += 1
 			var dist := absf(local.global_position.z - start_z)
-			if dist < 0.8 or dist > 2.8:
-				_fail("Slide-Test: Slidelaenge %.2f m ausserhalb von 0.8-2.8 m" % dist)
+			if dist < 1.5 or dist > 3.2:
+				_fail("Slide-Test: Slidelaenge %.2f m ausserhalb von 1.5-3.2 m" % dist)
 			if not local.is_crouching:
 				_fail("Slide-Test: nach dem Slide mit gehaltener Duck-Taste soll der Spieler geduckt bleiben")
 			# Space while crouched: stand up, no jump

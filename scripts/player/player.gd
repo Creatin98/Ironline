@@ -26,7 +26,7 @@ const STEP_HEIGHT := 0.4
 const STEP_VIEW_SPEED := 1.7 # m/s the camera needs to catch up with a step
 ## Knee slide (sprint + crouch): ~1.5 m, decelerating; a small gadget, not a movement tech.
 const DEATH_FALL_TIME := 0.34
-const SLIDE_TIME := 0.5
+const SLIDE_TIME := 0.62
 const SLIDE_MIN_SPEED := 5.2
 const SLIDE_MIN_START_SPEED := 6.6
 const SLIDE_COOLDOWN := 0.9
@@ -467,7 +467,9 @@ func _update_states(delta: float) -> void:
 			_set_height(STAND_HEIGHT)
 	# sprint: nur vorwaerts, nicht geduckt, nicht beim Zielen/Schiessen
 	var wants_sprint := input.sprint and input.move.y > 0.4 and not is_crouching and not input.aim and _sprint_block_timer <= 0.0
-	wants_sprint = wants_sprint and not weapon_manager.is_busy()
+	if wants_sprint:
+		weapon_manager.cancel_for_sprint() # sprint breaks off reload / grenade animations
+	wants_sprint = wants_sprint and weapon_manager.is_switch_ready_for_sprint()
 	is_sprinting = wants_sprint
 	# aim
 	is_aiming = input.aim and not is_sprinting and weapon_manager.can_aim()
@@ -480,7 +482,7 @@ func _start_slide() -> void:
 	is_sliding = true
 	_slide_t = 0.0
 	_slide_dir = flat.normalized()
-	_slide_speed = maxf(horizontal_speed * 1.05, 6.8)
+	_slide_speed = maxf(horizontal_speed * 1.12, 8.6)
 	_slide_cd = SLIDE_COOLDOWN
 	is_sprinting = false
 	if not is_crouching:

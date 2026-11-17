@@ -297,6 +297,18 @@ func _game_ui(state: String) -> void:
 			game.hud._kill_flash.color.a = 0.0
 		get_tree().paused = true
 		game.hud.crosshair.queue_redraw()
+	if state == "blood":
+		# screen splatter + blood sprayed on the surfaces in front of the player
+		game.hud._add_blood_splats(90.0)
+		game.hud._add_blood_splats(60.0)
+		for sp in game.hud._blood_splats:
+			sp["age"] = 0.5
+		var origin: Vector3 = local.head.get_aim_origin()
+		var fwd: Vector3 = local.head.get_aim_direction()
+		for i in 5:
+			BloodFx.burst(game.get_tree().get_first_node_in_group("effects_container"), origin + fwd * 2.5 + Vector3(randf_range(-1.0, 1.0), randf_range(-0.6, 0.4), 0.0), fwd + Vector3(randf_range(-0.3, 0.3), -0.3, 0.0), 1.0)
+		await get_tree().create_timer(0.15).timeout
+		get_tree().paused = true
 	if state == "popups":
 		me.killstreak = 3
 		me.kills = 7

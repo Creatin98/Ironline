@@ -263,3 +263,11 @@ Python-Skripten in `tools/` erzeugt – keine Fremdinhalte, alles reproduzierbar
 
 * **Menümusik:** `AudioManager.play_music()/stop_music()`; spielt alle mp3/ogg/wav aus `assets/audio/music/` nacheinander (Bus „Music“,
   Fade ein/aus). `MainMenu._ready` startet sie, `Game._ready` stoppt sie. Ohne Dateien passiert nichts.
+
+* **Blut:** `BloodFx.burst` (Partikel + Splats auf Wand/Boden per Raycast, max. 90, 40 s) wird von `Weapon._spawn_impact` bei Spielertreffern
+  auf allen Maschinen erzeugt; `HUD._add_blood_splats` zeichnet einzelne Bildschirm-Spritzer (`BloodFx.splat_texture`, prozedural).
+  Waffenzucken beim Getroffenwerden: `WeaponManager._on_owner_damaged` (auch im ADS).
+* **Minimap:** `Minimap` (HUD-Block „Minimap“, verschiebbar im HUD-Editor): SubViewport mit Orthokamera von oben, dreht mit der Blickrichtung,
+  zeigt 60 m Breite; Overlay: eigener Pfeil, Teammates, gegnerische Schüsse (`GameEvents.shot_fired`, 1.4 s Blitz).
+* **Abbrechen:** Sprint bricht Nachladen/Granate ab (`WeaponManager.cancel_for_sprint`), Waffenwechsel bricht Granate ab und
+  darf das Hochnehmen unterbrechen (schnelles Wechseln); `LOWER_TIME` 0.11 s, `draw_time` ~35 % kürzer.

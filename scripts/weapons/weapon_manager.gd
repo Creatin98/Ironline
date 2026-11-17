@@ -6,7 +6,7 @@ extends Node3D
 enum SwitchState { READY, LOWERING, RAISING }
 
 const GRENADE_SCENE := preload("res://scenes/weapons/grenade.tscn")
-const LOWER_TIME := 0.18
+const LOWER_TIME := 0.11
 const GRENADE_THROW_DELAY := 0.28
 const GRENADE_TOTAL_TIME := 0.75
 const GRENADE_SPEED := 17.0
@@ -39,6 +39,9 @@ var _tp_reload_progress: float = -1.0 # in cycles; < 0 = idle
 var _tp_reload_cycles: int = 1
 var _tp_reload_silent: bool = false
 var _tp_flashes: Array[Node3D] = []
+var _flinch_t: float = 99.0
+var _flinch_side: float = 0.0
+var _flinch_amp: float = 0.0
 var _last_mag: int = -1
 var _last_reserve: int = -1
 
@@ -46,6 +49,8 @@ var _last_reserve: int = -1
 func setup(new_player: Player, class_data: ClassData, local: bool) -> void:
 	player = new_player
 	is_local = local
+	if is_local and not GameEvents.local_player_damaged.is_connected(_on_owner_damaged):
+		GameEvents.local_player_damaged.connect(_on_owner_damaged)
 	for w in weapons:
 		w.queue_free()
 	weapons.clear()
@@ -111,12 +116,30 @@ func get_current_weapon() -> Weapon:
 	return weapons[current_index]
 
 
+## Being shot makes the view model jerk (also while aiming down the sights).
+func _on_owner_damaged(amount: float, source_position: Vector3) -> void:
+	if player == null or not player.alive:
+		return
+	var to := source_position - player.global_position
+	var local_dir := Basis(Vector3.UP, player.rotation.y).inverse() * to
+	_flinch_side = clampf(local_dir.x / maxf(0.5, absf(local_dir.x) + absf(local_dir.z)), -1.0, 1.0)
+	if absf(_flinch_side) < 0.15:
+		_flinch_side = randf_range(-0.5, 0.5)
+	_flinch_amp = clampf(amount / 35.0, 0.5, 1.6)
+	_flinch_t = 0.0
+
+
 func is_busy() -> bool:
 	## Busy = reloading / switching / throwing; blocks sprint start.
 	var w := get_current_weapon()
 	if w and w.is_reloading():
 		return true
 	return _switch_state != SwitchState.READY or _grenade_timer > 0.0
+
+
+## Sprint may start unless the weapon is being lowered (raising is fine).
+func is_switch_ready_for_sprint() -> bool:
+	return _switch_state != SwitchState.LOWERING
 
 
 func can_aim() -> bool:
@@ -157,8 +180,11 @@ func process_input(input: PlayerInputState, delta: float) -> void:
 	_update_grenade(delta)
 	w.update(delta)
 
-	if _grenade_timer <= 0.0 and _switch_state == SwitchState.READY:
-		if input.grenade_pressed and grenades > 0 and not w.is_reloading():
+	# switching cancels a grenade that has not been thrown yet, and may interrupt the raise (spam switching)
+	if _grenade_timer > 0.0 and not _grenade_thrown and (input.select_primary or input.select_secondary or input.switch_pressed):
+		cancel_grenade(true)
+	if _grenade_timer <= 0.0 and (_switch_state == SwitchState.READY or _switch_state == SwitchState.RAISING):
+		if _switch_state == SwitchState.READY and input.grenade_pressed and grenades > 0 and not w.is_reloading():
 			_begin_grenade()
 			return
 		if input.select_primary and current_index != 0:
@@ -167,7 +193,7 @@ func process_input(input: PlayerInputState, delta: float) -> void:
 			begin_switch(1)
 		elif input.switch_pressed:
 			begin_switch((current_index + 1) % weapons.size())
-		if input.reload_pressed:
+		if input.reload_pressed and _switch_state == SwitchState.READY:
 			w.start_reload()
 	if _switch_state == SwitchState.READY and _grenade_timer <= 0.0 and not player.is_sprinting:
 		var wants_fire := input.fire_held if w.data.automatic else input.fire_pressed
@@ -209,6 +235,26 @@ func _update_switch(delta: float) -> void:
 		_switch_timer = get_current_weapon().data.draw_time
 	elif _switch_state == SwitchState.RAISING and _switch_timer <= 0.0:
 		_switch_state = SwitchState.READY
+
+
+## Sprint cancels reload and grenade animations (Call-of-Duty style).
+func cancel_for_sprint() -> void:
+	var w := get_current_weapon()
+	if w and w.is_reloading():
+		w.cancel_actions()
+		_stop_tp_reload()
+	if _grenade_timer > 0.0:
+		cancel_grenade(not _grenade_thrown)
+
+
+## Ends the throw animation; a grenade that was not thrown yet is given back.
+func cancel_grenade(refund: bool) -> void:
+	if refund and not _grenade_thrown:
+		grenades += 1
+		if is_local:
+			GameEvents.local_grenades_changed.emit(grenades)
+	_grenade_timer = 0.0
+	_grenade_thrown = true
 
 
 func _begin_grenade() -> void:
@@ -281,6 +327,9 @@ func _update_tp_reload(delta: float) -> void:
 	if w == null or current_index >= _tp_rigs.size():
 		_tp_reload_progress = -1.0
 		return
+	if player.is_sprinting:
+		_stop_tp_reload()
+		return
 	var cycle_time: float = w.data.shell_reload_time if w.data.reload_single_shells else w.data.reload_time
 	var before := floorf(_tp_reload_progress)
 	_tp_reload_progress += delta / maxf(0.05, cycle_time)
@@ -312,7 +361,7 @@ func _process(delta: float) -> void:
 	_sprint_blend = move_toward(_sprint_blend, 1.0 if player.is_sprinting else 0.0, delta * PlayerCamera.SPRINT_BLEND_SPEED)
 	var sprint_s := _sprint_blend * _sprint_blend * (3.0 - 2.0 * _sprint_blend)
 	var lowered := _switch_state == SwitchState.LOWERING or (_switch_state == SwitchState.RAISING and _switch_timer > w.data.draw_time * 0.5) or _grenade_timer > 0.0
-	_lower_blend = move_toward(_lower_blend, 1.0 if lowered else 0.0, delta * 8.0)
+	_lower_blend = move_toward(_lower_blend, 1.0 if lowered else 0.0, delta * 12.0)
 
 	# sway from look input
 	var look := player.last_look_delta
@@ -336,6 +385,12 @@ func _process(delta: float) -> void:
 	var slide_s := _slide_blend * _slide_blend * (3.0 - 2.0 * _slide_blend)
 	pos += Vector3(0.03, -0.07, 0.05) * slide_s
 	rot += Vector3(-0.25, 0.3, 0.35) * slide_s
+	# hit reaction: quick jerk away from the damage source
+	_flinch_t += delta
+	if _flinch_t < 0.6:
+		var fe := exp(-_flinch_t * 11.0) * _flinch_amp
+		pos += Vector3(_flinch_side * 0.03, -0.012, 0.05) * fe
+		rot += Vector3(0.16, -_flinch_side * 0.14, -_flinch_side * 0.18) * fe
 	# lowered (switch / grenade)
 	pos += Vector3(0.05, -0.38, 0.05) * _lower_blend
 	rot += Vector3(-0.8, 0.0, 0.0) * _lower_blend

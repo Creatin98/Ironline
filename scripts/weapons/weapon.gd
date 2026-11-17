@@ -270,6 +270,8 @@ func _spawn_impact(pos: Vector3, normal: Vector3, blood: bool) -> void:
 	var fx := IMPACT_SCENE.instantiate()
 	parent.add_child(fx)
 	fx.setup(pos, normal, blood)
+	if blood:
+		BloodFx.burst(parent, pos, pos - player.get_eye_position(), 1.0 if data.pellets <= 1 else 0.4)
 
 
 func _play_shot_feedback() -> void:
