@@ -15,6 +15,7 @@ const TEST_SPOT := Vector3(0.0, 0.1, -17.0)
 
 var role: String = "host"
 var port: int = 7791
+var scenario: String = "full" # full | leave (client quits mid-match)
 var _failures: Array[String] = []
 var _stats: Dictionary = {"hits": 0, "died": 0, "explosions": 0, "kills_seen": 0, "disconnected": 0, "votes": 0}
 var _started_msec: int = 0
@@ -32,6 +33,8 @@ func _ready() -> void:
 			role = arg.substr(7)
 		elif arg.begins_with("--port="):
 			port = int(arg.substr(7))
+		elif arg.begins_with("--scenario="):
+			scenario = arg.substr(11)
 	_started_msec = Time.get_ticks_msec()
 	GameSettings.player_name = role
 	GameSettings.preferred_team = Teams.Team.RED if role == "host" else Teams.Team.BLUE
@@ -142,6 +145,9 @@ func _run_host() -> void:
 
 	var host_player := _player_of(1)
 	host_player.human_controller.deactivate()
+	if scenario == "leave":
+		await _host_leave_scenario(cid)
+		return
 	var client_node := _player_of(cid)
 	if client_node.is_local:
 		_fail("Client-Node auf dem Host fälschlich als lokal markiert")
@@ -222,6 +228,30 @@ func _run_host() -> void:
 	_finish()
 
 
+## The client quits mid-match: the host must drop it cleanly and keep playing.
+func _host_leave_scenario(cid: int) -> void:
+	if not await _wait(func() -> bool: return MatchManager.participants.size() == 1 and NetworkManager.peers.size() == 1, 20.0):
+		_fail("Verlassener Client wurde nicht entfernt (Teilnehmer %d, Peers %d)" % [MatchManager.participants.size(), NetworkManager.peers.size()])
+		_finish()
+		return
+	if MatchManager.state != MatchManager.State.RUNNING or _player_of(1) == null or not _player_of(1).alive:
+		_fail("Match läuft nach dem Weggang des Clients nicht weiter")
+	for n in get_tree().get_nodes_in_group("players"):
+		if (n as Player).participant_id == cid:
+			_fail("Spieler-Node des verlassenen Clients existiert noch")
+	_log("Client entfernt, Match läuft allein weiter")
+	await get_tree().create_timer(1.0).timeout
+	MatchManager.end_match()
+	if not await _wait(func() -> bool: return int(_stats["votes"]) >= 1, 5.0):
+		_fail("Abstimmung ohne Mitspieler wurde nicht geöffnet")
+	NetworkManager.cast_vote("suburb")
+	if not await _wait(func() -> bool: return MatchManager.config.map_id == "suburb" and _match_running_with(1), 60.0):
+		_fail("Neue Runde allein nicht gestartet (Map %s, Zustand %d)" % [MatchManager.config.map_id, MatchManager.state])
+	else:
+		_log("Neue Runde allein auf Suburb läuft")
+	_finish()
+
+
 # ----------------------------------------------------------------------------- client
 
 func _run_client() -> void:
@@ -261,6 +291,14 @@ func _run_client() -> void:
 		return
 	_log("Match läuft, Roster und Nodes stimmen")
 
+	if scenario == "leave":
+		await get_tree().create_timer(3.0).timeout
+		NetworkManager.leave()
+		if NetworkManager.is_online():
+			_fail("Client ist nach leave() noch online")
+		_log("Client hat das Match verlassen")
+		_finish()
+		return
 	player.human_controller.scripted = true
 	player.human_controller.activate()
 	# 1) walk forward for a moment (input is sent to the server)

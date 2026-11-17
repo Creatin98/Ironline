@@ -22,17 +22,15 @@ def find_godot():
     sys.exit("Godot nicht gefunden: Pfad als Argument übergeben oder GODOT setzen.")
 
 
-def start(godot, role, port):
-    cmd = [godot, "--headless", "--path", ROOT, "tests/net_test.tscn", "--", f"--role={role}", f"--port={port}"]
+def start(godot, role, port, scenario):
+    cmd = [godot, "--headless", "--path", ROOT, "tests/net_test.tscn", "--", f"--role={role}", f"--port={port}", f"--scenario={scenario}"]
     return subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, encoding="utf-8", errors="replace")
 
 
-def main():
-    godot = find_godot()
-    port = sys.argv[2] if len(sys.argv) > 2 else "7791"
-    host = start(godot, "host", port)
+def run_scenario(godot, port, scenario):
+    host = start(godot, "host", port, scenario)
     time.sleep(2.0)
-    client = start(godot, "client", port)
+    client = start(godot, "client", port, scenario)
     results = {}
     for name, proc in (("host", host), ("client", client)):
         try:
@@ -44,11 +42,19 @@ def main():
         results[name] = (proc.returncode, out)
     ok = True
     for name, (code, out) in results.items():
-        print(f"===== {name} (Exit {code}) =====")
+        print(f"===== {scenario}: {name} (Exit {code}) =====")
         for line in out.splitlines():
             if line.startswith(("[", "NETTEST", "ERROR", "SCRIPT ERROR", "WARNING: ")) or "rror" in line:
                 print(line)
         ok = ok and code == 0
+    return ok
+
+
+def main():
+    godot = find_godot()
+    port = int(sys.argv[2]) if len(sys.argv) > 2 else 7791
+    ok = run_scenario(godot, str(port), "full")
+    ok = run_scenario(godot, str(port + 1), "leave") and ok
     print("Ergebnis:", "OK" if ok else "FEHLGESCHLAGEN")
     sys.exit(0 if ok else 1)
 
