@@ -22,6 +22,7 @@ var _bob: CheckBox
 var _sway: CheckBox
 var _shake: CheckBox
 var _fps: CheckBox
+var _killcams: CheckBox
 var _name: LineEdit
 
 
@@ -99,6 +100,8 @@ func _ready() -> void:
 	_row(grid, "Bildschirmwackeln", _shake, null)
 	_fps = _check("Anzeigen")
 	_row(grid, "FPS-Anzeige", _fps, null)
+	_killcams = _check("Aktiv")
+	_row(grid, "Killcam", _killcams, null)
 
 	v.add_child(UITheme.spacer(10))
 	var buttons := UITheme.hbox(20)
@@ -158,6 +161,7 @@ func _load_values() -> void:
 	_sway.button_pressed = GameSettings.weapon_sway
 	_shake.button_pressed = GameSettings.screen_shake
 	_fps.button_pressed = GameSettings.show_fps
+	_killcams.button_pressed = GameSettings.killcams
 
 
 func _apply() -> void:
@@ -176,4 +180,5 @@ func _apply() -> void:
 	GameSettings.weapon_sway = _sway.button_pressed
 	GameSettings.screen_shake = _shake.button_pressed
 	GameSettings.show_fps = _fps.button_pressed
+	GameSettings.killcams = _killcams.button_pressed
 	GameSettings.save()

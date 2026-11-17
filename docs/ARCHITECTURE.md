@@ -152,6 +152,35 @@ Stuck-Erkennung springt nach 1.3 s und wählt nach 3 s ein neues Ziel. Drei Prof
   Vorwärtsneigung beim Sprinten (`Player._animate_body`, rein visuell, nur lebende Körper).
 * Performance: höchstens 64 gleichzeitige Einschlag-Effekte (`BulletImpact.MAX_LIVE`), die ältesten verschwinden zuerst.
 
+## Waffenmodelle und Ironsight (Phase 8+)
+
+`tools/generate_weapon_models.py` erzeugt die vier Modelle aus einfachen Meshes (je 35–55 Teile) samt Händen und Unterarmen
+und schreibt die passenden `hip_position`, `ads_position` und `ads_fov` in die `.tres`-Dateien. Jede Waffe definiert eine
+**Visierlinie** (`SIGHT_Y` = Höhe des Zielpunkts über dem Modellursprung, `REAR_Z` = Position der Kimme). Der ADS-Offset ist
+so berechnet, dass Kimme und Korn exakt mittig liegen und die Kimme `ADS_DIST` (0.24–0.42 m) vor dem Auge sitzt: kleine
+U-Kimme mit Korn und Schutzohren (AK), Diopter-Ring mit Korn im Ring (MP5), Lauf-Rippe mit Perlkorn (Shotgun),
+Dreipunkt-Visier (Pistole). Wichtig für Änderungen: Teile, die zwischen Auge und Visier liegen, müssen unter der
+Visierlinie bleiben, sonst verdecken sie das Bild.
+
+## Killcam und Last-Kill-Cam (Phase 8+)
+
+* **Killcam:** `Game._start_killcam` schaltet beim eigenen Tod eine zweite Kamera auf `Player.camera` des Mörders (live,
+  dessen Kopf/Torso sind ausgeblendet, Waffe und Hände bleiben). Menschen respawnen nach `HUMAN_RESPAWN_DELAY` = 3 s,
+  Bots nach der normalen Moduszeit (1.5 s). Leertaste überspringt ab 1.5 s: `NetworkManager.request_skip_respawn` →
+  Server `Game.skip_respawn`. Ist der Mörder selbst tot, Umgebung oder Selbstmord, gilt die alte Todeskamera.
+* **Last Kill:** `ReplayRecorder` zeichnet auf jeder Maschine mit 30 Hz die sichtbaren Posen aller Spieler der letzten 12 s
+  auf (Position, Blick, Ducken, lebt, Waffe, Schuss). Am Rundenende sucht er den letzten Kill des Siegers (Team/Spieler),
+  friert die Welt ein und spielt 3 s davor bis 1.6 s danach die echten Spieler-Nodes ab, Kamera in den Augen des Schützen.
+  Kein Netzwerkverkehr nötig. Liegt der Kill außerhalb des Fensters (z. B. Zeitlimit), entfällt der Replay.
+* Beides hängt an `GameSettings.killcams`.
+
+## Menü-Oberfläche und Vorschaubilder
+
+`PreviewPicker` (Karten mit Bild, Titel, Badge) wird für Map und Klasse in Training, Lobby, Pausemenü, Endbildschirm und
+Kartenabstimmung genutzt. Bilder liegen in `assets/ui/previews/` (gerendert mit `tools/shots/generate_previews.sh`,
+`GameDirector.get_map_preview/get_class_preview`). Fenster werden mit `CenterContainer` zentriert; absolute
+`position`-Werte auf Ankern verrutschen, wenn der Elternknoten noch keine Größe hat.
+
 ## Spawnsystem
 
 `SpawnSystem.pick_spawn`: Kandidaten (Teampunkte + neutrale), Score = min. Gegnerdistanz (max 40) +

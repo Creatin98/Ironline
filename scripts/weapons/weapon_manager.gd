@@ -62,7 +62,7 @@ func setup(new_player: Player, class_data: ClassData, local: bool) -> void:
 		player.hands.add_child(tp)
 		_tp_models.append(tp)
 		var tp_muzzle := tp.get_node_or_null("Muzzle")
-		if tp_muzzle != null and not is_local:
+		if tp_muzzle != null:
 			var flash: Node3D = Weapon.MUZZLE_FLASH_SCENE.instantiate()
 			tp_muzzle.add_child(flash)
 			_tp_flashes.append(flash)

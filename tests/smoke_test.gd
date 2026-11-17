@@ -14,9 +14,12 @@ var _loaded := 0
 
 func _ready() -> void:
 	print("== Ironline Smoke Test ==")
+	GameSettings.persist = false
+	GameSettings.killcams = false # the main simulations expect the results screen right at the end
 	_scan("res://")
 	_instantiate_core_scenes()
 	await _simulate_match()
+	await _simulate_cams()
 	await _check_maps()
 	await _simulate_bots()
 	AudioManager.stop_all()
@@ -94,6 +97,83 @@ func _instantiate_core_scenes() -> void:
 			_fail("Klassen-Ressource unvollstaendig: " + path)
 		elif c.primary.model_scene == null:
 			_fail("Waffenmodell fehlt fuer " + path)
+
+
+## Killcam after death (live view of the killer, skippable) and the last-kill replay at the round end.
+func _simulate_cams() -> void:
+	GameSettings.killcams = true
+	var cfg := MatchConfig.new()
+	cfg.mode_id = MatchConfig.MODE_TDM
+	cfg.map_id = "test_arena"
+	cfg.bots_enabled = true
+	cfg.bot_count = 1
+	cfg.time_limit = 0.0
+	MatchManager.prepare_match(cfg)
+	var game: Node = (load("res://scenes/game/game.tscn") as PackedScene).instantiate()
+	add_child(game)
+	await get_tree().process_frame
+	var waited := 0.0
+	while MatchManager.state != MatchManager.State.RUNNING and waited < 8.0:
+		await get_tree().process_frame
+		waited += get_process_delta_time()
+	var me := MatchManager.get_local_participant()
+	var local: Player = me.node as Player
+	local.human_controller.deactivate()
+	var bot: Participant = null
+	for p in MatchManager.participants.values():
+		if p.is_bot:
+			bot = p
+	var bot_node: Player = bot.node as Player
+	(bot_node.get_node("BotController") as Node).set_physics_process(false)
+	# let the recorder collect a few seconds
+	for i in 200:
+		await get_tree().physics_frame
+	# --- killcam: we die, the view switches to the killer and can be skipped after 1.5 s
+	local.take_damage(9999.0, bot.id, "ak47", local.get_center(), false, bot_node.global_position)
+	await get_tree().process_frame
+	if not game._killcam_active:
+		_fail("Killcam startete nicht")
+	if not game._cam.current:
+		_fail("Killcam-Kamera ist nicht aktiv")
+	NetworkManager.request_skip_respawn()
+	await get_tree().physics_frame
+	if me.alive:
+		_fail("Respawn liess sich vor 1.5 s ueberspringen")
+	for i in 100:
+		await get_tree().physics_frame
+	NetworkManager.request_skip_respawn()
+	for i in 40:
+		await get_tree().physics_frame
+		if me.alive:
+			break
+	if not me.alive:
+		_fail("Respawn nach dem Ueberspringen blieb aus")
+	if game._killcam_active or not local.camera.current:
+		_fail("Killcam wurde nach dem Respawn nicht beendet")
+	# --- last kill cam: we kill the bot and end the match
+	for i in 60:
+		await get_tree().physics_frame
+	bot_node.take_damage(9999.0, me.id, "ak47", bot_node.get_center(), false, local.global_position)
+	await get_tree().physics_frame
+	# the bot killed us once (1:1): one more kill so that our team wins
+	MatchManager.report_kill(bot.id, me.id, "ak47", true)
+	await get_tree().physics_frame
+	MatchManager.end_match()
+	await get_tree().process_frame
+	if not game._replay_active or not game.recorder.playing:
+		_fail("Last-Kill-Cam startete nicht")
+	elif game.match_end.visible:
+		_fail("Endbildschirm erschien schon waehrend des Replays")
+	for i in 20:
+		await get_tree().physics_frame
+	game.recorder.skip()
+	await get_tree().process_frame
+	if not game.match_end.visible or game._replay_active:
+		_fail("Endbildschirm erschien nach dem Replay nicht")
+	print("Killcams: Killcam, Ueberspringen, Last-Kill-Replay OK")
+	GameSettings.killcams = false
+	game.free()
+	await get_tree().process_frame
 
 
 ## Runs a Free-for-All with hard bots on Frontier at 4x speed and checks that the

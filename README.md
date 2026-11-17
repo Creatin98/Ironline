@@ -15,6 +15,7 @@ drei Klassen, drei Drei-Wege-Maps, Team Deathmatch und Free for All, Bots und On
 | 6 | Online-Multiplayer (ENet, Host spielt mit, serverautoritativ) | fertig |
 | 7 | Lobby (Team/Klasse/Bots), Map-Voting nach jeder Runde | fertig |
 | 8 | Polish: Schadensrichtung, Mündungsfeuer/Körperanimation anderer Spieler, Effekt-Limit | fertig |
+| 8+ | Neue Waffenmodelle mit sauberem Ironsight, Vorschaubilder für Maps/Klassen, Killcam, Last-Kill-Cam | fertig |
 | 9 | Windows-Build, Tests | offen |
 
 ## Starten
@@ -25,6 +26,11 @@ drei Klassen, drei Drei-Wege-Maps, Team Deathmatch und Free for All, Bots und On
 4. F5 (Projekt starten) → Hauptmenü:
    * **Training (Offline)**: Modus, Klasse, Bots wählen → **Match starten**.
    * **Online**: siehe „Online spielen“.
+
+Neu: Nach dem Tod siehst du 3 Sekunden lang live durch die Augen deines Mörders (Killcam, mit Leertaste nach 1,5 s
+überspringbar). Am Rundenende läuft die letzte Aktion des Siegers als Replay („Last Kill“). Beides lässt sich in den
+Einstellungen unter „Killcam“ abschalten. Maps und Klassen werden im Menü, in der Lobby und bei der Kartenabstimmung
+mit Vorschaubildern gewählt.
 
 Steuerung: WASD bewegen, Maus zielen, Shift sprinten, Strg/C ducken, Leertaste springen,
 LMT schießen, RMT zielen (ADS), R nachladen, Q / 1 / 2 Waffe wechseln, G Granate, Tab Scoreboard, Esc Pause.
@@ -76,6 +82,18 @@ py -3 tools/run_net_test.py "C:\Pfad\zu\godot.exe"
 Der Import-Schritt ist nur nötig, wenn das Projekt noch nie im Editor geöffnet wurde oder neue
 Skripte mit `class_name` hinzukamen (der Editor erledigt das sonst automatisch). Der Test dauert
 etwa 30 Sekunden und endet mit `OK: … keine Fehler.`
+
+## Screenshots und Vorschaubilder (Entwicklung)
+
+Für Menü-, Waffen- und Kamera-Ansichten ohne Spielstart gibt es ein Render-Werkzeug (braucht `xvfb` und einen
+OpenGL-Treiber, z. B. unter Linux; der Windows-Editor rendert ohnehin direkt):
+
+```bash
+tools/shots/run.sh <godot> fp_assault_ads /tmp/ak_ads.png      # Ego-Ansicht, Hüfte/Zielen (hip|ads), Zweitwaffe mit _sec
+tools/shots/run.sh <godot> menu_settings /tmp/menu.png         # Menüs, game_pause, game_end, game_killcam, game_lastkill
+tools/shots/generate_previews.sh <godot>                        # Vorschaubilder neu rendern (assets/ui/previews)
+python3 tools/generate_weapon_models.py                         # Waffenmodelle + ADS-Offsets neu erzeugen
+```
 
 ## Assets neu erzeugen
 

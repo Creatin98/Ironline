@@ -30,6 +30,7 @@ var camera_bob: bool = true
 var weapon_sway: bool = true
 var screen_shake: bool = true
 var show_fps: bool = false
+var killcams: bool = true # killcam after death + last kill cam at the end of a round
 
 # Spieler
 var player_name: String = "Spieler"
@@ -69,6 +70,7 @@ func load_settings() -> void:
 	weapon_sway = cfg.get_value("hud", "weapon_sway", weapon_sway)
 	screen_shake = cfg.get_value("hud", "screen_shake", screen_shake)
 	show_fps = cfg.get_value("hud", "show_fps", show_fps)
+	killcams = cfg.get_value("hud", "killcams", killcams)
 	player_name = cfg.get_value("player", "name", player_name)
 	preferred_team = cfg.get_value("player", "team", preferred_team)
 	preferred_class_id = cfg.get_value("player", "class_id", preferred_class_id)
@@ -92,6 +94,7 @@ func save() -> void:
 	cfg.set_value("hud", "weapon_sway", weapon_sway)
 	cfg.set_value("hud", "screen_shake", screen_shake)
 	cfg.set_value("hud", "show_fps", show_fps)
+	cfg.set_value("hud", "killcams", killcams)
 	cfg.set_value("player", "name", player_name)
 	cfg.set_value("player", "team", preferred_team)
 	cfg.set_value("player", "class_id", preferred_class_id)

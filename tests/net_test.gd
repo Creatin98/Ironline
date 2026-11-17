@@ -37,6 +37,7 @@ func _ready() -> void:
 			scenario = arg.substr(11)
 	_started_msec = Time.get_ticks_msec()
 	GameSettings.persist = false
+	GameSettings.killcams = false # keeps the round-end timing of the test deterministic
 	GameSettings.player_name = role
 	GameSettings.preferred_team = Teams.Team.RED if role == "host" else Teams.Team.BLUE
 	GameSettings.preferred_class_id = "assault"

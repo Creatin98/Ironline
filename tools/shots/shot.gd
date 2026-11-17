@@ -7,7 +7,7 @@ extends Node
 ##
 ## Targets: menu, menu_settings, menu_online, menu_quick, menu_classes,
 ##   fp_<class>_<hip|ads>   first-person view in the test arena (class: assault, smg, shotgun)
-##   game_pause | game_scoreboard | game_end   in-game UI states (test arena, a few bots)
+##   game_pause | game_scoreboard | game_end | game_killcam | game_lastkill   in-game UI states (test arena, a few bots)
 ##   map_<id>      overview render of a map (preview image for menus)
 ##   class_<id>    weapon render of a class (preview image for menus)
 ##   Optional: --nohud=1 hides the HUD.
@@ -192,9 +192,10 @@ func _hide_hands(model: Node3D) -> void:
 
 
 func _game_ui(state: String) -> void:
+	wait_frames = 1 # software rendering is slow: game time runs on between frames
 	var cfg := MatchConfig.new()
 	cfg.mode_id = MatchConfig.MODE_TDM
-	cfg.map_id = "frontier"
+	cfg.map_id = "test_arena"
 	cfg.bots_enabled = true
 	cfg.bot_count = 5
 	cfg.time_limit = 0.0
@@ -208,6 +209,50 @@ func _game_ui(state: String) -> void:
 		await get_tree().physics_frame
 	var me := MatchManager.get_local_participant()
 	(me.node as Player).human_controller.deactivate()
+	var bot: Participant = null
+	for p in MatchManager.participants.values():
+		if p.is_bot and me.is_enemy_of(p):
+			bot = p
+			break
+	var bot_node: Player = bot.node as Player
+	(bot_node.get_node("BotController") as Node).set_physics_process(false)
+	for other in MatchManager.participants.values():
+		if other.is_bot and other != bot:
+			(other.node as Player).global_position = Vector3(25.0, 0.1, 15.0)
+			((other.node as Player).get_node("BotController") as Node).set_physics_process(false)
+	var local := me.node as Player
+	local.global_position = Vector3(0.0, 0.1, -17.0)
+	local.rotation.y = PI
+	bot_node.global_position = Vector3(0.0, 0.1, -11.0)
+	bot_node.rotation.y = 0.0 # faces the local player
+	match state:
+		"killcam":
+			for i in 30:
+				await get_tree().physics_frame
+			local.take_damage(9999.0, bot.id, "ak47", local.get_center(), false, bot_node.global_position)
+			for i in 20:
+				await get_tree().physics_frame
+			get_tree().paused = true # software rendering is slow: freeze the moment
+		"lastkill":
+			bot_node.health.max_health = 100000.0 # survives the shots until the explicit kill
+			bot_node.health.health = 100000.0
+			local.input.fire_held = true
+			for i in 150:
+				await get_tree().physics_frame
+			bot_node.health.health = 10.0
+			bot_node.take_damage(9999.0, me.id, "ak47", bot_node.get_center(), true, local.global_position)
+			for i in 5:
+				await get_tree().physics_frame
+			local.input.fire_held = false
+			MatchManager.end_match()
+			get_tree().paused = true
+			# jump the replay to just after the kill and pose everything once
+			var rec: ReplayRecorder = game.recorder
+			rec._cursor = float(rec.kill["t"]) + 0.35
+			rec._last_index = rec._index_at(rec._cursor - 0.05)
+			rec._apply(rec._cursor, false)
+			for i in 4:
+				await get_tree().process_frame
 	match state:
 		"pause":
 			game._open_pause()

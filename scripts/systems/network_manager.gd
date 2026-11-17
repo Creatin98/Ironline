@@ -786,6 +786,23 @@ func _rpc_grenade_explode(gid: int, center: Vector3) -> void:
 		game.play_explosion_at(center)
 
 
+# ----------------------------------------------------------------------------- respawn skip
+
+## Everyone: skip the rest of the killcam wait (the server checks the minimum time).
+func request_skip_respawn() -> void:
+	if mode == Mode.CLIENT:
+		_rpc_skip_respawn.rpc_id(1)
+	elif game != null and game.has_method("skip_respawn"):
+		game.skip_respawn(MatchManager.local_participant_id)
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func _rpc_skip_respawn() -> void:
+	if mode != Mode.HOST or game == null or not game.has_method("skip_respawn"):
+		return
+	game.skip_respawn(multiplayer.get_remote_sender_id())
+
+
 # ----------------------------------------------------------------------------- map voting
 
 ## Host: opens the vote for the next map (called when a match has ended).

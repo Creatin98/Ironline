@@ -179,6 +179,7 @@ func try_fire(is_aiming: bool, move_ratio: float, in_air: bool, crouching: bool)
 	var killed_any := false
 	var impacts: Array = [] # [position, normal, hit_player] for the other machines
 	last_fire_msec = Time.get_ticks_msec()
+	player.shot_flag = true
 	for i in data.pellets:
 		var dir := _random_cone_direction(forward, spread)
 		var result := _hit_scan(origin, dir)
@@ -248,6 +249,7 @@ func _hit_scan(origin: Vector3, dir: Vector3) -> Dictionary:
 ## Client: the server fired this player's weapon; show shot, sound and impacts.
 func play_remote_shot(impacts: Array) -> void:
 	last_fire_msec = Time.get_ticks_msec()
+	player.shot_flag = true
 	_play_shot_feedback()
 	for entry in impacts:
 		if typeof(entry) == TYPE_ARRAY and entry.size() >= 3:

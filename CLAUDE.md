@@ -14,6 +14,9 @@ Architektur: docs/ARCHITECTURE.md (nur bei Bedarf lesen). Sprache: Deutsch.
 - Statisch: `python3 tools/validate_project.py`
 - Godot (Linux headless muss ggf. nachgeladen werden): `godot --headless --path . --import --quit`
   (nötig bei neuen `class_name`), dann `godot --headless --path . tests/smoke_test.tscn` (~30 s, Offline-Match, Maps, Bots).
+- Optik prüfen (Menüs, Waffen, Kamera): `tools/shots/run.sh <godot> <ziel> <out.png> [WxH]` rendert per xvfb + OpenGL
+  und das PNG lässt sich ansehen. Ziele siehe `tools/shots/shot.gd`. Software-Rendering ist langsam: Zeit läuft zwischen
+  Frames weiter, für Momentaufnahmen `get_tree().paused = true` setzen.
 - Netzwerk: `python3 tools/run_net_test.py <godot>` (Szenarien: Host+Client, Client verlässt Match, 3 Spieler; ~2 min). Nur bei Netzwerk-/Spieler-/Waffenänderungen.
 
 ## Git

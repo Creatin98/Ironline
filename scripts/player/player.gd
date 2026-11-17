@@ -80,6 +80,9 @@ var _sprint_block_timer: float = 0.0
 var _team_material: StandardMaterial3D
 var _death_tween: Tween
 var _walk_phase: float = 0.0
+## Set whenever this player fired (read by the replay recorder).
+var shot_flag: bool = false
+var replay_mode: bool = false
 
 
 func _ready() -> void:
@@ -128,6 +131,71 @@ func setup(participant: Participant, new_class: ClassData, local: bool) -> void:
 
 ## True if this machine simulates the movement of this player (the local player,
 ## and on the server/offline host also every bot and every remote human).
+func consume_shot_flag() -> bool:
+	var f := shot_flag
+	shot_flag = false
+	return f
+
+
+# ----------------------------------------------------------------------------- replay (last kill cam)
+
+## Freezes the real player and lets the ReplayRecorder pose it. `is_killer`: the camera
+## sits in this player's head, so its own head/torso are hidden and only the weapon stays.
+func enter_replay_mode(is_killer: bool) -> void:
+	replay_mode = true
+	set_physics_process(false)
+	velocity = Vector3.ZERO
+	_kill_death_tween()
+	body.visible = true
+	hands.visible = true # also for the local player (normally first-person model only)
+	weapon_manager.visible = false # the first-person viewmodel
+	torso_mesh.visible = not is_killer
+	head_mesh.visible = not is_killer
+	torso_mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+	head_mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+	name_label.visible = not is_killer
+	if is_local:
+		camera.current = false
+
+
+func replay_pose(pos: Vector3, yaw: float, pitch: float, crouch: bool) -> void:
+	global_position = pos
+	rotation.y = yaw
+	head.set_pitch(pitch)
+	hands.rotation.x = pitch
+	if crouch != is_crouching:
+		is_crouching = crouch
+		_set_height(CROUCH_HEIGHT if crouch else STAND_HEIGHT)
+
+
+## alive=false with `instant`: just hide; alive=false animated: fall down; alive=true: stand up again.
+func replay_set_alive(is_alive: bool, instant: bool) -> void:
+	_kill_death_tween()
+	body.rotation = Vector3.ZERO
+	body.position = Vector3.ZERO
+	if is_alive:
+		body.visible = true
+	elif instant:
+		body.visible = false
+	else:
+		body.visible = true
+		_play_death_animation_replay()
+
+
+func _play_death_animation_replay() -> void:
+	_death_tween = create_tween()
+	_death_tween.set_parallel(true)
+	_death_tween.tween_property(body, "rotation", Vector3(0.0, 0.0, deg_to_rad(88.0)), 0.45).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	_death_tween.tween_property(body, "position", Vector3(0.0, 0.25, 0.0), 0.45)
+
+
+func replay_shot() -> void:
+	weapon_manager.flash_third_person()
+	var w := weapon_manager.get_current_weapon()
+	if w != null:
+		AudioManager.play_3d(w.data.shot_sound, global_position + Vector3.UP, w.data.shot_volume_db, 0.05, 120.0)
+
+
 ## Swaps the loadout (weapons, grenades). Called right before a respawn.
 func apply_class(new_class: ClassData) -> void:
 	class_data = new_class
@@ -303,10 +371,13 @@ func apply_look(delta_look: Vector2) -> void:
 func _process(delta: float) -> void:
 	if head == null:
 		return
-	if alive and not has_movement_authority():
-		_interpolate_remote(delta)
-	if alive:
-		_animate_body(delta)
+	if replay_mode:
+		pass # the replay recorder drives the pose
+	else:
+		if alive and not has_movement_authority():
+			_interpolate_remote(delta)
+		if alive:
+			_animate_body(delta)
 	last_look_delta = _look_accum
 	_look_accum = Vector2.ZERO
 	var w := weapon_manager.get_current_weapon()
