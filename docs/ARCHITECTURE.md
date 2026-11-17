@@ -220,7 +220,7 @@ Visierlinie bleiben, sonst verdecken sie das Bild.
   12 s Fenster, auf jeder Maschine aus dem Gesehenen) posiert stattdessen **Geister-Kopien** (`player.tscn` ohne Kollision,
   nicht in der Gruppe `players`). Mündungsfeuer und Schussgeräusch kommen aus dem Schuss-Flag der Aufzeichnung. Danach
   normale Todesansicht bis zum Respawn. Menschen respawnen nach `HUMAN_RESPAWN_DELAY` = 6 s (Killcam), Leertaste
-  überspringt ab 1.5 s (`NetworkManager.request_skip_respawn` → Server `Game.skip_respawn`), Bots nach der Moduszeit (1.5 s).
+  überspringt ab 0.5 s (Sturz der Kamera `Player._play_fall_camera` → Fade → Killcam, `Game._death_sequence`) (`NetworkManager.request_skip_respawn` → Server `Game.skip_respawn`), Bots nach der Moduszeit (1.5 s).
 * **Anzeige:** Beide Kameras haben einen **Vignette-Shader** (dunkle Ränder) und unten einen Infoblock: Name des
   Schützen in Teamfarbe, Waffe (+ „KOPFSCHUSS“), **Assist: Namen** (aus `MatchManager.kill_assists`, wird mit dem Kill am
   Eintrag des Recorders gespeichert), dazu Respawn-Zähler und Skip-Hinweis.

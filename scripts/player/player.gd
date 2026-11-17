@@ -25,6 +25,7 @@ const LAND_SOUND_SPEED := 4.0
 const STEP_HEIGHT := 0.4
 const STEP_VIEW_SPEED := 1.7 # m/s the camera needs to catch up with a step
 ## Knee slide (sprint + crouch): ~1.5 m, decelerating; a small gadget, not a movement tech.
+const DEATH_FALL_TIME := 0.34
 const SLIDE_TIME := 0.5
 const SLIDE_MIN_SPEED := 5.2
 const SLIDE_MIN_START_SPEED := 6.6
@@ -249,6 +250,7 @@ func respawn_at(spawn_transform: Transform3D) -> void:
 	collision_layer = 2
 	collision_mask = 1 | 2
 	_kill_death_tween()
+	head.fall = 0.0
 	body.visible = true
 	body.rotation = Vector3.ZERO
 	body.position = Vector3.ZERO
@@ -281,10 +283,18 @@ func _on_health_died(attacker_id: int, weapon_id: String, headshot: bool) -> voi
 	is_sprinting = false
 	_play_death_animation()
 	if is_local:
+		_play_fall_camera()
 		AudioManager.play_2d("death", -2.0)
 	else:
 		AudioManager.play_3d("death", global_position + Vector3.UP, -4.0)
 	died.emit(participant_id, attacker_id, weapon_id, headshot)
+
+
+## Local view: tips over and drops to the floor like being shot down.
+func _play_fall_camera() -> void:
+	head.fall = 0.0
+	var t := create_tween()
+	t.tween_property(head, "fall", 1.0, DEATH_FALL_TIME).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 
 
 func _play_death_animation() -> void:

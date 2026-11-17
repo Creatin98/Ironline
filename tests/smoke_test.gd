@@ -348,6 +348,16 @@ func _simulate_cams() -> void:
 	# --- killcam: we die, the view switches to the killer and can be skipped after 1.5 s
 	local.take_damage(9999.0, bot.id, "ak47", local.get_center(), false, bot_node.global_position)
 	await get_tree().process_frame
+	if game._killcam_active:
+		_fail("Killcam startete ohne Sturz-Animation sofort")
+	if local.head.fall < 0.0 or not local.is_local:
+		_fail("Sturz-Kamera fehlt")
+	var fall_wait := 0.0
+	while not game._killcam_active and fall_wait < 1.5:
+		await get_tree().process_frame
+		fall_wait += get_process_delta_time()
+	if local.head.fall < 0.95:
+		_fail("Kamera ist nicht zu Boden gefallen (fall=%.2f)" % local.head.fall)
 	if not game._killcam_active:
 		_fail("Killcam startete nicht")
 	if not game._cam.current:
@@ -364,8 +374,8 @@ func _simulate_cams() -> void:
 	NetworkManager.request_skip_respawn()
 	await get_tree().physics_frame
 	if me.alive:
-		_fail("Respawn liess sich vor 1.5 s ueberspringen")
-	for i in 100:
+		_fail("Respawn liess sich vor 0.5 s ueberspringen")
+	for i in 60:
 		await get_tree().physics_frame
 	NetworkManager.request_skip_respawn()
 	for i in 40:

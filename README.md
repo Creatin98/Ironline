@@ -34,7 +34,7 @@ Punkte (nur pro Runde, im Scoreboard unter Tab): 1 Kill = 100, 1 Assist = 50 (Sc
 8 Sekunden vor dem Tod des Gegners). Neue Punkte poppen wie bei Call of Duty unter dem Fadenkreuz auf.
 
 Neu: Nach dem Tod läuft die Killcam: ein Replay der letzten 5 Sekunden aus der Sicht deines Mörders, bis zu deinem Tod
-(Respawn nach 6 s, mit Leertaste nach 1,5 s überspringbar). Am Rundenende läuft die letzte Aktion des Siegers als Replay („Last Kill“). Beides lässt sich in den
+(Respawn nach 6 s, Kamera stürzt zu Boden und blendet nach ca. 0,5 s in die Killcam über, Leertaste überspringt dann sofort). Am Rundenende läuft die letzte Aktion des Siegers als Replay („Last Kill“). Beides lässt sich in den
 Einstellungen unter „Killcam“ abschalten. Maps und Klassen werden im Menü, in der Lobby und bei der Kartenabstimmung
 mit Vorschaubildern gewählt.
 

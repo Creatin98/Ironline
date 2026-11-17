@@ -14,7 +14,7 @@ const KILLCAM_SECONDS_BEFORE := 5.0 # how much of the killer's view leads up to 
 const KILLCAM_SECONDS_AFTER := 0.9
 const OUTRO_TIME := 3.2 # the camera leaves the last-kill scene and rises over the map
 const OUTRO_RESULTS_DELAY := 1.6 # the scoreboard fades in while the camera is still moving
-const KILLCAM_SKIP_AFTER := 1.5
+const KILLCAM_SKIP_AFTER := 0.5 # fall (~0.4 s) + fade, then Space skips at once
 
 @onready var map_container: Node3D = $MapContainer
 @onready var players_container: Node3D = $Players
@@ -35,6 +35,8 @@ var recorder: ReplayRecorder
 var _cam: Camera3D # shared by killcam and last-kill replay
 var _killcam_active: bool = false
 var _dead_elapsed: float = 0.0
+var _fade: ColorRect
+var _death_seq: int = 0 # invalidates a running death sequence (respawn, round end)
 var _replay_active: bool = false
 var _cam_ui: Control
 var _cam_title: Label
@@ -260,7 +262,10 @@ func _on_player_died(victim_id: int, killer_id: int, weapon_id: String, headshot
 		_respawn_queue[victim_id] = delay
 	if victim_id == MatchManager.local_participant_id:
 		GameEvents.local_player_died.emit(killer_id, delay)
-		if not _start_killcam(killer_id):
+		_dead_elapsed = 0.0
+		if _killcam_possible(killer_id):
+			_death_sequence(killer_id)
+		else:
 			_death_camera(killer_id)
 
 
@@ -334,6 +339,12 @@ void fragment() {
 	_cam_hint.offset_top = -64.0
 	_cam_hint.offset_bottom = -30.0
 	_cam_ui.add_child(_cam_hint)
+	_fade = ColorRect.new()
+	_fade.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_fade.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_fade.color = Color(0, 0, 0, 0)
+	ui_layer.add_child(_fade)
+	_fade.move_to_front()
 
 
 ## Fills the bottom block: killer name (team colour), weapon + headshot, assists.
@@ -360,14 +371,40 @@ func _fill_cam_info(kill: Dictionary, show_victim: bool) -> void:
 
 ## Killcam: replay of the last seconds of the killer's view, ending with our death.
 ## The real players keep playing (hidden), the replay poses ghost copies.
-func _start_killcam(killer_id: int) -> bool:
-	_dead_elapsed = 0.0
+func _killcam_possible(killer_id: int) -> bool:
 	if not GameSettings.killcams or killer_id == MatchManager.local_participant_id or _replay_active:
+		return false
+	return MatchManager.get_participant(killer_id) != null and not recorder.find_kill(MatchManager.local_participant_id, killer_id).is_empty()
+
+
+## Fall of the camera, short fade to black, then the killcam fades in (total ~0.5 s).
+func _death_sequence(killer_id: int) -> void:
+	_death_seq += 1
+	var seq := _death_seq
+	await get_tree().create_timer(Player.DEATH_FALL_TIME - 0.04, true, false, true).timeout
+	if not _death_seq_valid(seq):
+		return
+	var t := create_tween()
+	t.tween_property(_fade, "color:a", 1.0, 0.1)
+	await t.finished
+	if not _death_seq_valid(seq):
+		return
+	if not _start_killcam(killer_id):
+		_death_camera(killer_id)
+	var t2 := create_tween()
+	t2.tween_property(_fade, "color:a", 0.0, 0.2)
+
+
+func _death_seq_valid(seq: int) -> bool:
+	return seq == _death_seq and local_player != null and is_instance_valid(local_player) \
+			and not local_player.alive and MatchManager.state == MatchManager.State.RUNNING
+
+
+func _start_killcam(killer_id: int) -> bool:
+	if not _killcam_possible(killer_id):
 		return false
 	var killer := MatchManager.get_participant(killer_id)
 	var kill := recorder.find_kill(MatchManager.local_participant_id, killer_id)
-	if killer == null or kill.is_empty():
-		return false
 	if not recorder.start_ghost_replay(kill, _cam, self, KILLCAM_SECONDS_BEFORE, KILLCAM_SECONDS_AFTER):
 		return false
 	_killcam_active = true
@@ -384,6 +421,8 @@ func _start_killcam(killer_id: int) -> bool:
 
 func _end_killcam() -> void:
 	_dead_elapsed = 0.0
+	_death_seq += 1
+	_fade.color.a = 0.0
 	if not _killcam_active:
 		return
 	_killcam_active = false
