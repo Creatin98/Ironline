@@ -23,6 +23,7 @@ func _ready() -> void:
 	await _simulate_reloads()
 	await _simulate_cams()
 	await _simulate_steps()
+	await _simulate_slide()
 	await _check_maps()
 	await _simulate_bots()
 	AudioManager.stop_all()
@@ -238,6 +239,79 @@ func _simulate_steps() -> void:
 	if airborne > 12:
 		_fail("Beim Ueberlaufen der Kante war der Spieler %d Ticks in der Luft (soll ohne Springen gehen)" % airborne)
 	print("Stufen: Kante 0.2 m ohne Springen ueberlaufen (z=%.2f, y=%.2f, Luft-Ticks %d), 0.7 m Wand blockiert" % [local.global_position.z, max_y, airborne])
+	game.free()
+	await get_tree().process_frame
+
+
+## Knee slide: sprint + crouch glides ~1-2 m; Space ends it and stands up, a second Space jumps.
+func _simulate_slide() -> void:
+	var cfg := MatchConfig.new()
+	cfg.mode_id = MatchConfig.MODE_FFA
+	cfg.map_id = "test_arena"
+	cfg.bots_enabled = false
+	cfg.time_limit = 0.0
+	MatchManager.prepare_match(cfg)
+	var game: Node = (load("res://scenes/game/game.tscn") as PackedScene).instantiate()
+	add_child(game)
+	await get_tree().process_frame
+	var waited := 0.0
+	while MatchManager.state != MatchManager.State.RUNNING and waited < 8.0:
+		await get_tree().process_frame
+		waited += get_process_delta_time()
+	var local: Player = MatchManager.get_local_participant().node as Player
+	local.human_controller.deactivate()
+	for run in 2:
+		local.global_position = Vector3(0.0, 0.1, 0.0)
+		local.rotation.y = PI
+		local.velocity = Vector3.ZERO
+		local._slide_cd = 0.0
+		await get_tree().physics_frame
+		local.input.move = Vector2(0, 1)
+		local.input.sprint = true
+		for i in 70:
+			await get_tree().physics_frame
+		if not local.is_sprinting:
+			_fail("Slide-Test: Spieler sprintet nicht")
+		var start_z := local.global_position.z
+		local.input.crouch = true
+		await get_tree().physics_frame
+		await get_tree().physics_frame
+		if not local.is_sliding:
+			_fail("Slide-Test: Sprint + Ducken startet keinen Slide (Tempo %.1f)" % local.horizontal_speed)
+		if run == 0:
+			local.input.move = Vector2.ZERO
+			local.input.sprint = false
+			var ticks := 0
+			while local.is_sliding and ticks < 120:
+				await get_tree().physics_frame
+				ticks += 1
+			var dist := absf(local.global_position.z - start_z)
+			if dist < 0.8 or dist > 2.8:
+				_fail("Slide-Test: Slidelaenge %.2f m ausserhalb von 0.8-2.8 m" % dist)
+			if not local.is_crouching:
+				_fail("Slide-Test: nach dem Slide mit gehaltener Duck-Taste soll der Spieler geduckt bleiben")
+			# Space while crouched: stand up, no jump
+			local.input.jump_pressed = true
+			await get_tree().physics_frame
+			await get_tree().physics_frame
+			if local.is_crouching or not local.is_on_floor():
+				_fail("Slide-Test: erstes Leertasten-Druecken soll aufstehen ohne zu springen")
+			local.input.jump_pressed = true
+			await get_tree().physics_frame
+			await get_tree().physics_frame
+			if local.is_on_floor():
+				_fail("Slide-Test: zweites Leertasten-Druecken soll springen")
+			print("Slide: %.2f m in %d Ticks, bleibt geduckt, Leertaste steht auf, zweite springt" % [dist, ticks])
+		else:
+			# Space during the slide ends it and stands up
+			local.input.jump_pressed = true
+			await get_tree().physics_frame
+			await get_tree().physics_frame
+			if local.is_sliding or local.is_crouching:
+				_fail("Slide-Test: Leertaste im Slide soll aufstehen")
+		local.input.clear_all()
+		for i in 30:
+			await get_tree().physics_frame
 	game.free()
 	await get_tree().process_frame
 

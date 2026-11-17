@@ -255,3 +255,8 @@ Python-Skripten in `tools/` erzeugt – keine Fremdinhalte, alles reproduzierbar
 ## Physik-Layer
 
 1 World, 2 Players, 3 Projectiles, 4 Hitboxes (reserviert).
+
+* **Slide:** `Player._start_slide` (Ducken-Flanke während Sprint, Tempo ≥ 6.6, Abklingzeit 0.9 s). Gleitet `SLIDE_TIME` 0.5 s mit
+  abnehmendem Tempo (v0·(1−t/T)^1.4, leichte Lenkung), danach geduckt (Taste gehalten) oder stehend. Leertaste im Slide/Duck
+  steht auf (`_crouch_suppressed`), erst die zweite springt. Netzwerk: `SNAP_SLIDE` (Protokoll 5). Kamera/Waffe senken sich
+  über `PlayerCamera.sliding` bzw. `_slide_blend`; Sound `slide.wav`.

@@ -13,7 +13,7 @@ extends Node
 
 enum Mode { OFFLINE, HOST, CLIENT }
 
-const PROTOCOL_VERSION := 4
+const PROTOCOL_VERSION := 5
 const DEFAULT_PORT := 7777
 const MAX_PEERS := 12
 const SNAPSHOT_EVERY_TICKS := 3 # 20 Hz at 60 physics ticks
@@ -40,6 +40,7 @@ const SNAP_CROUCH := 1
 const SNAP_SPRINT := 2
 const SNAP_AIM := 4
 const SNAP_ON_FLOOR := 8
+const SNAP_SLIDE := 16
 
 signal lobby_updated
 signal joined_lobby
@@ -630,6 +631,8 @@ func _send_snapshot() -> void:
 			flags |= SNAP_AIM
 		if pl.is_on_floor():
 			flags |= SNAP_ON_FLOOR
+		if pl.is_sliding:
+			flags |= SNAP_SLIDE
 		data.append([p.id, pl.global_position, pl.rotation.y, pl.head.pitch, pl.velocity, flags, pl.weapon_manager.current_index, pl.remote_input_seq])
 	if not data.is_empty() and multiplayer.get_peers().size() > 0:
 		_rpc_snapshot.rpc(data)

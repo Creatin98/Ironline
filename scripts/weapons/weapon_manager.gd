@@ -27,6 +27,7 @@ var _sway: Vector2 = Vector2.ZERO
 var _kick: float = 0.0
 var _kick_rot: float = 0.0
 var _sprint_blend: float = 0.0
+var _slide_blend: float = 0.0
 var _ads_blend: float = 0.0
 var _lower_blend: float = 0.0
 var _walk_amp: float = 0.0
@@ -330,6 +331,11 @@ func _process(delta: float) -> void:
 	# sprint pose
 	pos += Vector3(0.07, -0.1, 0.06) * sprint_s
 	rot += Vector3(-0.45, 0.55, 0.25) * sprint_s
+	# knee slide: weapon tucked down and tilted
+	_slide_blend = move_toward(_slide_blend, 1.0 if player.is_sliding else 0.0, delta * 5.0)
+	var slide_s := _slide_blend * _slide_blend * (3.0 - 2.0 * _slide_blend)
+	pos += Vector3(0.03, -0.07, 0.05) * slide_s
+	rot += Vector3(-0.25, 0.3, 0.35) * slide_s
 	# lowered (switch / grenade)
 	pos += Vector3(0.05, -0.38, 0.05) * _lower_blend
 	rot += Vector3(-0.8, 0.0, 0.0) * _lower_blend
@@ -342,7 +348,7 @@ func _process(delta: float) -> void:
 	_walk_amp = lerpf(_walk_amp, speed_ratio if on_floor else 0.0, minf(1.0, delta * 7.0))
 	if GameSettings.weapon_sway and _walk_amp > 0.001:
 		var ph := player.head.get_bob_phase()
-		var amp := _walk_amp * (1.0 - 0.8 * _ads_blend) * (1.0 + 0.7 * sprint_s)
+		var amp := _walk_amp * (1.0 - 0.8 * _ads_blend) * (1.0 + 0.7 * sprint_s) * (1.0 - slide_s)
 		# sin² instead of |sin|: no hard turn at the lowest point (that made the stock flutter);
 		# small rotations only, they are magnified at the far end of the weapon
 		var step := sin(ph)

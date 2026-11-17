@@ -292,6 +292,23 @@ def make_hit_feedback():
     write_wav("kill_headshot", soft_clip(kill_h, 1.5), 0.97)
 
 
+def make_slide_sound():
+    """Knee slide: filtered noise swish with a fading scrape, no tonal part."""
+    local = random.Random(4242)
+    n = int(0.55 * SR)
+    raw = [local.uniform(-1, 1) for _ in range(n)]
+    low = lowpass(raw, 900)
+    mid = lowpass(raw, 3200)
+    out = []
+    for i in range(n):
+        t = i / SR
+        att = min(1.0, t / 0.04)
+        dec = math.exp(-t / 0.26)
+        scrape = 0.5 + 0.5 * math.sin(t * 90.0 + 3.0 * math.sin(t * 17.0))
+        out.append((low[i] * 1.2 + (mid[i] - low[i]) * 0.55 * scrape) * att * dec)
+    write_wav("slide", out, 0.55)
+
+
 def make_grenade_sounds():
     """Frag grenade: pin, throw, bounce on concrete, and a heavy explosion built from layered
     filtered noise (blast), sub bass, city echoes and scattering debris. No harsh clipping."""
@@ -449,6 +466,9 @@ if __name__ == "__main__":
     if "grenade" in sys.argv[1:]:
         make_grenade_sounds()
         sys.exit(0)
+    if "slide" in sys.argv[1:]:
+        make_slide_sound()
+        sys.exit(0)
     if "reload" in sys.argv[1:]:
         make_reload_sounds()
         sys.exit(0)
@@ -459,6 +479,7 @@ if __name__ == "__main__":
     make_mechanical()
     make_reload_sounds()
     make_grenade_sounds()
+    make_slide_sound()
     make_movement()
     make_feedback()
     make_ui()

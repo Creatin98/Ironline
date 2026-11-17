@@ -24,6 +24,11 @@ const LAND_SOUND_SPEED := 4.0
 ## Curbs and low steps up to this height are walked over without jumping.
 const STEP_HEIGHT := 0.4
 const STEP_VIEW_SPEED := 1.7 # m/s the camera needs to catch up with a step
+## Knee slide (sprint + crouch): ~1.5 m, decelerating; a small gadget, not a movement tech.
+const SLIDE_TIME := 0.5
+const SLIDE_MIN_SPEED := 5.2
+const SLIDE_MIN_START_SPEED := 6.6
+const SLIDE_COOLDOWN := 0.9
 
 var participant_id: int = 0
 var team: int = Teams.Team.NONE
@@ -37,6 +42,14 @@ var alive: bool = false
 var controls_enabled: bool = true
 var is_sprinting: bool = false
 var is_crouching: bool = false
+var is_sliding: bool = false
+var _slide_t: float = 0.0
+var _slide_dir: Vector3 = Vector3.ZERO
+var _slide_speed: float = 0.0
+var _slide_cd: float = 0.0
+var _prev_crouch_in: bool = false
+## Space stood us up while crouch is still held: crouch stays off until the key is released.
+var _crouch_suppressed: bool = false
 var is_aiming: bool = false
 var current_height: float = STAND_HEIGHT
 var last_look_delta: Vector2 = Vector2.ZERO
@@ -228,6 +241,8 @@ func respawn_at(spawn_transform: Transform3D) -> void:
 	alive = true
 	is_sprinting = false
 	is_crouching = false
+	is_sliding = false
+	_crouch_suppressed = false
 	is_aiming = false
 	controls_enabled = true
 	_set_height(STAND_HEIGHT)
@@ -389,6 +404,7 @@ func _process(delta: float) -> void:
 	var ads_fov := w.data.ads_fov if w else GameSettings.fov
 	var ads_time := w.data.ads_time if w else 0.2
 	_step_view_offset = move_toward(_step_view_offset, 0.0, delta * STEP_VIEW_SPEED)
+	head.sliding = is_sliding
 	head.update_camera(delta, horizontal_speed, is_on_floor(), current_height - EYE_BELOW_TOP + _step_view_offset, is_aiming, ads_fov, ads_time, is_sprinting)
 
 
@@ -402,6 +418,8 @@ func _animate_body(delta: float) -> void:
 	var bob := absf(sin(_walk_phase)) * 0.045 * speed_ratio
 	body.position.y = lerpf(body.position.y, bob, minf(1.0, delta * 14.0))
 	var lean := -0.16 if is_sprinting else -0.05 * speed_ratio
+	if is_sliding:
+		lean = 0.55
 	body.rotation.x = lerpf(body.rotation.x, lean, minf(1.0, delta * 8.0))
 	hands.rotation.x = lerpf(hands.rotation.x, head.pitch, minf(1.0, delta * 12.0))
 
@@ -410,19 +428,68 @@ func _update_states(delta: float) -> void:
 	_sprint_block_timer = maxf(0.0, _sprint_block_timer - delta)
 	if input.fire_held or input.fire_pressed:
 		_sprint_block_timer = SPRINT_FIRE_DELAY
-	# crouch
-	if input.crouch and not is_crouching:
-		is_crouching = true
-		_set_height(CROUCH_HEIGHT)
-	elif not input.crouch and is_crouching and _can_stand_up():
-		is_crouching = false
-		_set_height(STAND_HEIGHT)
+	_slide_cd = maxf(0.0, _slide_cd - delta)
+	if not input.crouch:
+		_crouch_suppressed = false
+	# slide: crouch pressed while sprinting on the ground
+	if not is_sliding and input.crouch and not _prev_crouch_in and is_sprinting and _slide_cd <= 0.0 \
+			and is_on_floor() and horizontal_speed >= SLIDE_MIN_START_SPEED and not _crouch_suppressed:
+		_start_slide()
+	_prev_crouch_in = input.crouch
+	if is_sliding:
+		_slide_t += delta
+		if input.jump_pressed:
+			input.jump_pressed = false # Space ends the slide and stands up; a second Space jumps
+			_end_slide(true)
+		elif _slide_t >= SLIDE_TIME or not is_on_floor() or horizontal_speed < SLIDE_MIN_SPEED * 0.3:
+			_end_slide(false)
+	if not is_sliding:
+		if is_crouching and input.jump_pressed and is_on_floor():
+			# Space while crouched: stand up first (jump needs a second press)
+			input.jump_pressed = false
+			_crouch_suppressed = true
+		var want_crouch := input.crouch and not _crouch_suppressed
+		if want_crouch and not is_crouching:
+			is_crouching = true
+			_set_height(CROUCH_HEIGHT)
+		elif not want_crouch and is_crouching and _can_stand_up():
+			is_crouching = false
+			_set_height(STAND_HEIGHT)
 	# sprint: nur vorwaerts, nicht geduckt, nicht beim Zielen/Schiessen
 	var wants_sprint := input.sprint and input.move.y > 0.4 and not is_crouching and not input.aim and _sprint_block_timer <= 0.0
 	wants_sprint = wants_sprint and not weapon_manager.is_busy()
 	is_sprinting = wants_sprint
 	# aim
 	is_aiming = input.aim and not is_sprinting and weapon_manager.can_aim()
+
+
+func _start_slide() -> void:
+	var flat := Vector3(velocity.x, 0.0, velocity.z)
+	if flat.length() < 0.5:
+		return
+	is_sliding = true
+	_slide_t = 0.0
+	_slide_dir = flat.normalized()
+	_slide_speed = maxf(horizontal_speed * 1.05, 6.8)
+	_slide_cd = SLIDE_COOLDOWN
+	is_sprinting = false
+	if not is_crouching:
+		is_crouching = true
+		_set_height(CROUCH_HEIGHT)
+	if is_local:
+		AudioManager.play_2d("slide", -8.0)
+	else:
+		AudioManager.play_3d("slide", global_position, -6.0)
+
+
+## `stand`: Space was pressed -> stand up now (and stay up although crouch may still be held).
+func _end_slide(stand: bool) -> void:
+	is_sliding = false
+	if stand:
+		_crouch_suppressed = true
+		if _can_stand_up():
+			is_crouching = false
+			_set_height(STAND_HEIGHT)
 
 
 func _move(delta: float) -> void:
@@ -443,7 +510,16 @@ func _move(delta: float) -> void:
 	var target := wish_dir * speed
 	var horizontal := Vector3(velocity.x, 0.0, velocity.z)
 	var on_floor := is_on_floor()
-	if on_floor:
+	if is_sliding:
+		# decelerating glide with a little steering
+		if wish_dir.length_squared() > 0.0:
+			var steered := _slide_dir.lerp(wish_dir, minf(1.0, 1.6 * delta))
+			if steered.length() > 0.1:
+				_slide_dir = steered.normalized()
+		horizontal = _slide_dir * (_slide_speed * pow(maxf(0.0, 1.0 - _slide_t / SLIDE_TIME), 1.4))
+		if not on_floor:
+			velocity.y -= GRAVITY * delta
+	elif on_floor:
 		var accel := GROUND_ACCEL if wish_dir.length_squared() > 0.0 else GROUND_DECEL
 		horizontal = horizontal.move_toward(target, accel * speed * delta)
 	else:
@@ -511,7 +587,7 @@ func _handle_landing() -> void:
 
 
 func _handle_footsteps(delta: float, on_floor: bool) -> void:
-	if not on_floor or horizontal_speed < 1.0:
+	if not on_floor or horizontal_speed < 1.0 or is_sliding:
 		_step_distance = 0.0
 		return
 	_step_distance += horizontal_speed * delta
@@ -626,6 +702,10 @@ func push_snapshot(pos: Vector3, yaw: float, pitch: float, vel: Vector3, flags: 
 	is_sprinting = flags & NetworkManager.SNAP_SPRINT != 0
 	is_aiming = flags & NetworkManager.SNAP_AIM != 0
 	var crouch := flags & NetworkManager.SNAP_CROUCH != 0
+	var slide_now := flags & NetworkManager.SNAP_SLIDE != 0
+	if slide_now and not is_sliding:
+		AudioManager.play_3d("slide", global_position, -6.0)
+	is_sliding = slide_now
 	if crouch != is_crouching:
 		is_crouching = crouch
 		_set_height(CROUCH_HEIGHT if crouch else STAND_HEIGHT)

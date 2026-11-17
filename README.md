@@ -38,7 +38,7 @@ Neu: Nach dem Tod läuft die Killcam: ein Replay der letzten 5 Sekunden aus der 
 Einstellungen unter „Killcam“ abschalten. Maps und Klassen werden im Menü, in der Lobby und bei der Kartenabstimmung
 mit Vorschaubildern gewählt.
 
-Steuerung: WASD bewegen, Maus zielen, Shift sprinten, Strg/C ducken, Leertaste springen,
+Steuerung: WASD bewegen, Maus zielen, Shift sprinten, Strg/C ducken (halten = Duckgang), Shift-Sprint + Ducken = Knie-Slide (ca. 1,5 m; Leertaste = aufstehen, zweimal = springen), Leertaste springen,
 LMT schießen, RMT zielen (ADS), R nachladen, Q / 1 / 2 Waffe wechseln, G Granate, Tab Scoreboard, Esc Pause.
 
 ## Online spielen
