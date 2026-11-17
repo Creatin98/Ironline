@@ -56,6 +56,7 @@ var _results_shown: bool = false
 
 func _ready() -> void:
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+	AudioManager.stop_music()
 	_load_map()
 	spawn_system = SpawnSystem.new(get_tree())
 	MatchManager.local_participant_id = multiplayer.get_unique_id()

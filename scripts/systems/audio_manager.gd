@@ -12,6 +12,15 @@ var _pool_2d: Array[AudioStreamPlayer] = []
 var _next_3d := 0
 var _next_2d := 0
 
+## Menu music: every mp3/ogg/wav in MUSIC_DIR is played one after another (shuffled start).
+const MUSIC_DIR := "res://assets/audio/music/"
+const MUSIC_DB := -4.0
+var _music_player: AudioStreamPlayer
+var _playlist: Array[AudioStream] = []
+var _music_index := 0
+var _music_wanted := false
+var _music_tween: Tween
+
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
@@ -29,6 +38,61 @@ func _ready() -> void:
 		p2.bus = "SFX"
 		add_child(p2)
 		_pool_2d.append(p2)
+	_music_player = AudioStreamPlayer.new()
+	_music_player.bus = "Music"
+	_music_player.finished.connect(_on_music_finished)
+	add_child(_music_player)
+	_load_playlist()
+
+
+func _load_playlist() -> void:
+	var names: Array[String] = []
+	for f in DirAccess.get_files_at(MUSIC_DIR):
+		var n := f.trim_suffix(".import").trim_suffix(".remap")
+		if n.get_extension().to_lower() in ["mp3", "ogg", "wav"] and not names.has(n):
+			names.append(n)
+	names.sort()
+	for n in names:
+		var st := load(MUSIC_DIR + n) as AudioStream
+		if st != null:
+			if st is AudioStreamMP3:
+				(st as AudioStreamMP3).loop = false
+			_playlist.append(st)
+	if not _playlist.is_empty():
+		_music_index = randi() % _playlist.size()
+
+
+## Starts the menu music (does nothing if it already plays or no files exist).
+func play_music() -> void:
+	_music_wanted = true
+	if _playlist.is_empty() or _music_player.playing:
+		return
+	if _music_tween != null and _music_tween.is_valid():
+		_music_tween.kill()
+	_music_player.stream = _playlist[_music_index % _playlist.size()]
+	_music_player.volume_db = -40.0
+	_music_player.play()
+	_music_tween = create_tween()
+	_music_tween.tween_property(_music_player, "volume_db", MUSIC_DB, 1.5)
+
+
+func stop_music() -> void:
+	_music_wanted = false
+	if not _music_player.playing:
+		return
+	if _music_tween != null and _music_tween.is_valid():
+		_music_tween.kill()
+	_music_tween = create_tween()
+	_music_tween.tween_property(_music_player, "volume_db", -40.0, 0.6)
+	_music_tween.tween_callback(_music_player.stop)
+
+
+func _on_music_finished() -> void:
+	if _music_wanted and not _playlist.is_empty():
+		_music_index = (_music_index + 1) % _playlist.size()
+		_music_player.stream = _playlist[_music_index]
+		_music_player.volume_db = MUSIC_DB
+		_music_player.play()
 
 
 func get_stream(sfx_name: String) -> AudioStream:

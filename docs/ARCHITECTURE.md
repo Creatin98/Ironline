@@ -260,3 +260,6 @@ Python-Skripten in `tools/` erzeugt – keine Fremdinhalte, alles reproduzierbar
   abnehmendem Tempo (v0·(1−t/T)^1.4, leichte Lenkung), danach geduckt (Taste gehalten) oder stehend. Leertaste im Slide/Duck
   steht auf (`_crouch_suppressed`), erst die zweite springt. Netzwerk: `SNAP_SLIDE` (Protokoll 5). Kamera/Waffe senken sich
   über `PlayerCamera.sliding` bzw. `_slide_blend`; Sound `slide.wav`.
+
+* **Menümusik:** `AudioManager.play_music()/stop_music()`; spielt alle mp3/ogg/wav aus `assets/audio/music/` nacheinander (Bus „Music“,
+  Fade ein/aus). `MainMenu._ready` startet sie, `Game._ready` stoppt sie. Ohne Dateien passiert nichts.

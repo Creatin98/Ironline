@@ -20,6 +20,7 @@ var _bot_diff: OptionButton
 func _ready() -> void:
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	set_anchors_preset(Control.PRESET_FULL_RECT)
+	AudioManager.play_music()
 	_build()
 
 
