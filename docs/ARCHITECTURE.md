@@ -307,3 +307,7 @@ Python-Skripten in `tools/` erzeugt – keine Fremdinhalte, alles reproduzierbar
 * **Last Kill Cam:** Replay 3.5 s vor / 1.4 s nach dem Abschuss; in der Zeitlupe zoomt das FOV auf das Opfer (`ReplayRecorder.last_kill_fov`), ein roter
   Kill-Marker liegt im Moment des Abschusses auf dem Opfer (`victim_marker`). Beim Zielen sitzt die Waffe des Schützen exakt wie das First-Person-Viewmodel
   (`Player.replay_aim` mit `ads_position` relativ zur Kamera). Bildschirm-Blut wird in Replays und am Matchende ausgeblendet.
+
+* **Matchende:** Nach dem letzten Kill läuft das Spiel `MatchManager.runout_time` (1.7 s) weiter: alle gleiten über `Player.run_out` (Verzögerung 7 m/s²) langsam
+  zum Stehen, das HUD blendet aus, das letzte Opfer fällt. Danach startet die Last Kill Cam (3.5 s davor, 2.4 s danach; Zeitlupe bis 0.7 s nach dem Kill,
+  dann normales Tempo, damit man das Hinfallen sieht), dann Abspann und Scoreboard wie zuvor. Der rote Kill-Marker wurde entfernt.

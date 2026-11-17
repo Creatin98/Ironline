@@ -14,6 +14,7 @@ const JUMP_VELOCITY := 5.6
 const GRAVITY := 15.0
 const GROUND_ACCEL := 14.0
 const GROUND_DECEL := 16.0
+const RUNOUT_DECEL := 7.0
 const AIR_ACCEL := 3.5
 const STAND_HEIGHT := 1.8
 const CROUCH_HEIGHT := 1.2
@@ -44,6 +45,8 @@ var controls_enabled: bool = true
 var is_sprinting: bool = false
 var is_crouching: bool = false
 var is_sliding: bool = false
+## Match over: everybody glides to a stop slowly instead of freezing (see Game._on_match_ended).
+var run_out: bool = false
 var _sprint_time: float = 0.0
 var _breath_cooldown: float = 0.0
 var _slide_t: float = 0.0
@@ -271,6 +274,7 @@ func respawn_at(spawn_transform: Transform3D) -> void:
 	is_sprinting = false
 	is_crouching = false
 	is_sliding = false
+	run_out = false
 	_crouch_suppressed = false
 	is_aiming = false
 	controls_enabled = true
@@ -571,6 +575,8 @@ func _move(delta: float) -> void:
 		horizontal = _slide_dir * lerpf(_slide_entry, profile, smoothstep(0.0, 0.14, _slide_t))
 		if not on_floor:
 			velocity.y -= GRAVITY * delta
+	elif on_floor and run_out:
+		horizontal = horizontal.move_toward(Vector3.ZERO, RUNOUT_DECEL * delta)
 	elif on_floor:
 		var accel := GROUND_ACCEL if wish_dir.length_squared() > 0.0 else GROUND_DECEL
 		horizontal = horizontal.move_toward(target, accel * speed * delta)

@@ -13,6 +13,7 @@ signal finished
 const WINDOW := 12.0
 const RATE := 30.0
 const SLOWMO_SCALE := 0.3 # speed of the slow motion part of the last kill cam
+const SLOWMO_AFTER_KILL := 0.7 # replay seconds of slow motion after the kill
 const SLOWMO_RAMP := 6.0 # time scale change per real second when slowing down
 
 var playing: bool = false
@@ -207,21 +208,6 @@ func last_kill_fov(base_fov: float) -> float:
 	return lerpf(base_fov, target, t)
 
 
-## World position of the victim's chest while the kill is shown (for the red kill marker), else Vector3.INF.
-func victim_marker() -> Vector3:
-	if ghost_mode or not playing or _cursor < float(kill["t"]) - 0.02 or _cursor > float(kill["t"]) + 0.9:
-		return Vector3.INF
-	var victim: Player = _targets.get(int(kill["victim"]))
-	if victim == null or not is_instance_valid(victim):
-		return Vector3.INF
-	return victim.global_position + Vector3(0, 1.0, 0)
-
-
-## Seconds since the kill moment (0 before it).
-func since_kill() -> float:
-	return maxf(0.0, _cursor - float(kill["t"])) if not kill.is_empty() else 0.0
-
-
 ## FOV the killer's weapon has when aiming down the sights.
 func killer_ads_fov() -> float:
 	var n: Player = _targets.get(_killer_id)
@@ -268,7 +254,9 @@ func _process(delta: float) -> void:
 	# delta is already scaled by Engine.time_scale, so the slow motion only has to set the scale
 	if _slow_from >= 0.0:
 		var real_dt := delta / maxf(Engine.time_scale, 0.01)
-		var target := SLOWMO_SCALE if _cursor >= _slow_from else 1.0
+		# slow motion from the killing burst until shortly after the kill, then normal speed again
+		# so the victim can be seen falling to the ground
+		var target := SLOWMO_SCALE if (_cursor >= _slow_from and _cursor < float(kill["t"]) + SLOWMO_AFTER_KILL) else 1.0
 		Engine.time_scale = move_toward(Engine.time_scale, target, SLOWMO_RAMP * real_dt)
 		AudioServer.playback_speed_scale = Engine.time_scale # deeper sound in slow motion
 		_time_changed = true

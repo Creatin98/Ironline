@@ -17,6 +17,7 @@ func _ready() -> void:
 	GameSettings.persist = false
 	GameDirector._skip_loading_screen = true
 	MatchManager.warmup_time = 0.5
+	MatchManager.runout_time = 0.15 # real value (1.7 s) is checked in the last-kill-cam test
 	GameSettings.killcams = false # the main simulations expect the results screen right at the end
 	_scan("res://")
 	_instantiate_core_scenes()
@@ -545,8 +546,32 @@ func _simulate_cams() -> void:
 	# the bot killed us once (1:1): one more kill so that our team wins
 	MatchManager.report_kill(bot.id, me.id, "ak47", true)
 	await get_tree().physics_frame
+	MatchManager.runout_time = 1.7
+	local.velocity = Vector3.ZERO
+	local.input.move = Vector2(0, 1)
+	local.input.sprint = true
+	for i in 30:
+		await get_tree().physics_frame
+	local.input.clear_all()
+	var speed_at_end := local.horizontal_speed
 	MatchManager.end_match()
 	await get_tree().process_frame
+	if game._replay_active:
+		_fail("Last-Kill-Cam startete ohne Ausklingen sofort")
+	var end_wait := 0.0
+	var speed_mid := -1.0
+	while not game._replay_active and end_wait < 4.0:
+		await get_tree().process_frame
+		end_wait += get_process_delta_time()
+		if speed_mid < 0.0 and end_wait > 0.3:
+			speed_mid = local.horizontal_speed
+	if end_wait < 1.4:
+		_fail("Last-Kill-Cam kam nach nur %.1f s (Ausklingen fehlt)" % end_wait)
+	if speed_at_end > 3.0 and not (speed_mid > 0.2 and speed_mid < speed_at_end):
+		_fail("Spieler bremst nach dem letzten Kill nicht langsam ab (Tempo %.1f -> %.1f)" % [speed_at_end, speed_mid])
+	if local.horizontal_speed > 0.3:
+		_fail("Spieler steht beim Start der Last-Kill-Cam noch nicht (Tempo %.1f)" % local.horizontal_speed)
+	MatchManager.runout_time = 0.15
 	if not game._replay_active or not game.recorder.playing:
 		_fail("Last-Kill-Cam startete nicht")
 	elif game.match_end.visible:
@@ -889,7 +914,10 @@ func _simulate_match() -> void:
 		_fail("Killlimit hat das Match nicht beendet")
 	if not MatchManager.local_player_won():
 		_fail("Lokaler Spieler sollte gewonnen haben")
-	await get_tree().process_frame
+	var end_waited := 0.0
+	while not game.match_end.visible and end_waited < 3.0:
+		await get_tree().process_frame
+		end_waited += get_process_delta_time()
 	if not game.match_end.visible:
 		_fail("Endbildschirm nicht sichtbar")
 	print("Match-Simulation: Bewegung, Schuss, Nachladen, Wechsel, Granate, Kill, Respawn, Matchende OK")

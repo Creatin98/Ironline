@@ -21,6 +21,7 @@ var wait_frames: int = 12
 func _ready() -> void:
 	GameDirector._skip_loading_screen = true
 	MatchManager.warmup_time = 0.5
+	MatchManager.runout_time = 0.15
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("--target="):
 			target = arg.substr(9)

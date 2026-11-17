@@ -30,6 +30,7 @@ func _ready() -> void:
 		return
 	GameDirector._skip_loading_screen = true
 	MatchManager.warmup_time = 1.0
+	MatchManager.runout_time = 0.15
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("--role="):
 			role = arg.substr(7)

@@ -8,6 +8,8 @@ enum State { IDLE, WARMUP, RUNNING, ENDED }
 const WARMUP_TIME := 8.0
 ## Tests set this lower so they do not wait for the real countdown.
 var warmup_time: float = WARMUP_TIME
+## After the final kill the game runs on this long (everybody glides to a stop) before the last kill cam starts.
+var runout_time: float = 1.7
 const KILL_LIMIT_SAFETY := 999
 
 var config: MatchConfig = MatchConfig.new()
