@@ -390,6 +390,27 @@ def make_ambience():
     write_wav("breath_heavy", concat(breath_cycle(0.45, 0.65), gain(breath_cycle(0.4, 0.6), 0.8)), 0.6)
 
 
+def make_grenade_extra():
+    """Grenade handling: cloth rustle when it is taken out and the metallic spoon 'ping' when it is released
+    (the pin sound and the throw whoosh already exist). Own RNG: nothing else changes."""
+    local = random.Random(31337)
+
+    def nz(seconds):
+        return [local.uniform(-1, 1) for _ in range(int(seconds * SR))]
+
+    n = int(0.28 * SR)
+    raw = highpass(lowpass(nz(0.28), 3200), 500)
+    rustle = [raw[i] * (math.sin(math.pi * i / n) ** 1.4) * (0.6 + 0.4 * math.sin(i / SR * 70.0)) for i in range(n)]
+    write_wav("grenade_draw", rustle, 0.45)
+    ping = mix(
+        env_exp(sine(2750, 0.25), 0.05),
+        gain(env_exp(sine(4100, 0.25), 0.035), 0.5),
+        gain(env_exp(highpass(nz(0.05), 3500), 0.006), 0.8),
+        gain(env_exp(sweep(300, 140, 0.08), 0.02), 0.5),
+    )
+    write_wav("grenade_lever", ping, 0.6)
+
+
 def make_slide_sound():
     """Knee slide: filtered noise swish with a fading scrape, no tonal part."""
     local = random.Random(4242)
@@ -567,6 +588,9 @@ if __name__ == "__main__":
     if "ambience" in sys.argv[1:]:
         make_ambience()
         sys.exit(0)
+    if "grenadeextra" in sys.argv[1:]:
+        make_grenade_extra()
+        sys.exit(0)
     if "slide" in sys.argv[1:]:
         make_slide_sound()
         sys.exit(0)
@@ -581,6 +605,7 @@ if __name__ == "__main__":
     make_reload_sounds()
     make_grenade_sounds()
     make_slide_sound()
+    make_grenade_extra()
     make_ambience()
     make_movement()
     make_feedback()

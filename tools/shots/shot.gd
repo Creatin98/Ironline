@@ -341,6 +341,18 @@ func _game_ui(state: String) -> void:
 			game.hud._kill_flash.color.a = 0.0
 		get_tree().paused = true
 		game.hud.crosshair.queue_redraw()
+	if state.begins_with("grenade"):
+		var gt := float(int(state.substr(7))) / 100.0
+		var wm: WeaponManager = local.weapon_manager
+		wm._grenade_timer = WeaponManager.GRENADE_TOTAL_TIME * 5.0 # keeps the weapon lowered while we pose the view
+		wm._grenade_thrown = false
+		for i in 25:
+			await get_tree().physics_frame
+		wm._grenade_timer = 0.0001
+		get_tree().paused = true
+		wm._grenade_view.apply(gt)
+		wm._grenade_view.visible = true
+		await get_tree().process_frame
 	if state == "humanoids":
 		# five figures in a row: stand, run, crouch, slide, jump (poses driven directly)
 		var rows := [

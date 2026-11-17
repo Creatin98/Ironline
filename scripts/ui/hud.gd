@@ -413,7 +413,7 @@ func _draw_crosshair() -> void:
 			var cw := _player.weapon_manager.get_current_weapon()
 			if cw != null and cw.data.pellets > 1:
 				# shotgun: ring that shows the pellet spread
-				var radius := 20.0 + _spread_display * 9.0
+				var radius := 11.0 + _spread_display * 3.6
 				crosshair.draw_arc(center + Vector2(1, 1), radius, 0.0, TAU, 48, shadow, 2.5, true)
 				crosshair.draw_arc(center, radius, 0.0, TAU, 48, col, 2.0, true)
 			else:

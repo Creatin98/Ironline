@@ -318,3 +318,12 @@ Python-Skripten in `tools/` erzeugt – keine Fremdinhalte, alles reproduzierbar
 * **Namen/Totenkopf:** Gegnernamen nur mit Tiefentest (nicht durch Wände), Mates durch Wände (`Player._update_name_label`). Stirbt ein Mate, schwebt
   3 s ein dezenter Totenkopf (`DeathSkull`) über der Stelle, durch Wände sichtbar, nur für das eigene Team.
 * **Blut-Ebene:** Bildschirm-Blut liegt in Canvas-Layer 1 (hinter dem HUD in Layer 2). **Slide:** endet nur nach der Slidezeit oder per Leertaste (steht auf; gehaltenes Sprint+Vorwärts bricht nicht ab). **AK-Nachladen:** der linke Unterarm schrumpft beim Übergreifen zum Spannhebel weg, die Hand führt links an der Waffe vorbei.
+
+* **Figuren:** `HumanoidRig` (scripts/player/humanoid_rig.gd) ersetzt Kapsel+Kopf: Beine (Lauf-/Sprintzyklus, Hocke, Slide, Sprungpose), Arme per Zwei-Knochen-IK
+  zu den Händen des Waffenmodells (folgt Zielen/Nachladen), Kopf folgt dem Blick. Hauttöne beige hell–dunkel, Haare/Kleidung neutral nach Teilnehmer-ID.
+  Umriss: größere Kopie jedes Teils mit Shader (cull_front, unshaded, HDR-Energie), rot = Gegner, blau = Mates (aus Sicht des Spielers, auch Namen), mit Tiefentest
+  → nie durch Wände. Der Hitbox (Kapsel) blieb unverändert.
+* **Granatenwurf:** `GrenadeView` (Ego-Arm mit Granate, linke Hand zieht den Splint, Ausholen, Wurf; Dauer 1.0 s, Abwurf bei 62 %), Sounds `grenade_draw`/`grenade_pin`/
+  `grenade_lever` zu festen Zeitmarken (`WeaponManager.GRENADE_SOUNDS`, auch 3D für andere Spieler).
+* **Schrotflinte:** `WeaponData.impact_feel` (2.2): stärkerer Rückstoß, Kamerawackeln, FOV-Stoß, größeres Mündungsfeuer, wuchtigeres Pumpen und Nachladen
+  (Kick pro Patrone). Fadenkreuz = kleiner Ring (Radius 11 + Streuung·3.6).

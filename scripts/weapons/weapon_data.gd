@@ -29,6 +29,8 @@ enum Slot { PRIMARY, SECONDARY }
 @export var reload_single_shells: bool = false # Shotgun: eine Patrone pro Zyklus
 @export var shell_reload_time: float = 0.55
 @export var draw_time: float = 0.4
+## Visual/feel strength of a shot (camera shake, kick, muzzle flash, pump jolt). 1 = normal.
+@export var impact_feel: float = 1.0
 
 @export_group("Streuung (Grad)")
 @export var spread_hip: float = 2.2

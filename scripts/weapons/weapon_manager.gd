@@ -7,8 +7,10 @@ enum SwitchState { READY, LOWERING, RAISING }
 
 const GRENADE_SCENE := preload("res://scenes/weapons/grenade.tscn")
 const LOWER_TIME := 0.11
-const GRENADE_THROW_DELAY := 0.28
-const GRENADE_TOTAL_TIME := 0.75
+const GRENADE_TOTAL_TIME := 1.0
+const GRENADE_THROW_DELAY := GRENADE_TOTAL_TIME * GrenadeView.RELEASE_T
+## Sound marks of a throw (share of the total time): taken out, pin pulled, spoon released.
+const GRENADE_SOUNDS := [[0.04, "grenade_draw", -6.0], [0.34, "grenade_pin", -3.0], [0.63, "grenade_lever", -6.0]]
 const GRENADE_SPEED := 17.0
 
 var player: Player
@@ -39,6 +41,9 @@ var _tp_reload_progress: float = -1.0 # in cycles; < 0 = idle
 var _tp_reload_cycles: int = 1
 var _tp_reload_silent: bool = false
 var _tp_flashes: Array[Node3D] = []
+var _grenade_view: GrenadeView
+var _grenade_sound_idx: int = 0
+var _tp_grenade_t: float = -1.0 # remote players: time into the throw (sounds only)
 var _flinch_t: float = 99.0
 var _flinch_side: float = 0.0
 var _flinch_amp: float = 0.0
@@ -49,6 +54,10 @@ var _last_reserve: int = -1
 func setup(new_player: Player, class_data: ClassData, local: bool) -> void:
 	player = new_player
 	is_local = local
+	if is_local and _grenade_view == null:
+		_grenade_view = GrenadeView.new()
+		_grenade_view.name = "GrenadeView"
+		add_child(_grenade_view)
 	if is_local and not GameEvents.local_player_damaged.is_connected(_on_owner_damaged):
 		GameEvents.local_player_damaged.connect(_on_owner_damaged)
 	for w in weapons:
@@ -255,6 +264,8 @@ func cancel_grenade(refund: bool) -> void:
 			GameEvents.local_grenades_changed.emit(grenades)
 	_grenade_timer = 0.0
 	_grenade_thrown = true
+	if _grenade_view != null:
+		_grenade_view.apply(0.0)
 
 
 func _begin_grenade() -> void:
@@ -264,8 +275,8 @@ func _begin_grenade() -> void:
 	get_current_weapon().cancel_actions()
 	if NetworkManager.is_host():
 		NetworkManager.broadcast_weapon_event(player.participant_id, "grenade")
+	_grenade_sound_idx = 0
 	if is_local:
-		AudioManager.play_2d("grenade_pin", -3.0)
 		GameEvents.local_grenades_changed.emit(grenades)
 
 
@@ -273,6 +284,16 @@ func _update_grenade(delta: float) -> void:
 	if _grenade_timer <= 0.0:
 		return
 	_grenade_timer -= delta
+	var frac := clampf(1.0 - _grenade_timer / GRENADE_TOTAL_TIME, 0.0, 1.0)
+	while _grenade_sound_idx < GRENADE_SOUNDS.size() and frac >= float(GRENADE_SOUNDS[_grenade_sound_idx][0]):
+		var mark: Array = GRENADE_SOUNDS[_grenade_sound_idx]
+		_grenade_sound_idx += 1
+		if is_local:
+			AudioManager.play_2d(String(mark[1]), float(mark[2]), 0.03)
+		else:
+			AudioManager.play_3d(String(mark[1]), player.global_position + Vector3.UP, float(mark[2]) - 4.0, 0.04, 25.0)
+	if _grenade_view != null:
+		_grenade_view.apply(frac if _grenade_timer > 0.0 else 0.0)
 	if not _grenade_thrown and _grenade_timer <= GRENADE_TOTAL_TIME - GRENADE_THROW_DELAY:
 		_grenade_thrown = true
 		_spawn_grenade()
@@ -351,6 +372,15 @@ func _process(delta: float) -> void:
 	if not is_local:
 		if _tp_reload_progress >= 0.0:
 			_update_tp_reload(delta)
+		if _tp_grenade_t >= 0.0:
+			_tp_grenade_t += delta
+			var tf := _tp_grenade_t / GRENADE_TOTAL_TIME
+			while _grenade_sound_idx < GRENADE_SOUNDS.size() and tf >= float(GRENADE_SOUNDS[_grenade_sound_idx][0]):
+				var m: Array = GRENADE_SOUNDS[_grenade_sound_idx]
+				_grenade_sound_idx += 1
+				AudioManager.play_3d(String(m[1]), player.global_position + Vector3.UP, float(m[2]) - 4.0, 0.04, 25.0)
+			if tf >= 1.0:
+				_tp_grenade_t = -1.0
 		return
 	var w := get_current_weapon()
 	if w == null:
@@ -456,7 +486,8 @@ func play_remote_event(event: String) -> void:
 		"switch":
 			AudioManager.play_3d("weapon_switch", pos, -10.0)
 		"grenade":
-			AudioManager.play_3d("grenade_pin", pos, -10.0, 0.05, 25.0)
+			_tp_grenade_t = 0.0
+			_grenade_sound_idx = 0
 
 
 ## Local client: take the server's ammo values when we are not in the middle of an action.
@@ -472,8 +503,8 @@ func apply_server_ammo(weapon_index: int, magazine: int, reserve: int, new_grena
 
 
 func apply_kick(amount: float) -> void:
-	_kick = minf(_kick + amount, 0.09)
-	_kick_rot = minf(_kick_rot + amount * 1.8, 0.14)
+	_kick = minf(_kick + amount, 0.26)
+	_kick_rot = minf(_kick_rot + amount * 1.8, 0.42)
 
 
 func get_ammo_text() -> String:

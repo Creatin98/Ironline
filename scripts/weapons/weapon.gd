@@ -130,10 +130,12 @@ func update(delta: float) -> void:
 			_state_timer -= delta
 			var t := 1.0 - clampf(_state_timer / _state_duration, 0.0, 1.0)
 			var s := sin(t * PI)
+			var f := data.impact_feel
 			if pump_node:
-				pump_node.position = _pump_rest + Vector3(0.0, 0.0, 0.08 * s)
-			anim_offset = Vector3(0.0, -0.02 * s, 0.02 * s)
-			anim_rotation = Vector3(0.12 * s, 0.0, 0.15 * s)
+				pump_node.position = _pump_rest + Vector3(0.0, 0.0, 0.08 * s * minf(f, 1.6))
+			# aggressive pump: the weapon is yanked down/back and rolled with each rack
+			anim_offset = Vector3(0.0, -0.02 * s * f, 0.02 * s * f)
+			anim_rotation = Vector3(0.12 * s * f, 0.04 * s * (f - 1.0), 0.15 * s * f)
 			if _state_timer <= 0.0:
 				if pump_node:
 					pump_node.position = _pump_rest
@@ -277,6 +279,12 @@ func _spawn_impact(pos: Vector3, normal: Vector3, blood: bool) -> void:
 func _play_shot_feedback() -> void:
 	if muzzle_flash and muzzle_flash.has_method("flash"):
 		muzzle_flash.flash()
+		if data.impact_feel > 1.0 and muzzle_flash is Node3D:
+			(muzzle_flash as Node3D).scale = Vector3.ONE * data.impact_feel * 0.9 # a bigger fireball
+	if is_local and data.impact_feel > 1.0:
+		# heavy weapon: the whole picture is hit (shake + zoom punch)
+		player.head.add_shake(0.35 * data.impact_feel)
+		player.head.kick_fov(2.2 * data.impact_feel)
 	if not is_local:
 		player.weapon_manager.flash_third_person()
 	if is_local:
@@ -331,6 +339,10 @@ func _update_reload(delta: float) -> void:
 	if rig:
 		for ev in rig.apply(t, tilt):
 			_play_mech_sound(ev)
+			if is_local and data.impact_feel > 1.0 and ev == "shell_insert":
+				# every shell slams in: little kick and shake
+				player.weapon_manager.apply_kick(0.045)
+				player.head.add_shake(0.22)
 		anim_offset = rig.holder_offset
 		anim_rotation = rig.holder_rotation
 	if _state_timer > 0.0:

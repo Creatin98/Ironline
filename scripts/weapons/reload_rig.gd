@@ -291,5 +291,6 @@ func _pose_shotgun(t: float, tilt_scale: float) -> void:
 		var shell_tilt := float(_key([[0.28, 0.0], [0.55, 0.95], [0.70, 0.55], [0.77, 0.30]], t))
 		_shell.rotation = Vector3(shell_tilt, 0.0, 0.0)
 	var push_bump := exp(-pow((t - 0.76) * 14.0, 2.0))
-	holder_offset = Vector3(-0.07, 0.0, 0.06) * tilt_scale
-	holder_rotation = Vector3(0.25 - push_bump * 0.04, -0.08, -0.52) * tilt_scale
+	# aggressive loading: the weapon is thrown into a steep tilt and jolts hard when the shell goes in
+	holder_offset = Vector3(-0.07, 0.0, 0.06) * tilt_scale + Vector3(0.0, -0.02, 0.05) * push_bump * tilt_scale
+	holder_rotation = Vector3(0.30 - push_bump * 0.12, -0.10, -0.66 + push_bump * 0.10) * tilt_scale

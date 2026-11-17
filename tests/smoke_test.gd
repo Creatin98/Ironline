@@ -581,13 +581,14 @@ func _simulate_cams() -> void:
 	if game._replay_active:
 		_fail("Last-Kill-Cam startete ohne Ausklingen sofort")
 	var end_wait := 0.0
-	var speed_mid := -1.0
+	for i in 20: # 1/3 s of game time into the run-out
+		await get_tree().physics_frame
+	var speed_mid := local.horizontal_speed
 	while not game._replay_active and end_wait < 4.0:
 		await get_tree().process_frame
 		end_wait += get_process_delta_time()
-		if speed_mid < 0.0 and end_wait > 0.3:
-			speed_mid = local.horizontal_speed
-	if end_wait < 1.4:
+
+	if end_wait < 1.2:
 		_fail("Last-Kill-Cam kam nach nur %.1f s (Ausklingen fehlt)" % end_wait)
 	if speed_at_end > 3.0 and not (speed_mid > 0.2 and speed_mid < speed_at_end):
 		_fail("Spieler bremst nach dem letzten Kill nicht langsam ab (Tempo %.1f -> %.1f)" % [speed_at_end, speed_mid])
@@ -841,7 +842,7 @@ func _simulate_match() -> void:
 	var grenades_before := local.weapon_manager.grenades
 	local.input.grenade_pressed = true
 	await get_tree().physics_frame
-	for i in 30:
+	for i in 50:
 		await get_tree().physics_frame
 	if local.weapon_manager.grenades != grenades_before - 1:
 		_fail("Granate wurde nicht geworfen")
