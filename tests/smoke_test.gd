@@ -188,6 +188,13 @@ func _simulate_cams() -> void:
 		_fail("Killcam startete nicht")
 	if not game._cam.current:
 		_fail("Killcam-Kamera ist nicht aktiv")
+	if not game.recorder.playing or not game.recorder.ghost_mode:
+		_fail("Die Killcam spielt keinen Replay (Geister-Spieler) ab")
+	if game.players_container.visible:
+		_fail("Echte Spieler muessen waehrend der Killcam ausgeblendet sein")
+	var real_players := get_tree().get_nodes_in_group("players").size()
+	if real_players != MatchManager.participants.size():
+		_fail("Geister duerfen nicht in der Gruppe players sein (%d statt %d)" % [real_players, MatchManager.participants.size()])
 	NetworkManager.request_skip_respawn()
 	await get_tree().physics_frame
 	if me.alive:
@@ -201,8 +208,8 @@ func _simulate_cams() -> void:
 			break
 	if not me.alive:
 		_fail("Respawn nach dem Ueberspringen blieb aus")
-	if game._killcam_active or not local.camera.current:
-		_fail("Killcam wurde nach dem Respawn nicht beendet")
+	if game._killcam_active or not local.camera.current or not game.players_container.visible or game.recorder.playing:
+		_fail("Killcam wurde nach dem Respawn nicht sauber beendet")
 	# --- last kill cam: we kill the bot and end the match
 	for i in 60:
 		await get_tree().physics_frame

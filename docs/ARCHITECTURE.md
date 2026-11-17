@@ -162,6 +162,18 @@ U-Kimme mit Korn und Schutzohren (AK), Diopter-Ring mit Korn im Ring (MP5), Lauf
 Dreipunkt-Visier (Pistole). Wichtig für Änderungen: Teile, die zwischen Auge und Visier liegen, müssen unter der
 Visierlinie bleiben, sonst verdecken sie das Bild.
 
+## Bewegung, Kamera und HUD-Layout (Phase 8+)
+
+* **Bordsteine/Stufen:** `Player._try_step_up` hebt den Körper bis `STEP_HEIGHT` = 0.4 m auf niedrige Hindernisse
+  (Test mit `test_move`: frei darüber, kein Hindernis auf der Stufe, Boden dahinter), ohne Sprung. Die Kamera zieht über
+  `_step_view_offset` weich nach (kein Ruck), auch beim Hinuntergehen. Höhere Wände blockieren wie zuvor.
+* **Laufwippen:** Kamera-Bob (hoch/runter, links/rechts, leichtes Rollen) und die Waffe schwingt beim Gehen/Sprinten mit
+  (`WeaponManager`, schwächer im ADS). **Rückstoß:** der Viewmodel-Kick wird im ADS auf 15 % gedämpft und begrenzt, der
+  Kamera-Rückstoß ist auf 6° gedeckelt, das Visier bleibt im Bild.
+* **HUD:** `HUD._layout` setzt jeden Block (Punkte, Zeit, Killfeed, Gesundheit, Munition) in seine Ecke mit symmetrischem
+  Rand (`GameSettings.hud_margin`) und Skalierung; `hud_offsets` speichert die im **HUD-Editor** (Pausemenü →
+  „HUD anpassen“, Elemente ziehen, Esc/Fertig) gesetzten Verschiebungen. Gesundheit zeigt Prozent (100 % = voll).
+
 ## Punkte und Assists (Phase 8+)
 
 * **1 Kill = 100 Punkte** (auch Kopfschuss, kein Bonus), **1 Assist = 50 Punkte** (`GameModeBase.POINTS_KILL/POINTS_ASSIST`).
@@ -187,10 +199,12 @@ Visierlinie bleiben, sonst verdecken sie das Bild.
 
 ## Killcam und Last-Kill-Cam (Phase 8+)
 
-* **Killcam:** `Game._start_killcam` schaltet beim eigenen Tod eine zweite Kamera auf `Player.camera` des Mörders (live,
-  dessen Kopf/Torso sind ausgeblendet, Waffe und Hände bleiben). Menschen respawnen nach `HUMAN_RESPAWN_DELAY` = 3 s,
-  Bots nach der normalen Moduszeit (1.5 s). Leertaste überspringt ab 1.5 s: `NetworkManager.request_skip_respawn` →
-  Server `Game.skip_respawn`. Ist der Mörder selbst tot, Umgebung oder Selbstmord, gilt die alte Todeskamera.
+* **Killcam:** Beim eigenen Tod spielt `Game._start_killcam` ein **Replay der letzten 5 Sekunden** aus der Sicht des
+  Schützen ab, bis zu unserem Tod (+0.9 s). Die echten Spieler spielen unsichtbar weiter, der `ReplayRecorder` (30 Hz,
+  12 s Fenster, auf jeder Maschine aus dem Gesehenen) posiert stattdessen **Geister-Kopien** (`player.tscn` ohne Kollision,
+  nicht in der Gruppe `players`). Mündungsfeuer und Schussgeräusch kommen aus dem Schuss-Flag der Aufzeichnung. Danach
+  normale Todesansicht bis zum Respawn. Menschen respawnen nach `HUMAN_RESPAWN_DELAY` = 6 s (Killcam), Leertaste
+  überspringt ab 1.5 s (`NetworkManager.request_skip_respawn` → Server `Game.skip_respawn`), Bots nach der Moduszeit (1.5 s).
 * **Last Kill:** `ReplayRecorder` zeichnet auf jeder Maschine mit 30 Hz die sichtbaren Posen aller Spieler der letzten 12 s
   auf (Position, Blick, Ducken, lebt, Waffe, Schuss). Am Rundenende sucht er den letzten Kill des Siegers (Team/Spieler),
   friert die Welt ein und spielt 3 s davor bis 1.6 s danach die echten Spieler-Nodes ab, Kamera in den Augen des Schützen.

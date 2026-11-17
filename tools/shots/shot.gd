@@ -232,6 +232,10 @@ func _game_ui(state: String) -> void:
 			local.take_damage(9999.0, bot.id, "ak47", local.get_center(), false, bot_node.global_position)
 			for i in 20:
 				await get_tree().physics_frame
+			var rec: ReplayRecorder = game.recorder
+			rec._cursor = float(rec.kill["t"]) - 0.3 # shortly before the fatal shot
+			rec._prev_cursor = rec._cursor
+			rec._apply(rec._cursor, false)
 			get_tree().paused = true # software rendering is slow: freeze the moment
 		"lastkill":
 			bot_node.health.max_health = 100000.0 # survives the shots until the explicit kill

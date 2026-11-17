@@ -9,7 +9,9 @@ const PLAYER_SCENE := preload("res://scenes/player/player.tscn")
 const GRENADE_SCENE := preload("res://scenes/weapons/grenade.tscn")
 const BotControllerScript := preload("res://scripts/bots/bot_controller.gd")
 ## Humans wait this long after dying (killcam); Space skips after KILLCAM_SKIP_AFTER seconds.
-const HUMAN_RESPAWN_DELAY := 3.0
+const HUMAN_RESPAWN_DELAY := 6.0
+const KILLCAM_SECONDS_BEFORE := 5.0 # how much of the killer's view leads up to our death
+const KILLCAM_SECONDS_AFTER := 0.9
 const KILLCAM_SKIP_AFTER := 1.5
 
 @onready var map_container: Node3D = $MapContainer
@@ -29,7 +31,6 @@ var _paused: bool = false
 
 var recorder: ReplayRecorder
 var _cam: Camera3D # shared by killcam and last-kill replay
-var _killcam_target: Player
 var _killcam_active: bool = false
 var _dead_elapsed: float = 0.0
 var _replay_active: bool = false
@@ -61,6 +62,7 @@ func _ready() -> void:
 	match_end.configure_for_network()
 	recorder = ReplayRecorder.new()
 	recorder.name = "ReplayRecorder"
+	recorder.ghost_scene = PLAYER_SCENE
 	add_child(recorder)
 	recorder.finished.connect(_on_replay_finished)
 	GameEvents.participant_killed.connect(recorder.note_kill)
@@ -286,18 +288,23 @@ func _build_cam_overlay() -> void:
 	_cam_ui.add_child(_cam_hint)
 
 
-## Live view through the eyes of whoever killed us. Returns false if that is not possible.
+## Killcam: replay of the last seconds of the killer's view, ending with our death.
+## The real players keep playing (hidden), the replay poses ghost copies.
 func _start_killcam(killer_id: int) -> bool:
 	_dead_elapsed = 0.0
 	if not GameSettings.killcams or killer_id == MatchManager.local_participant_id or _replay_active:
 		return false
 	var killer := MatchManager.get_participant(killer_id)
-	if killer == null or killer.node == null or not is_instance_valid(killer.node) or not (killer.node as Player).alive:
+	var kill := recorder.find_kill(MatchManager.local_participant_id, killer_id)
+	if killer == null or kill.is_empty():
 		return false
-	_killcam_target = killer.node as Player
-	_set_target_view(_killcam_target, true)
+	if not recorder.start_ghost_replay(kill, _cam, self, KILLCAM_SECONDS_BEFORE, KILLCAM_SECONDS_AFTER):
+		return false
 	_killcam_active = true
-	_cam.current = true
+	players_container.visible = false
+	projectiles_container.visible = false
+	hud.visible = false
+	_cam.fov = GameSettings.fov
 	_cam_title.text = "KILLCAM"
 	_cam_sub.text = killer.display_name
 	_cam_sub.add_theme_color_override("font_color", Teams.color_of(killer.team))
@@ -311,19 +318,13 @@ func _end_killcam() -> void:
 	if not _killcam_active:
 		return
 	_killcam_active = false
-	if _killcam_target != null and is_instance_valid(_killcam_target):
-		_set_target_view(_killcam_target, false)
-	_killcam_target = null
+	recorder.abort()
+	players_container.visible = true
+	projectiles_container.visible = true
+	hud.visible = MatchManager.state != MatchManager.State.ENDED
 	_cam_ui.visible = false
 	if local_player != null and is_instance_valid(local_player):
 		local_player.camera.current = true
-
-
-## Hides the watched player's own head/torso so the camera does not sit inside the model.
-func _set_target_view(target: Player, first_person: bool) -> void:
-	target.torso_mesh.visible = not first_person
-	target.head_mesh.visible = not first_person
-	target.name_label.visible = not first_person and not target.is_local
 
 
 func _update_killcam(delta: float) -> void:
@@ -333,12 +334,12 @@ func _update_killcam(delta: float) -> void:
 		_dead_elapsed = 0.0
 	if not _killcam_active:
 		return
-	if _killcam_target == null or not is_instance_valid(_killcam_target) or not _killcam_target.alive:
-		_end_killcam() # the killer died as well: back to the normal death view
-		return
-	_cam.global_transform = _killcam_target.camera.global_transform
 	_cam.fov = GameSettings.fov
-	_cam_hint.text = "Leertaste: überspringen" if _dead_elapsed >= KILLCAM_SKIP_AFTER else ""
+	var remaining := maxf(0.0, _respawn_delay_for(MatchManager.get_local_participant()) - _dead_elapsed)
+	var hint := "Respawn in %d" % int(ceil(remaining))
+	if _dead_elapsed >= KILLCAM_SKIP_AFTER:
+		hint += "     •     Leertaste: überspringen"
+	_cam_hint.text = hint
 
 
 func _death_camera(killer_id: int) -> void:
@@ -450,6 +451,16 @@ func _start_last_kill_cam() -> bool:
 
 
 func _on_replay_finished() -> void:
+	if _killcam_active:
+		# the killcam replay is over: back to the normal death view until the respawn
+		_killcam_active = false
+		players_container.visible = true
+		projectiles_container.visible = true
+		hud.visible = MatchManager.state != MatchManager.State.ENDED
+		_cam_ui.visible = false
+		if local_player != null and is_instance_valid(local_player):
+			local_player.camera.current = true
+		return
 	_replay_active = false
 	_cam_ui.visible = false
 	projectiles_container.visible = true
