@@ -3,8 +3,8 @@ extends RefCounted
 ## Rules shared by all game modes. Subclasses override the hooks.
 
 const POINTS_KILL := 100
-const POINTS_HEADSHOT_BONUS := 25
-const POINTS_ASSIST := 0
+const POINTS_HEADSHOT_BONUS := 0 # a kill is always worth the same, headshots are rewarded by damage
+const POINTS_ASSIST := 50
 
 var mode_id: String = "base"
 var display_name: String = "Modus"
@@ -26,6 +26,11 @@ func on_kill(killer: Participant, victim: Participant, headshot: bool) -> int:
 	if headshot:
 		points += POINTS_HEADSHOT_BONUS
 	return points
+
+
+## Points for an assist (damage to the victim shortly before somebody else killed it).
+func on_assist(_assistant: Participant, _victim: Participant) -> int:
+	return POINTS_ASSIST
 
 
 ## Which team gets a new participant. Balances teams in team modes.

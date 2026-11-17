@@ -27,6 +27,9 @@ drei Klassen, drei Drei-Wege-Maps, Team Deathmatch und Free for All, Bots und On
    * **Training (Offline)**: Modus, Klasse, Bots wählen → **Match starten**.
    * **Online**: siehe „Online spielen“.
 
+Punkte (nur pro Runde, im Scoreboard unter Tab): 1 Kill = 100, 1 Assist = 50 (Schaden von mindestens 30 in den letzten
+8 Sekunden vor dem Tod des Gegners). Neue Punkte poppen wie bei Call of Duty unter dem Fadenkreuz auf.
+
 Neu: Nach dem Tod siehst du 3 Sekunden lang live durch die Augen deines Mörders (Killcam, mit Leertaste nach 1,5 s
 überspringbar). Am Rundenende läuft die letzte Aktion des Siegers als Replay („Last Kill“). Beides lässt sich in den
 Einstellungen unter „Killcam“ abschalten. Maps und Klassen werden im Menü, in der Lobby und bei der Kartenabstimmung

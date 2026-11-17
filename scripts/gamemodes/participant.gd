@@ -12,6 +12,7 @@ var bot_difficulty: int = 1
 var class_id: String = "assault"
 var kills: int = 0
 var deaths: int = 0
+var assists: int = 0
 var score: int = 0
 var killstreak: int = 0
 var alive: bool = false
@@ -33,7 +34,7 @@ func is_enemy_of(other: Participant) -> bool:
 func to_dict() -> Dictionary:
 	return {
 		"id": id, "name": display_name, "team": team, "is_bot": is_bot,
-		"class_id": class_id, "kills": kills, "deaths": deaths, "score": score,
+		"class_id": class_id, "kills": kills, "deaths": deaths, "assists": assists, "score": score,
 		"alive": alive,
 	}
 
@@ -46,5 +47,6 @@ func apply_dict(d: Dictionary) -> void:
 	class_id = d.get("class_id", class_id)
 	kills = d.get("kills", kills)
 	deaths = d.get("deaths", deaths)
+	assists = d.get("assists", assists)
 	score = d.get("score", score)
 	alive = d.get("alive", alive)

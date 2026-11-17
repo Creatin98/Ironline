@@ -181,7 +181,8 @@ func get_sorted_participants(team_filter: int = -1) -> Array[Participant]:
 # ----------------------------------------------------------------------------- scoring
 
 ## Authoritative kill report. killer_id may be 0 (environment) or equal to victim_id (suicide).
-func report_kill(victim_id: int, killer_id: int, weapon_id: String, headshot: bool) -> void:
+## assist_ids: players that damaged the victim shortly before (see Health.get_assisters).
+func report_kill(victim_id: int, killer_id: int, weapon_id: String, headshot: bool, assist_ids: Array = []) -> void:
 	if not is_authority() or state != State.RUNNING:
 		if state == State.WARMUP or state == State.ENDED:
 			_apply_death_only(victim_id)
@@ -209,9 +210,21 @@ func report_kill(victim_id: int, killer_id: int, weapon_id: String, headshot: bo
 	else:
 		# Selbstmord
 		victim.score = maxi(0, victim.score - 25)
+	# assists only count for a real enemy kill and only for enemies of the victim
+	var paid_assists: Array = []
+	if points > 0:
+		for aid in assist_ids:
+			var assistant: Participant = participants.get(int(aid))
+			if assistant == null or int(aid) == killer_id or not assistant.is_enemy_of(victim):
+				continue
+			assistant.assists += 1
+			assistant.score += mode.on_assist(assistant, victim)
+			paid_assists.append(int(aid))
+			if int(aid) == local_participant_id:
+				GameEvents.local_player_scored.emit(mode.on_assist(assistant, victim), "Assist")
 	GameEvents.participant_killed.emit(victim_id, killer_id, weapon_id, headshot)
 	GameEvents.scores_changed.emit()
-	NetworkManager.broadcast_kill(victim_id, killer_id, weapon_id, headshot, points, stats_dict())
+	NetworkManager.broadcast_kill(victim_id, killer_id, weapon_id, headshot, points, stats_dict(), paid_assists)
 	if mode.is_kill_limit_reached(team_scores, participants):
 		end_match()
 
@@ -304,7 +317,7 @@ func to_dict() -> Dictionary:
 func stats_dict() -> Dictionary:
 	var p_stats: Dictionary = {}
 	for p in participants.values():
-		p_stats[p.id] = [p.kills, p.deaths, p.score, p.killstreak, p.alive]
+		p_stats[p.id] = [p.kills, p.deaths, p.score, p.killstreak, p.alive, p.assists]
 	return {"p": p_stats, "red": int(team_scores[Teams.Team.RED]), "blue": int(team_scores[Teams.Team.BLUE])}
 
 
@@ -322,6 +335,8 @@ func _apply_stats(stats: Dictionary) -> void:
 		p.score = int(arr[2])
 		p.killstreak = int(arr[3])
 		p.alive = bool(arr[4])
+		if arr.size() > 5:
+			p.assists = int(arr[5])
 	team_scores[Teams.Team.RED] = int(stats.get("red", team_scores[Teams.Team.RED]))
 	team_scores[Teams.Team.BLUE] = int(stats.get("blue", team_scores[Teams.Team.BLUE]))
 
@@ -369,8 +384,10 @@ func apply_remote_time(new_time_left: float) -> void:
 	_emit_whole_second()
 
 
-func apply_remote_kill(victim_id: int, killer_id: int, weapon_id: String, headshot: bool, points: int, stats: Dictionary) -> void:
+func apply_remote_kill(victim_id: int, killer_id: int, weapon_id: String, headshot: bool, points: int, stats: Dictionary, assist_ids: Array = []) -> void:
 	_apply_stats(stats)
+	if assist_ids.has(local_participant_id):
+		GameEvents.local_player_scored.emit(GameModeBase.POINTS_ASSIST, "Assist")
 	if killer_id == local_participant_id and victim_id != killer_id and points > 0:
 		GameEvents.local_player_scored.emit(points, "Kopfschuss" if headshot else "Kill")
 	GameEvents.participant_killed.emit(victim_id, killer_id, weapon_id, headshot)

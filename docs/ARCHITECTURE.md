@@ -162,6 +162,18 @@ U-Kimme mit Korn und Schutzohren (AK), Diopter-Ring mit Korn im Ring (MP5), Lauf
 Dreipunkt-Visier (Pistole). Wichtig für Änderungen: Teile, die zwischen Auge und Visier liegen, müssen unter der
 Visierlinie bleiben, sonst verdecken sie das Bild.
 
+## Punkte und Assists (Phase 8+)
+
+* **1 Kill = 100 Punkte** (auch Kopfschuss, kein Bonus), **1 Assist = 50 Punkte** (`GameModeBase.POINTS_KILL/POINTS_ASSIST`).
+  Teamkill −50, Selbstmord −25 (wie bisher). Die Punkte zählen nur innerhalb der laufenden Runde und erscheinen im
+  Scoreboard mit Kills, Tode, Assists, Punkte; sie werden nicht gespeichert.
+* **Assist:** `Health` merkt sich Schaden pro Angreifer (8 s Fenster). Wer ≥ 30 Schaden gemacht hat, das Opfer nicht selbst
+  tötet und ein Gegner des Opfers ist, bekommt den Assist (`Health.get_assisters` → `MatchManager.report_kill`).
+* Online rechnet nur der Server. `_rpc_kill_event` überträgt die Punktestände (`stats_dict`, jetzt mit Assists) und die
+  Assist-Empfänger, damit deren HUD das Popup zeigt. `PROTOCOL_VERSION` = 4.
+* **Popups** (`HUD._on_scored`): stapeln sich unter dem Fadenkreuz (max. 4), poppen groß auf, schweben und blenden aus:
+  „+100 KILL“ (Gold, mit „3 IN FOLGE“), „+100 KOPFSCHUSS“ (Rot, größer), „+50 ASSIST“ (Blau, mit leisem Ton).
+
 ## Treffer- und Kill-Feedback (Phase 8+)
 
 * **Hitmarker** (`HUD._draw_hitmarker`): weißes X bei Treffer, **rotes Doppelkreuz (X + Plus)** bei Kopfschuss, großes rotes X mit

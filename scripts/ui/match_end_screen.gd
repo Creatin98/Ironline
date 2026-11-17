@@ -184,4 +184,4 @@ func show_results() -> void:
 		var wp := MatchManager.get_participant(int(MatchManager.winner["participant_id"]))
 		detail_label.text = "%s gewinnt mit %d Kills" % [wp.display_name, wp.kills] if wp else "Kein Sieger"
 	if me:
-		detail_label.text += "   |   Du: %d Kills, %d Tode, %d Punkte" % [me.kills, me.deaths, me.score]
+		detail_label.text += "   |   Du: %d Kills, %d Tode, %d Assists, %d Punkte" % [me.kills, me.deaths, me.assists, me.score]

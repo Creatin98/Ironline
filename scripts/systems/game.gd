@@ -223,7 +223,11 @@ func _respawn_delay_for(p: Participant) -> float:
 
 
 func _on_player_died(victim_id: int, killer_id: int, weapon_id: String, headshot: bool) -> void:
-	MatchManager.report_kill(victim_id, killer_id, weapon_id, headshot)
+	var assisters: Array = []
+	var victim_p := MatchManager.get_participant(victim_id)
+	if victim_p != null and victim_p.node != null and is_instance_valid(victim_p.node):
+		assisters = (victim_p.node as Player).health.get_assisters(killer_id)
+	MatchManager.report_kill(victim_id, killer_id, weapon_id, headshot, assisters)
 	var delay := _respawn_delay_for(MatchManager.get_participant(victim_id))
 	if MatchManager.is_authority() and MatchManager.state == MatchManager.State.RUNNING:
 		_respawn_queue[victim_id] = delay

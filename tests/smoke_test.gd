@@ -417,7 +417,30 @@ func _simulate_match() -> void:
 		await get_tree().process_frame
 		if me.kills != 1 or bot.deaths != 1:
 			_fail("Kill nicht gewertet (kills=%d deaths=%d)" % [me.kills, bot.deaths])
-		if MatchManager.team_scores[me.team] != 1:
+		if me.score != 100:
+			_fail("Ein Kill muss 100 Punkte geben (auch per Kopfschuss), ist %d" % me.score)
+		# assist: we hurt a second enemy, a teammate bot finishes it -> 1 assist = 50 points for us
+		var other_enemy: Participant = null
+		var helper: Participant = null
+		for p2 in MatchManager.participants.values():
+			if p2.is_bot and me.is_enemy_of(p2) and p2 != bot and other_enemy == null:
+				other_enemy = p2
+			elif p2.is_bot and not me.is_enemy_of(p2) and helper == null:
+				helper = p2
+		if other_enemy and helper:
+			var victim_node := other_enemy.node as Player
+			victim_node.take_damage(60.0, me.id, "ak47", victim_node.get_center(), false, local.global_position)
+			victim_node.take_damage(5000.0, helper.id, "mp5", victim_node.get_center(), false, local.global_position)
+			await get_tree().process_frame
+			if me.assists != 1 or me.score != 150:
+				_fail("Assist falsch gewertet (assists=%d, punkte=%d, erwartet 1 / 150)" % [me.assists, me.score])
+			if helper.kills != 1 or helper.score != 100:
+				_fail("Der Killer des Assists bekam nicht 100 Punkte (%d)" % helper.score)
+			if other_enemy.deaths != 1:
+				_fail("Tod des Assist-Opfers nicht gewertet")
+		else:
+			_fail("Kein zweiter Gegner/Helfer fuer den Assist-Test")
+		if MatchManager.team_scores[me.team] != 2: # our kill + the teammate's kill from the assist test
 			_fail("Teampunkte nicht erhoeht")
 		# friendly fire must be blocked
 		var mate: Participant = null

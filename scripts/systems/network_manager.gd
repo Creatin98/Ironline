@@ -13,7 +13,7 @@ extends Node
 
 enum Mode { OFFLINE, HOST, CLIENT }
 
-const PROTOCOL_VERSION := 3
+const PROTOCOL_VERSION := 4
 const DEFAULT_PORT := 7777
 const MAX_PEERS := 12
 const SNAPSHOT_EVERY_TICKS := 3 # 20 Hz at 60 physics ticks
@@ -515,16 +515,16 @@ func _rpc_time(time_left: float) -> void:
 	MatchManager.apply_remote_time(time_left)
 
 
-func broadcast_kill(victim_id: int, killer_id: int, weapon_id: String, headshot: bool, points: int, stats: Dictionary) -> void:
+func broadcast_kill(victim_id: int, killer_id: int, weapon_id: String, headshot: bool, points: int, stats: Dictionary, assist_ids: Array = []) -> void:
 	if mode == Mode.HOST and in_match and multiplayer.get_peers().size() > 0:
-		_rpc_kill_event.rpc(victim_id, killer_id, weapon_id, headshot, points, stats)
+		_rpc_kill_event.rpc(victim_id, killer_id, weapon_id, headshot, points, stats, assist_ids)
 
 
 @rpc("authority", "call_remote", "reliable")
-func _rpc_kill_event(victim_id: int, killer_id: int, weapon_id: String, headshot: bool, points: int, stats: Dictionary) -> void:
+func _rpc_kill_event(victim_id: int, killer_id: int, weapon_id: String, headshot: bool, points: int, stats: Dictionary, assist_ids: Array) -> void:
 	if mode != Mode.CLIENT:
 		return
-	MatchManager.apply_remote_kill(victim_id, killer_id, weapon_id, headshot, points, stats)
+	MatchManager.apply_remote_kill(victim_id, killer_id, weapon_id, headshot, points, stats, assist_ids)
 	if game != null and game.has_method("remote_death"):
 		game.remote_death(victim_id, killer_id, weapon_id, headshot)
 

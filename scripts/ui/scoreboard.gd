@@ -3,8 +3,8 @@ extends Control
 ## Tab-scoreboard: name, team, kills, deaths, score. Rebuilt on every show and
 ## whenever scores change while visible. Also embedded in the match end screen.
 
-const COLUMNS := ["Spieler", "Team", "Kills", "Tode", "Punkte"]
-const COLUMN_WIDTHS := [300, 90, 90, 90, 110]
+const COLUMNS := ["Spieler", "Team", "Kills", "Tode", "Assists", "Punkte"]
+const COLUMN_WIDTHS := [290, 80, 80, 80, 90, 100]
 
 var panel: PanelContainer
 var content: VBoxContainer
@@ -79,7 +79,7 @@ func _add_rows(list: Array[Participant]) -> void:
 		var col := Teams.color_of(p.team) if MatchManager.mode.uses_teams else (UITheme.ACCENT if is_me else UITheme.TEXT)
 		var prefix := "▶ " if is_me else ("[Bot] " if p.is_bot else "")
 		var name_text := prefix + p.display_name + ("" if p.alive else "  †")
-		var values := [name_text, Teams.name_of(p.team) if MatchManager.mode.uses_teams else "-", str(p.kills), str(p.deaths), str(p.score)]
+		var values := [name_text, Teams.name_of(p.team) if MatchManager.mode.uses_teams else "-", str(p.kills), str(p.deaths), str(p.assists), str(p.score)]
 		for i in values.size():
 			var l := UITheme.label(values[i], 18, col if i < 2 else UITheme.TEXT, HORIZONTAL_ALIGNMENT_LEFT if i == 0 else HORIZONTAL_ALIGNMENT_CENTER)
 			l.custom_minimum_size = Vector2(COLUMN_WIDTHS[i], 0)

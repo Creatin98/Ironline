@@ -16,6 +16,11 @@ var _time_since_damage: float = 999.0
 var last_attacker_id: int = 0
 var last_weapon_id: String = ""
 
+## Damage per attacker for assists: [attacker_id, time_msec, amount]
+const ASSIST_WINDOW_MSEC := 8000
+const ASSIST_MIN_DAMAGE := 30.0
+var _damage_log: Array = []
+
 
 func _ready() -> void:
 	health = max_health
@@ -36,6 +41,7 @@ func reset() -> void:
 	_time_since_damage = 999.0
 	last_attacker_id = 0
 	last_weapon_id = ""
+	_damage_log.clear()
 	health_changed.emit(health, max_health)
 
 
@@ -45,6 +51,8 @@ func apply_damage(amount: float, attacker_id: int, weapon_id: String, headshot: 
 		return false
 	health -= amount
 	_time_since_damage = 0.0
+	if attacker_id != 0:
+		_damage_log.append([attacker_id, Time.get_ticks_msec(), amount])
 	last_attacker_id = attacker_id
 	last_weapon_id = weapon_id
 	damaged.emit(amount, attacker_id)
@@ -74,6 +82,21 @@ func set_remote_health(value: float) -> void:
 		_time_since_damage = 0.0
 	health = clamped
 	health_changed.emit(health, max_health)
+
+
+## Ids of everybody who did at least ASSIST_MIN_DAMAGE within the window, except `killer_id`.
+func get_assisters(killer_id: int) -> Array:
+	var now := Time.get_ticks_msec()
+	var totals: Dictionary = {}
+	for entry in _damage_log:
+		if now - int(entry[1]) > ASSIST_WINDOW_MSEC:
+			continue
+		totals[int(entry[0])] = float(totals.get(int(entry[0]), 0.0)) + float(entry[2])
+	var out: Array = []
+	for id in totals:
+		if id != killer_id and float(totals[id]) >= ASSIST_MIN_DAMAGE:
+			out.append(id)
+	return out
 
 
 func ratio() -> float:

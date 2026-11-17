@@ -22,7 +22,7 @@ var timer_label: Label
 var killfeed_box: VBoxContainer
 var center_label: Label
 var sub_label: Label
-var score_popup: Label
+var popup_box: VBoxContainer
 var vignette: ColorRect
 var damage_flash: ColorRect
 var fps_label: Label
@@ -37,8 +37,6 @@ var _hitmarker_head: bool = false
 var _kill_flash: ColorRect
 var _spread_display: float = 0.0
 var _respawn_time_left: float = -1.0
-var _popup_time: float = 0.0
-var _popup_punch: float = 0.0
 var _killfeed_entries: Array = [] # [{node, time}]
 var _damage_dirs: Array = [] # [{dir: Vector2 (world x/z), time: float}]
 var _warmup: bool = false
@@ -180,12 +178,14 @@ func _build() -> void:
 	sub_label.position = Vector2(-500, -90)
 	sub_label.custom_minimum_size = Vector2(1000, 40)
 	add_child(sub_label)
-	score_popup = UITheme.label("", 22, UITheme.ACCENT, HORIZONTAL_ALIGNMENT_CENTER)
-	score_popup.set_anchors_preset(Control.PRESET_CENTER)
-	score_popup.position = Vector2(-250, 40)
-	score_popup.custom_minimum_size = Vector2(500, 30)
-	score_popup.modulate.a = 0.0
-	add_child(score_popup)
+	# score popups (+100 Kill, +50 Assist ...) stack below the crosshair
+	popup_box = VBoxContainer.new()
+	popup_box.set_anchors_preset(Control.PRESET_CENTER)
+	popup_box.position = Vector2(-250, 70)
+	popup_box.custom_minimum_size = Vector2(500, 0)
+	popup_box.add_theme_constant_override("separation", 0)
+	popup_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(popup_box)
 
 	# --- bottom center: hint ---
 	hint_label = UITheme.label("", 15, UITheme.TEXT_DIM, HORIZONTAL_ALIGNMENT_CENTER)
@@ -243,12 +243,6 @@ func _process(delta: float) -> void:
 		_respawn_time_left -= delta
 		sub_label.text = "Respawn in %d" % int(ceil(maxf(_respawn_time_left, 0.0)))
 	# score popup
-	if _popup_time > 0.0:
-		_popup_time -= delta
-		score_popup.modulate.a = clampf(_popup_time / 0.5, 0.0, 1.0)
-		score_popup.position.y = 40 - (1.5 - _popup_time) * 12.0
-		var pop := lerpf(1.0, 1.0 + _popup_punch, clampf((_popup_time - 1.3) / 0.2, 0.0, 1.0))
-		score_popup.scale = Vector2(pop, pop)
 	# killfeed ageing
 	var now := Time.get_ticks_msec() / 1000.0
 	var i := 0
@@ -484,17 +478,38 @@ func show_hitmarker(headshot: bool, killed: bool) -> void:
 
 
 func _on_scored(points: int, reason: String) -> void:
-	var text := "+%d  %s" % [points, reason]
+	var text := "+%d  %s" % [points, reason.to_upper()]
 	var me := MatchManager.get_local_participant()
-	if me != null and me.killstreak >= 2:
-		text += "   •   %d in Folge" % me.killstreak
-	score_popup.text = text
-	var head := reason == "Kopfschuss"
-	score_popup.add_theme_color_override("font_color", Color(1.0, 0.32, 0.22) if head else UITheme.ACCENT)
-	score_popup.add_theme_font_size_override("font_size", 30 if head else 24)
-	score_popup.pivot_offset = score_popup.size * 0.5
-	_popup_punch = 0.55 if head else 0.3
-	_popup_time = 1.5
+	if reason != "Assist" and me != null and me.killstreak >= 2:
+		text += "   •   %d IN FOLGE" % me.killstreak
+	var color := UITheme.ACCENT
+	var size := 26
+	match reason:
+		"Kopfschuss":
+			color = Color(1.0, 0.32, 0.22)
+			size = 30
+		"Assist":
+			color = Color(0.5, 0.78, 1.0)
+			size = 22
+	var label := UITheme.label(text, size, color, HORIZONTAL_ALIGNMENT_CENTER)
+	label.custom_minimum_size = Vector2(500, 0)
+	label.pivot_offset = Vector2(250, size * 0.7)
+	label.scale = Vector2(1.7, 1.7)
+	label.modulate.a = 0.0
+	popup_box.add_child(label)
+	while popup_box.get_child_count() > 4:
+		popup_box.get_child(0).queue_free()
+		popup_box.remove_child(popup_box.get_child(0))
+	if reason == "Assist":
+		AudioManager.play_2d("hitmarker", -13.0, 0.0).pitch_scale = 1.5
+	# pops in big, settles, holds, floats up while fading
+	var tw := label.create_tween()
+	tw.set_parallel(true)
+	tw.tween_property(label, "scale", Vector2.ONE, 0.16).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.tween_property(label, "modulate:a", 1.0, 0.05)
+	tw.chain().tween_interval(1.0)
+	tw.chain().tween_property(label, "modulate:a", 0.0, 0.45)
+	tw.chain().tween_callback(label.queue_free)
 
 
 func _on_weapon_changed(weapon: Node) -> void:

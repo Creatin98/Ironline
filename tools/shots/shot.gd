@@ -262,10 +262,21 @@ func _game_ui(state: String) -> void:
 		if kill:
 			me.killstreak = 3
 			game.hud._on_scored(125 if head else 100, "Kopfschuss" if head else "Kill")
-			game.hud._popup_time = 1.4
 			game.hud._kill_flash.color.a = 0.0
 		get_tree().paused = true
 		game.hud.crosshair.queue_redraw()
+	if state == "popups":
+		me.killstreak = 3
+		me.kills = 7
+		me.assists = 2
+		me.score = 850
+		game.hud._on_scored(100, "Kopfschuss")
+		game.hud._on_scored(50, "Assist")
+		for lbl in game.hud.popup_box.get_children():
+			lbl.modulate.a = 1.0
+			lbl.scale = Vector2.ONE
+			lbl.get_tree().paused = false
+		get_tree().paused = true
 	match state:
 		"pause":
 			game._open_pause()
@@ -273,6 +284,10 @@ func _game_ui(state: String) -> void:
 			game.scoreboard.visible = true
 			game.scoreboard.rebuild()
 		"end":
+			me.kills = 7
+			me.deaths = 2
+			me.assists = 3
+			me.score = 850
 			MatchManager.end_match()
 	for i in 20:
 		await get_tree().process_frame
