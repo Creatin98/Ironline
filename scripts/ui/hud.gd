@@ -241,7 +241,7 @@ func _layout() -> void:
 		pos += _offset_of(block_name)
 		c.position = _clamp_to_screen(pos, s, area)
 	fps_label.visible = GameSettings.show_fps
-	_blood_layer.visible = GameSettings.show_blood_overlay
+	_update_blood_visibility()
 	if _edit_overlay != null:
 		_edit_overlay.queue_redraw()
 
@@ -360,6 +360,7 @@ func _process(delta: float) -> void:
 	_damage_dirs = _damage_dirs.filter(func(d: Dictionary) -> bool: return float(d["time"]) > 0.0)
 	crosshair.queue_redraw()
 	minimap.player = _player
+	_update_blood_visibility()
 	for sp in _blood_splats:
 		sp["age"] = float(sp["age"]) + delta
 		sp["p"] = (sp["p"] as Vector2) + Vector2(0.0, float(sp["vy"]) * delta * clampf(float(sp["age"]) * 0.6, 0.0, 1.0))
@@ -576,6 +577,12 @@ func _on_local_died(killer_id: int, respawn_delay: float) -> void:
 		center_label.text = "Du bist gestorben"
 	_respawn_time_left = respawn_delay
 	sub_label.text = "Respawn in %d" % int(ceil(respawn_delay))
+
+
+## Screen blood only while playing: not in replays (killcam / last kill) and not at the match end.
+func _update_blood_visibility() -> void:
+	_blood_layer.visible = GameSettings.show_blood_overlay and MatchManager.state != MatchManager.State.ENDED \
+			and not (_player != null and is_instance_valid(_player) and _player.replay_mode)
 
 
 func _draw_blood() -> void:

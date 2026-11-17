@@ -279,7 +279,7 @@ func _game_ui(state: String) -> void:
 			if "--aim=1" in OS.get_cmdline_user_args():
 				rec._killer_aim_target = 1.0
 				rec.killer_aim = 1.0
-				(rec._targets[rec._killer_id] as Player).replay_aim(1.0)
+				(rec._targets[rec._killer_id] as Player).replay_aim(1.0, game._cam.global_transform)
 				game._cam.fov = lerpf(GameSettings.fov, rec.killer_ads_fov(), 1.0)
 				game._cam_cross.queue_redraw()
 			get_tree().paused = true # software rendering is slow: freeze the moment

@@ -13,6 +13,7 @@ var player: Player
 var _solids: Array = [] # [{pts: PackedVector2Array (world x/z), top: float}]
 var _floors: Array = []
 var _overlay: Control
+var _redraw_timer: float = 0.0
 var _flashes: Array = [] # [{pos: Vector3, t: float}]
 
 
@@ -37,7 +38,12 @@ func _process(delta: float) -> void:
 	for f in _flashes:
 		f["t"] = float(f["t"]) - delta
 	_flashes = _flashes.filter(func(f: Dictionary) -> bool: return float(f["t"]) > 0.0)
-	_overlay.queue_redraw()
+	if DisplayServer.get_name() == "headless" or not is_visible_in_tree():
+		return # nothing to draw (tests / dedicated runs / hidden HUD)
+	_redraw_timer -= delta
+	if _redraw_timer <= 0.0:
+		_redraw_timer = 1.0 / 40.0 # 40 Hz is smooth enough for a minimap and cheaper than every frame
+		_overlay.queue_redraw()
 
 
 func _on_shot(shooter_id: int, pos: Vector3) -> void:

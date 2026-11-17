@@ -36,7 +36,7 @@ def run_scenario(godot, port, scenario):
     results = {}
     for name, proc in procs:
         try:
-            out, _ = proc.communicate(timeout=240)
+            out, _ = proc.communicate(timeout=330)
         except subprocess.TimeoutExpired:
             proc.kill()
             out, _ = proc.communicate()

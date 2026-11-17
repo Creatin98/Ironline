@@ -301,3 +301,9 @@ Python-Skripten in `tools/` erzeugt – keine Fremdinhalte, alles reproduzierbar
   notfalls zur nächsten freien Stelle verschoben. Der Smoke-Test prüft alle Spawnpunkte aller Maps (Punkte in Kisten/Wänden wurden korrigiert).
 * **Bildschirm-Blut:** verblasst beim Tod schnell (0.5 s) und wird beim Respawn gelöscht – nichts im Todesblick/Killcam. Killcam-Vignette stärker.
   Killer-Ansicht (Killcam/Last Kill) blendet die langen Ärmel aus (`Player.set_replay_sleeves_hidden`), damit sie beim Nachladen nicht durchs Bild schwingen.
+
+* **Waffenmodelle ohne Flackern:** `tools/generate_weapon_models.py` erkennt gleichgerichtete, deckungsgleiche Flächen verschiedener Materialien (z-fighting) und
+  zieht die kleinere Box um 0.8 mm vor (`Scene.coplanar_faces` / `adjust_all`). Unterarme sind kürzer (max. 0.36 m) und dicker.
+* **Last Kill Cam:** Replay 3.5 s vor / 1.4 s nach dem Abschuss; in der Zeitlupe zoomt das FOV auf das Opfer (`ReplayRecorder.last_kill_fov`), ein roter
+  Kill-Marker liegt im Moment des Abschusses auf dem Opfer (`victim_marker`). Beim Zielen sitzt die Waffe des Schützen exakt wie das First-Person-Viewmodel
+  (`Player.replay_aim` mit `ads_position` relativ zur Kamera). Bildschirm-Blut wird in Replays und am Matchende ausgeblendet.

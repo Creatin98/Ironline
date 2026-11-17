@@ -192,6 +192,36 @@ func _make_ghost(p: Participant, parent: Node3D) -> Player:
 	return g
 
 
+## Last kill cam: the view zooms towards the victim during the slow motion so the kill is easy to see
+## (a distant victim is only a few pixels tall otherwise). `base_fov` is the normal FOV.
+func last_kill_fov(base_fov: float) -> float:
+	if ghost_mode or _slow_from < 0.0 or not _targets.has(_killer_id) or not _targets.has(int(kill["victim"])):
+		return base_fov
+	var killer: Player = _targets[_killer_id]
+	var victim: Player = _targets[int(kill["victim"])]
+	if killer == null or victim == null or not is_instance_valid(killer) or not is_instance_valid(victim):
+		return base_fov
+	var dist := maxf(3.0, killer.get_eye_position().distance_to(victim.global_position + Vector3(0, 0.9, 0)))
+	var target := clampf(rad_to_deg(2.0 * atan(4.5 / dist)), 24.0, base_fov)
+	var t := smoothstep(_slow_from - 0.5, _slow_from + 0.6, _cursor)
+	return lerpf(base_fov, target, t)
+
+
+## World position of the victim's chest while the kill is shown (for the red kill marker), else Vector3.INF.
+func victim_marker() -> Vector3:
+	if ghost_mode or not playing or _cursor < float(kill["t"]) - 0.02 or _cursor > float(kill["t"]) + 0.9:
+		return Vector3.INF
+	var victim: Player = _targets.get(int(kill["victim"]))
+	if victim == null or not is_instance_valid(victim):
+		return Vector3.INF
+	return victim.global_position + Vector3(0, 1.0, 0)
+
+
+## Seconds since the kill moment (0 before it).
+func since_kill() -> float:
+	return maxf(0.0, _cursor - float(kill["t"])) if not kill.is_empty() else 0.0
+
+
 ## FOV the killer's weapon has when aiming down the sights.
 func killer_ads_fov() -> float:
 	var n: Player = _targets.get(_killer_id)
@@ -244,9 +274,6 @@ func _process(delta: float) -> void:
 		_time_changed = true
 	var real_step := delta / maxf(Engine.time_scale, 0.01)
 	killer_aim = move_toward(killer_aim, _killer_aim_target, real_step * 7.0)
-	var kn: Player = _targets.get(_killer_id)
-	if kn != null and is_instance_valid(kn):
-		kn.replay_aim(killer_aim)
 	_cursor += delta
 	if _cursor >= _end_time:
 		_finish()
@@ -336,3 +363,6 @@ func _apply(t: float, first: bool) -> void:
 		var kpitch := lerpf(float(s[2]), float(sb2[2]), w)
 		var eye := (Player.CROUCH_HEIGHT if bool(s[3]) else Player.STAND_HEIGHT) - Player.EYE_BELOW_TOP
 		_camera.global_transform = Transform3D(Basis.from_euler(Vector3(kpitch, kyaw, 0.0), EULER_ORDER_YXZ), kpos + Vector3(0.0, eye, 0.0))
+		var kn: Player = _targets[_killer_id]
+		if kn != null and is_instance_valid(kn):
+			kn.replay_aim(killer_aim, _camera.global_transform)

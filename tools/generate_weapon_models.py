@@ -34,6 +34,9 @@ MATERIALS = {
 
 
 class Scene:
+    adjust_all = {}  # (root name, box name) -> [(axis, side)]: push that face outwards by POP (fixes z-fighting)
+    POP = 0.0008
+
     def __init__(self, root_name):
         self.root_name = root_name
         self.subs = []  # text blocks
@@ -41,6 +44,7 @@ class Scene:
         self.mat_ids = {}
         self.counter = 0
         self.names = {}
+        self.boxes = []  # axis-aligned world-space boxes (name, pos, size, mat) for the z-fighting check
 
     def _mat(self, name):
         if name not in self.mat_ids:
@@ -91,10 +95,44 @@ class Scene:
         return self._path(parent, n)
 
     def box(self, name, pos, size, mat, rot=None, parent="."):
+        for ax, side in Scene.adjust_all.get((self.root_name, name), []):
+            size = list(size)
+            pos = list(pos)
+            size[ax] += Scene.POP
+            pos[ax] += side * Scene.POP / 2
         mesh_id = f"mesh_{self.counter}"
         self.counter += 1
         self.subs.append(f'[sub_resource type="BoxMesh" id="{mesh_id}"]\nmaterial = SubResource("{self._mat(mat)}")\nsize = {self._vec(size)}')
         self._node(name, "MeshInstance3D", parent, pos, rot, mesh_id)
+        if parent == "." and (rot is None or not any(abs(a) > 1e-6 for a in rot)):
+            self.boxes.append((name, tuple(pos), tuple(size), mat))
+
+    def coplanar_faces(self, eps=0.0006, min_area=2e-6):
+        """Same-facing coplanar faces of different-material boxes (they flicker = z-fighting in game).
+        Returns [(smaller_box, other_box, axis, side, area)]; `side` is +1 for the max face, -1 for the min face."""
+        out = []
+        for i, (na, pa, sa, ma) in enumerate(self.boxes):
+            for nb, pb, sb, mb in self.boxes[i + 1:]:
+                if ma == mb:
+                    continue
+                for ax in range(3):
+                    area = 1.0
+                    for o in range(3):
+                        if o == ax:
+                            continue
+                        lo = max(pa[o] - sa[o] / 2, pb[o] - sb[o] / 2)
+                        hi = min(pa[o] + sa[o] / 2, pb[o] + sb[o] / 2)
+                        area *= max(0.0, hi - lo)
+                    if area < min_area:
+                        continue
+                    for side in (-1, 1):
+                        fa = pa[ax] + side * sa[ax] / 2
+                        fb = pb[ax] + side * sb[ax] / 2
+                        if abs(fa - fb) < eps:
+                            va = sa[0] * sa[1] * sa[2]
+                            vb = sb[0] * sb[1] * sb[2]
+                            out.append((na, nb, ax, side, area) if va <= vb else (nb, na, ax, side, area))
+        return out
 
     def cyl(self, name, pos, radius, length, mat, rot=None, parent=".", radius_end=None):
         """Cylinder along the Z axis."""
@@ -170,6 +208,15 @@ def grip_hand(s, group, mirror=False):
     s.box(f"{side}Cuff", (m * 0.010, -0.028, 0.044), (0.056, 0.048, 0.026), "glove_pad", parent=group)
 
 
+def reach(v, start, max_len):
+    """Shortens the vector from `start` to `v` to at most `max_len` (forearms: stubby and thick instead of long and thin)."""
+    d = [v[i] - start[i] for i in range(3)]
+    l = math.sqrt(sum(x * x for x in d))
+    if l <= max_len:
+        return v
+    return tuple(start[i] + d[i] * max_len / l for i in range(3))
+
+
 def hands(s, left, right, left_target, right_target, parent=".", half=0.025, bottom=0.0):
     """Gloved hands plus sleeves as two groups (LeftHand / RightHand) so reload animations can move them.
     left = (x, _, z) of the support hand (its height follows the handguard bottom `bottom`),
@@ -178,10 +225,12 @@ def hands(s, left, right, left_target, right_target, parent=".", half=0.025, bot
     left = (left[0], bottom - 0.012, left[2])
     lg = s.group("LeftHand", left, parent)
     support_hand(s, lg, half)
-    s.arm("LeftForearm", (-0.006, -0.018, 0.040), rel(left_target, left), 0.062, 0.056, "sleeve", parent=lg)
+    a_l = (-0.006, -0.018, 0.040)
+    s.arm("LeftForearm", a_l, reach(rel(left_target, left), a_l, 0.36), 0.082, 0.074, "sleeve", parent=lg)
     rg = s.group("RightHand", right, parent)
     grip_hand(s, rg)
-    s.arm("RightForearm", (0.004, -0.028, 0.044), rel(right_target, right), 0.060, 0.054, "sleeve", parent=rg)
+    a_r = (0.004, -0.028, 0.044)
+    s.arm("RightForearm", a_r, reach(rel(right_target, right), a_r, 0.36), 0.078, 0.070, "sleeve", parent=rg)
 
 
 def mag_group(s, pivot):
@@ -359,11 +408,13 @@ def pistol():
     rc = (0.002, -0.044, 0.056)
     rg = s.group("RightHand", rc)
     grip_hand(s, rg)
-    s.arm("RightForearm", (0.004, -0.028, 0.044), (0.09 - rc[0], -0.55 - rc[1], 0.30 - rc[2]), 0.056, 0.050, "sleeve", parent=rg)
+    a_r = (0.004, -0.028, 0.044)
+    s.arm("RightForearm", a_r, reach((0.09 - rc[0], -0.55 - rc[1], 0.30 - rc[2]), a_r, 0.36), 0.078, 0.070, "sleeve", parent=rg)
     lc = (-0.040, -0.052, 0.050)
     lg = s.group("LeftHand", lc)
     grip_hand(s, lg, mirror=True)
-    s.arm("LeftForearm", (-0.004, -0.026, 0.044), (-0.09 - lc[0], -0.55 - lc[1], 0.30 - lc[2]), 0.056, 0.050, "sleeve", parent=lg)
+    a_l = (-0.004, -0.026, 0.044)
+    s.arm("LeftForearm", a_l, reach((-0.09 - lc[0], -0.55 - lc[1], 0.30 - lc[2]), a_l, 0.36), 0.078, 0.070, "sleeve", parent=lg)
     return s
 
 
@@ -388,7 +439,16 @@ def update_resource(weapon, ads_pos, hip_pos, fov):
 
 def main():
     for name, (builder, sight_y, rear_z, ads_dist, hip, fov) in WEAPONS.items():
+        Scene.adjust_all = {}
         scene = builder()
+        for small, other, ax, side, area in scene.coplanar_faces():
+            Scene.adjust_all.setdefault((scene.root_name, small), []).append((ax, side))
+        if Scene.adjust_all:
+            print(f"{name}: {len(Scene.adjust_all)} Boxen gegen Flackern (z-fighting) um {Scene.POP * 1000:.1f} mm vorgezogen")
+            scene = builder()
+            left = scene.coplanar_faces()
+            if left:
+                print("FLACKERN (bleibt):", left)
         scene.write(os.path.join(MODEL_DIR, name + "_model.tscn"))
         ads = (0.0, -sight_y, -ads_dist - rear_z)
         update_resource(name, ads, hip, fov)

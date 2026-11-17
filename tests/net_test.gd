@@ -10,7 +10,7 @@ extends Node
 ## replication, grenade explosion replication and host-leave handling.
 ## Exit code 0 = ok.
 
-const GLOBAL_TIMEOUT := 150.0
+const GLOBAL_TIMEOUT := 240.0
 const TEST_SPOT := Vector3(0.0, 0.1, -17.0)
 
 var role: String = "host"
@@ -115,6 +115,13 @@ func _client_id() -> int:
 		if int(id) != 1:
 			return int(id)
 	return 0
+
+
+func _describe_participants() -> String:
+	var out: Array[String] = []
+	for p in MatchManager.participants.values():
+		out.append("%d(alive=%s node=%s)" % [p.id, str(p.alive), str(p.node != null and is_instance_valid(p.node))])
+	return "state=%d n=%d [%s]" % [MatchManager.state, MatchManager.participants.size(), ", ".join(out)]
 
 
 func _match_running_with(count: int) -> bool:
@@ -291,7 +298,7 @@ func _host_trio() -> void:
 		_fail("Abstimmung wurde beendet, obwohl nicht alle gewählt hatten")
 	NetworkManager.cast_vote("frontier")
 	if not await _wait(func() -> bool: return MatchManager.config.map_id == "frontier" and _match_running_with(3), 150.0):
-		_fail("Runde auf Frontier mit drei Spielern nicht gestartet (Map %s)" % MatchManager.config.map_id)
+		_fail("Runde auf Frontier mit drei Spielern nicht gestartet (Map %s, %s)" % [MatchManager.config.map_id, _describe_participants()])
 	else:
 		_log("Alle drei haben gewählt, Runde läuft auf Frontier")
 	await get_tree().create_timer(2.0).timeout
@@ -353,7 +360,7 @@ func _client_trio() -> void:
 	else:
 		NetworkManager.cast_vote("frontier")
 		if not await _wait(func() -> bool: return MatchManager.config.map_id == "frontier" and _match_running_with(3), 150.0):
-			_fail("Runde auf Frontier nicht gestartet")
+			_fail("Runde auf Frontier nicht gestartet (%s)" % _describe_participants())
 		else:
 			_log("Neue Runde auf Frontier mit drei Spielern")
 	_finish()

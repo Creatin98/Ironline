@@ -498,6 +498,16 @@ func _draw_cam_cross() -> void:
 	if not recorder.playing:
 		return
 	var c := _cam_cross.size * 0.5
+	# red kill marker on the victim at the moment of the last kill
+	var mark := recorder.victim_marker()
+	if mark != Vector3.INF and not _cam.is_position_behind(mark):
+		var mp := _cam.unproject_position(mark)
+		var life := clampf(1.0 - recorder.since_kill() / 0.9, 0.0, 1.0)
+		var red := Color(1.0, 0.2, 0.15, life)
+		var sz := 16.0 + 14.0 * (1.0 - life)
+		for k in [Vector2(1, 1), Vector2(1, -1)]:
+			_cam_cross.draw_line(mp - k * sz, mp + k * sz, red, 4.0, true)
+		_cam_cross.draw_arc(mp, sz * 1.8, 0.0, TAU, 32, Color(1.0, 0.3, 0.2, life * 0.7), 2.5, true)
 	var aim := recorder.killer_aim
 	var a := 1.0 - clampf((aim - 0.5) * 2.0, 0.0, 1.0)
 	var col := Color(1, 1, 1, 0.9)
@@ -517,7 +527,7 @@ func _update_killcam(delta: float) -> void:
 	else:
 		_dead_elapsed = 0.0
 	if _replay_active and recorder.playing:
-		_cam.fov = lerpf(GameSettings.fov, recorder.killer_ads_fov(), recorder.killer_aim)
+		_cam.fov = recorder.last_kill_fov(lerpf(GameSettings.fov, recorder.killer_ads_fov(), recorder.killer_aim))
 		_cam_cross.queue_redraw()
 	if not _killcam_active:
 		return
@@ -628,7 +638,7 @@ func _start_last_kill_cam() -> bool:
 		return false
 	var killer := MatchManager.get_participant(int(final_kill["killer"]))
 	var victim := MatchManager.get_participant(int(final_kill["victim"]))
-	if not recorder.start(final_kill, _cam):
+	if not recorder.start(final_kill, _cam, 3.5, 1.4):
 		return false
 	_replay_active = true
 	projectiles_container.visible = false

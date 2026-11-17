@@ -11,7 +11,7 @@ size = Vector3(0.0500, 0.0620, 0.3000)
 
 [sub_resource type="BoxMesh" id="mesh_1"]
 material = SubResource("mat_gunmetal")
-size = Vector3(0.0400, 0.0280, 0.2900)
+size = Vector3(0.0416, 0.0288, 0.2900)
 
 [sub_resource type="StandardMaterial3D" id="mat_steel"]
 albedo_color = Color(0.130, 0.135, 0.150, 1)
@@ -24,7 +24,7 @@ size = Vector3(0.0220, 0.0080, 0.2700)
 
 [sub_resource type="BoxMesh" id="mesh_3"]
 material = SubResource("mat_steel")
-size = Vector3(0.0020, 0.0200, 0.0750)
+size = Vector3(0.0028, 0.0200, 0.0750)
 
 [sub_resource type="StandardMaterial3D" id="mat_steel_light"]
 albedo_color = Color(0.380, 0.390, 0.420, 1)
@@ -45,11 +45,11 @@ size = Vector3(0.0240, 0.0100, 0.0500)
 
 [sub_resource type="BoxMesh" id="mesh_7"]
 material = SubResource("mat_steel")
-size = Vector3(0.0050, 0.0170, 0.0100)
+size = Vector3(0.0058, 0.0170, 0.0100)
 
 [sub_resource type="BoxMesh" id="mesh_8"]
 material = SubResource("mat_steel")
-size = Vector3(0.0050, 0.0170, 0.0100)
+size = Vector3(0.0058, 0.0170, 0.0100)
 
 [sub_resource type="CylinderMesh" id="mesh_9"]
 material = SubResource("mat_gunmetal")
@@ -169,7 +169,7 @@ size = Vector3(0.0400, 0.0920, 0.1000)
 
 [sub_resource type="BoxMesh" id="mesh_32"]
 material = SubResource("mat_steel")
-size = Vector3(0.0300, 0.0080, 0.0900)
+size = Vector3(0.0300, 0.0096, 0.0908)
 
 [sub_resource type="BoxMesh" id="mesh_33"]
 material = SubResource("mat_wood")
@@ -277,7 +277,7 @@ roughness = 0.95
 
 [sub_resource type="BoxMesh" id="mesh_56"]
 material = SubResource("mat_sleeve")
-size = Vector3(0.0620, 0.0560, 0.7984)
+size = Vector3(0.0820, 0.0740, 0.3600)
 
 [sub_resource type="BoxMesh" id="mesh_57"]
 material = SubResource("mat_glove")
@@ -329,7 +329,7 @@ size = Vector3(0.0560, 0.0480, 0.0260)
 
 [sub_resource type="BoxMesh" id="mesh_69"]
 material = SubResource("mat_sleeve")
-size = Vector3(0.0600, 0.0540, 0.5274)
+size = Vector3(0.0780, 0.0700, 0.3600)
 
 [node name="AK47Model" type="Node3D"]
 
@@ -338,7 +338,7 @@ position = Vector3(0.0000, 0.0000, -0.0300)
 mesh = SubResource("mesh_0")
 
 [node name="DustCover" type="MeshInstance3D" parent="."]
-position = Vector3(0.0000, 0.0460, -0.0340)
+position = Vector3(0.0000, 0.0464, -0.0340)
 mesh = SubResource("mesh_1")
 
 [node name="DustCoverRidge" type="MeshInstance3D" parent="."]
@@ -346,7 +346,7 @@ position = Vector3(0.0000, 0.0620, -0.0340)
 mesh = SubResource("mesh_2")
 
 [node name="EjectionPort" type="MeshInstance3D" parent="."]
-position = Vector3(0.0255, 0.0300, -0.0200)
+position = Vector3(0.0251, 0.0300, -0.0200)
 mesh = SubResource("mesh_3")
 
 [node name="ChargingHandle" type="MeshInstance3D" parent="."]
@@ -362,11 +362,11 @@ position = Vector3(0.0000, 0.0700, -0.1700)
 mesh = SubResource("mesh_6")
 
 [node name="RearSightL" type="MeshInstance3D" parent="."]
-position = Vector3(-0.0095, 0.0795, -0.1780)
+position = Vector3(-0.0099, 0.0795, -0.1780)
 mesh = SubResource("mesh_7")
 
 [node name="RearSightR" type="MeshInstance3D" parent="."]
-position = Vector3(0.0095, 0.0795, -0.1780)
+position = Vector3(0.0099, 0.0795, -0.1780)
 mesh = SubResource("mesh_8")
 
 [node name="Barrel" type="MeshInstance3D" parent="."]
@@ -477,7 +477,7 @@ position = Vector3(0.0000, 0.0140, 0.1550)
 mesh = SubResource("mesh_31")
 
 [node name="StockTang" type="MeshInstance3D" parent="."]
-position = Vector3(0.0000, 0.0560, 0.1500)
+position = Vector3(0.0000, 0.0568, 0.1496)
 mesh = SubResource("mesh_32")
 
 [node name="Stock" type="MeshInstance3D" parent="."]
@@ -578,7 +578,7 @@ position = Vector3(-0.0040, -0.0040, 0.0460)
 mesh = SubResource("mesh_55")
 
 [node name="LeftForearm" type="MeshInstance3D" parent="LeftHand"]
-position = Vector3(-0.0630, -0.2780, 0.3375)
+position = Vector3(-0.0317, -0.1352, 0.1741)
 rotation = Vector3(-0.7093, 2.9523, 0.0000)
 mesh = SubResource("mesh_56")
 
@@ -634,6 +634,6 @@ position = Vector3(0.0100, -0.0280, 0.0440)
 mesh = SubResource("mesh_68")
 
 [node name="RightForearm" type="MeshInstance3D" parent="RightHand"]
-position = Vector3(0.0720, -0.2500, 0.1690)
+position = Vector3(0.0504, -0.1795, 0.1293)
 rotation = Vector3(-1.0008, -2.6434, 0.0000)
 mesh = SubResource("mesh_69")

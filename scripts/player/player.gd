@@ -220,11 +220,19 @@ func _play_death_animation_replay() -> void:
 	_death_tween.tween_property(body, "position", Vector3(0.0, 0.25, 0.0), 0.45)
 
 
-## Killcam: the killer's weapon moves into the line of sight when aiming (0 = hip, 1 = sights).
-func replay_aim(a: float) -> void:
+## Killcam: while aiming the weapon sits exactly where the first-person view model sits when aiming
+## (relative to the camera `cam_xf`), so sights and weapon look like in the game (0 = hip, 1 = sights).
+func replay_aim(a: float, cam_xf: Transform3D = Transform3D.IDENTITY) -> void:
 	var hip := Vector3(0.22, 1.25, -0.25)
-	var sights := Vector3(0.0, current_height - EYE_BELOW_TOP - 0.07, -0.36)
-	hands.position = hip.lerp(sights, a)
+	if a <= 0.001:
+		hands.position = hip
+		hands.rotation = Vector3(head.pitch, 0.0, 0.0)
+		return
+	var w := weapon_manager.get_current_weapon()
+	var ads_pos: Vector3 = w.data.ads_position if w != null else Vector3(0.0, -0.07, -0.35)
+	var hip_xf := body.global_transform * Transform3D(Basis.from_euler(Vector3(head.pitch, 0.0, 0.0)), hip)
+	var ads_xf := cam_xf * Transform3D(Basis.IDENTITY, ads_pos)
+	hands.global_transform = hip_xf.interpolate_with(ads_xf, a)
 
 
 func replay_shot() -> void:

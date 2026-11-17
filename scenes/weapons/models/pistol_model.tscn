@@ -200,7 +200,7 @@ roughness = 0.95
 
 [sub_resource type="BoxMesh" id="mesh_38"]
 material = SubResource("mat_sleeve")
-size = Vector3(0.0560, 0.0500, 0.5249)
+size = Vector3(0.0780, 0.0700, 0.3600)
 
 [sub_resource type="BoxMesh" id="mesh_39"]
 material = SubResource("mat_glove")
@@ -252,7 +252,7 @@ size = Vector3(0.0560, 0.0480, 0.0260)
 
 [sub_resource type="BoxMesh" id="mesh_51"]
 material = SubResource("mat_sleeve")
-size = Vector3(0.0560, 0.0500, 0.5170)
+size = Vector3(0.0780, 0.0700, 0.3600)
 
 [node name="PistolModel" type="Node3D"]
 
@@ -429,7 +429,7 @@ position = Vector3(0.0100, -0.0280, 0.0440)
 mesh = SubResource("mesh_37")
 
 [node name="RightForearm" type="MeshInstance3D" parent="RightHand"]
-position = Vector3(0.0460, -0.2670, 0.1440)
+position = Vector3(0.0328, -0.1919, 0.1126)
 rotation = Vector3(-1.1448, -2.7440, 0.0000)
 mesh = SubResource("mesh_38")
 
@@ -485,6 +485,6 @@ position = Vector3(-0.0100, -0.0280, 0.0440)
 mesh = SubResource("mesh_50")
 
 [node name="LeftForearm" type="MeshInstance3D" parent="LeftHand"]
-position = Vector3(-0.0270, -0.2620, 0.1470)
+position = Vector3(-0.0200, -0.1903, 0.1157)
 rotation = Vector3(-1.1503, 2.9219, 0.0000)
 mesh = SubResource("mesh_51")
