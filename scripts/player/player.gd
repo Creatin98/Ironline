@@ -111,6 +111,8 @@ var _walk_phase: float = 0.0
 var _step_view_offset: float = 0.0 # camera lag after a step so the view glides instead of popping
 ## Set whenever this player fired (read by the replay recorder).
 var shot_flag: bool = false
+## Hit codes (HitFeedback.BODY/HEAD/KILL) of the last shots at enemies (read by the replay recorder).
+var hit_flag: int = 0
 var replay_mode: bool = false
 
 
@@ -170,6 +172,12 @@ func setup(participant: Participant, new_class: ClassData, local: bool) -> void:
 func consume_shot_flag() -> bool:
 	var f := shot_flag
 	shot_flag = false
+	return f
+
+
+func consume_hit_flag() -> int:
+	var f := hit_flag
+	hit_flag = 0
 	return f
 
 

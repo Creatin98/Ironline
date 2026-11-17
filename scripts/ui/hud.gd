@@ -430,39 +430,8 @@ func _draw_crosshair() -> void:
 		_draw_hitmarker(center)
 
 
-## Hit feedback: white X (hit), red double cross (headshot), bigger with a burst ring on kills.
 func _draw_hitmarker(center: Vector2) -> void:
-	var life := clampf(_hitmarker_time / _hitmarker_total, 0.0, 1.0) # 1 -> 0
-	var alpha := clampf(life * 2.5, 0.0, 1.0)
-	var pop := 1.0 + (0.55 if _hitmarker_kill else 0.3) * pow(life, 3.0) # starts big, settles
-	var red := Color(1.0, 0.22, 0.16, alpha)
-	var white := Color(1.0, 1.0, 1.0, alpha)
-	var col := red if (_hitmarker_head or _hitmarker_kill) else white
-	var size := 1.0
-	if _hitmarker_kill:
-		size = 1.55
-	elif _hitmarker_head:
-		size = 1.2
-	var r1 := 6.0 * size * pop
-	var r2 := 16.0 * size * pop
-	var width := 4.0 if _hitmarker_kill else 3.0
-	var shadow := Color(0, 0, 0, alpha * 0.55)
-	var diagonals := [Vector2(1, 1), Vector2(-1, 1), Vector2(1, -1), Vector2(-1, -1)]
-	for d in diagonals:
-		var dn: Vector2 = d.normalized()
-		crosshair.draw_line(center + dn * r1 + Vector2(1, 1), center + dn * r2 + Vector2(1, 1), shadow, width + 1.0)
-		crosshair.draw_line(center + dn * r1, center + dn * r2, col, width)
-	if _hitmarker_head:
-		# second cross (+) on top of the X: the "double cross" of a headshot
-		var p1 := r1 * 1.25
-		var p2 := r2 * 1.35
-		for d in [Vector2(1, 0), Vector2(-1, 0), Vector2(0, 1), Vector2(0, -1)]:
-			crosshair.draw_line(center + d * p1 + Vector2(1, 1), center + d * p2 + Vector2(1, 1), shadow, width + 1.0)
-			crosshair.draw_line(center + d * p1, center + d * p2, col, width)
-	if _hitmarker_kill:
-		var ring_t := 1.0 - life
-		var ring_alpha := clampf(1.0 - ring_t * 1.4, 0.0, 1.0) * 0.8
-		crosshair.draw_arc(center, 10.0 + ring_t * 46.0, 0.0, TAU, 40, Color(1.0, 0.3, 0.2, ring_alpha), 3.0, true)
+	HitFeedback.draw_marker(crosshair, center, _hitmarker_time, _hitmarker_total, _hitmarker_head, _hitmarker_kill)
 
 
 ## Red arcs around the crosshair that point towards whoever hurt us.
@@ -710,26 +679,19 @@ func _on_hit_enemy(headshot: bool, killed: bool) -> void:
 	var me := MatchManager.get_local_participant()
 	if me != null:
 		streak = maxi(1, me.killstreak)
+	HitFeedback.play_sounds(headshot, killed, streak)
 	if killed:
-		# the thunk/chime gets higher with every kill in a row (max +8 steps)
-		var pitch := 1.0 + 0.045 * float(mini(streak - 1, 8))
-		AudioManager.play_2d("hitmarker_headshot" if headshot else "hitmarker", -8.0, 0.0)
-		var p := AudioManager.play_2d("kill_headshot" if headshot else "kill_confirm", -1.0, 0.0)
-		if p != null:
-			p.pitch_scale = pitch
 		_kill_flash.color.a = 0.16 if headshot else 0.1
 		if _player != null and is_instance_valid(_player):
 			_player.head.kick_fov(5.5 if headshot else 3.5)
-	else:
-		AudioManager.play_2d("hitmarker_headshot" if headshot else "hitmarker", -1.0 if headshot else -3.0, 0.03)
-		if headshot and _player != null and is_instance_valid(_player):
-			_player.head.kick_fov(1.5)
+	elif headshot and _player != null and is_instance_valid(_player):
+		_player.head.kick_fov(1.5)
 
 
 func show_hitmarker(headshot: bool, killed: bool) -> void:
 	_hitmarker_head = headshot
 	_hitmarker_kill = killed
-	_hitmarker_total = 0.5 if killed else (0.22 if headshot else 0.14)
+	_hitmarker_total = HitFeedback.duration(headshot, killed)
 	_hitmarker_time = _hitmarker_total
 
 

@@ -47,6 +47,7 @@ var _tp_flashes: Array[Node3D] = []
 var grenade_holding: bool = false
 var _grenade_hold_time: float = 0.0
 var _fp_arms: FirstPersonArms
+var _skin_color: Color = Color(0.88, 0.72, 0.58) # tone of the hands (set_arm_colors)
 var _grenade_view: GrenadeView
 var _grenade_sound_idx: int = 0
 var _tp_grenade_t: float = -1.0 # remote players: time into the throw (sounds only)
@@ -103,7 +104,17 @@ func setup(new_player: Player, class_data: ClassData, local: bool) -> void:
 			_tp_flashes.append(null)
 	current_index = 0
 	_switch_state = SwitchState.READY
+	_apply_hand_skin()
 	_show_weapon(current_index, true)
+
+
+## The hands of every model (first-person and third-person copy) get the skin tone of the player.
+func _apply_hand_skin() -> void:
+	for w in weapons:
+		if w.model != null:
+			ReloadRig.apply_skin(w.model, _skin_color)
+	for m in _tp_models:
+		ReloadRig.apply_skin(m, _skin_color)
 
 
 func reset_for_spawn() -> void:
@@ -517,6 +528,8 @@ func _wrist(model: Node3D, hand_name: String, offset: Vector3) -> Vector3:
 
 ## Skin and shirt colour of the first-person arms (those of the player's own figure).
 func set_arm_colors(skin: Color, shirt: Color) -> void:
+	_skin_color = skin
+	_apply_hand_skin()
 	if _fp_arms != null:
 		_fp_arms.set_colors(skin, shirt)
 

@@ -2,10 +2,12 @@ class_name MatchEndScreen
 extends Control
 ## Shown when the match is over: result, final scoreboard, class choice, buttons and the vote for the next map.
 ##
-## The map vote follows one fixed sequence on one clock (NetworkManager.vote_time, 15 s):
-##   RESULTS (first 10 s)  scoreboard with the three map cards small at the bottom; the vote is already open.
-##   FINAL   (last 5 s)    the scoreboard fades away and shrinks, the cards glide into the middle of the
-##                         screen, grow and move apart: the final vote with a big countdown.
+## The map vote follows one fixed sequence on one clock (NetworkManager.vote_time, 20 s):
+##   RESULTS (first 10 s)  scoreboard (winner team left, loser team right) with the three map cards small at
+##                         the bottom; the vote is already open.
+##   FINAL   (last 10 s)   the scoreboard fades away and shrinks, the cards glide into the middle of the
+##                         screen, grow and move apart: the final vote with a big countdown; now the class
+##                         choice (detailed cards in HUD style) and the main menu button appear at the bottom.
 ##   OUTCOME (after it)    the two other maps vanish, the winner moves to the middle and fills the screen
 ##                         (the same picture the loading screen shows) -> loading screen -> next round.
 ## Online the host owns the clock and the result (NetworkManager); offline the screen runs the same
@@ -19,7 +21,7 @@ signal class_selected(class_id: String)
 
 enum Phase { NONE, RESULTS, FINAL, OUTCOME }
 
-const FINAL_VOTE_TIME := 5.0
+const FINAL_VOTE_TIME := 10.0
 ## The closing animation is written for this length and scaled to NetworkManager.vote_outcome_time.
 const OUTCOME_BASE_TIME := 2.8
 
@@ -32,7 +34,7 @@ var wait_label: Label
 var vote_box: VBoxContainer
 var vote_title: Label
 var vote_picker: PreviewPicker
-var class_picker: PreviewPicker
+var class_picker: ClassStrip # without a map vote: below the scoreboard; with a vote: see _stage_class
 
 var _content: VBoxContainer
 var _dim: ColorRect
@@ -43,6 +45,10 @@ var _stage_bar_bg: ColorRect
 var _stage_bar: ColorRect
 var _stage_hint: Label
 var _stage_leave: Button
+var _stage_class_label: Label
+var _stage_class_host: CenterContainer
+var _stage_class: ClassStrip
+var _leave_btn: Button
 var _flash: ColorRect
 var _cards: Dictionary = {} # map id -> VoteCard
 var _vote_maps: Array = []
@@ -92,19 +98,19 @@ func _ready() -> void:
 	vote_box.add_child(vote_picker)
 	v.add_child(vote_box)
 
-	# bottom row: class choice (left), buttons (right)
-	var bottom := UITheme.hbox(40)
-	bottom.alignment = BoxContainer.ALIGNMENT_CENTER
-	v.add_child(bottom)
-	var class_box := UITheme.vbox(4)
-	class_box.add_child(UITheme.label("Klasse für die nächste Runde", 16, UITheme.TEXT_DIM))
-	class_picker = PreviewPicker.new()
+	# class choice: only when there is no vote (the scoreboard stays); with a vote it appears in the final phase
+	class_picker = ClassStrip.new()
 	class_picker.selected_id = GameSettings.preferred_class_id
-	class_picker.setup(GameDirector.class_picker_items(), Vector2(120, 68), 14)
-	class_picker.selected.connect(func(id: String) -> void: class_selected.emit(id))
+	class_picker.setup(GameDirector.get_class_ids())
+	class_picker.selected.connect(_on_class_chosen)
+	var class_box := UITheme.vbox(4)
+	class_box.add_child(UITheme.label("Klasse für die nächste Runde", 16, UITheme.TEXT_DIM, HORIZONTAL_ALIGNMENT_CENTER))
 	class_box.add_child(class_picker)
-	bottom.add_child(class_box)
-	var buttons := UITheme.vbox(6)
+	class_box.name = "ClassBox"
+	v.add_child(class_box)
+	# buttons, centred below everything
+	var buttons := UITheme.hbox(16)
+	buttons.alignment = BoxContainer.ALIGNMENT_CENTER
 	next_btn = UITheme.button("Nächste Runde", 20, 240)
 	next_btn.pressed.connect(func() -> void: next_round_requested.emit())
 	buttons.add_child(next_btn)
@@ -112,13 +118,13 @@ func _ready() -> void:
 	lobby_btn.pressed.connect(func() -> void: lobby_requested.emit())
 	lobby_btn.visible = false
 	buttons.add_child(lobby_btn)
-	var leave_btn := UITheme.button("Hauptmenü", 20, 240)
-	leave_btn.pressed.connect(func() -> void: leave_requested.emit())
-	buttons.add_child(leave_btn)
-	wait_label = UITheme.label("Der Host entscheidet über die nächste Runde …", 16, UITheme.TEXT_DIM)
+	_leave_btn = UITheme.button("Hauptmenü", 20, 240)
+	_leave_btn.pressed.connect(func() -> void: leave_requested.emit())
+	buttons.add_child(_leave_btn)
+	v.add_child(buttons)
+	wait_label = UITheme.label("Der Host entscheidet über die nächste Runde …", 16, UITheme.TEXT_DIM, HORIZONTAL_ALIGNMENT_CENTER)
 	wait_label.visible = false
-	buttons.add_child(wait_label)
-	bottom.add_child(buttons)
+	v.add_child(wait_label)
 	_build_stage()
 	NetworkManager.vote_opened.connect(_on_vote_opened)
 	NetworkManager.vote_tally_changed.connect(_on_vote_tally)
@@ -153,10 +159,22 @@ func _build_stage() -> void:
 	_stage_hint = UITheme.label("Klicke auf eine Karte, um abzustimmen – die meisten Stimmen entscheiden", 22, UITheme.TEXT_DIM, HORIZONTAL_ALIGNMENT_CENTER)
 	_stage_hint.modulate.a = 0.0
 	_stage.add_child(_stage_hint)
-	_stage_leave = UITheme.button("Hauptmenü", 18, 180)
+	_stage_leave = UITheme.button("Hauptmenü", 18, 200)
 	_stage_leave.pressed.connect(func() -> void: leave_requested.emit())
 	_stage_leave.modulate.a = 0.0
 	_stage.add_child(_stage_leave)
+	_stage_class_label = UITheme.label("KLASSE FÜR DIE NÄCHSTE RUNDE", 17, UITheme.TEXT_DIM, HORIZONTAL_ALIGNMENT_CENTER)
+	_stage_class_label.modulate.a = 0.0
+	_stage.add_child(_stage_class_label)
+	_stage_class_host = CenterContainer.new()
+	_stage_class_host.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_stage_class_host.modulate.a = 0.0
+	_stage.add_child(_stage_class_host)
+	_stage_class = ClassStrip.new()
+	_stage_class.selected_id = GameSettings.preferred_class_id
+	_stage_class.setup(GameDirector.get_class_ids())
+	_stage_class.selected.connect(_on_class_chosen)
+	_stage_class_host.add_child(_stage_class)
 	_flash = ColorRect.new()
 	_flash.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_flash.color = Color(1, 1, 1, 0.0)
@@ -168,7 +186,7 @@ func _process(delta: float) -> void:
 	if _phase == Phase.OUTCOME or _vote_time_left < 0.0:
 		return
 	_vote_time_left = maxf(0.0, _vote_time_left - delta)
-	var final_time := minf(FINAL_VOTE_TIME, _vote_duration * 0.34)
+	var final_time := minf(FINAL_VOTE_TIME, _vote_duration * 0.5)
 	if _phase == Phase.RESULTS:
 		vote_title.text = "Nächste Karte – Abstimmung (%d)" % int(ceil(_vote_time_left))
 		if visible and _vote_time_left <= final_time:
@@ -197,6 +215,12 @@ func _build_vote_cards(maps: Array) -> void:
 	vote_picker.disabled = false
 	vote_picker.modulate = Color.WHITE
 	vote_picker.setup(items, Vector2(190, 107), 18)
+
+
+func _on_class_chosen(class_id: String) -> void:
+	class_picker.set_selected(class_id)
+	_stage_class.set_selected(class_id)
+	class_selected.emit(class_id)
 
 
 func _on_map_picked(map_id: String) -> void:
@@ -247,6 +271,7 @@ func _on_vote_opened(maps: Array, duration: float) -> void:
 	_start_vote_clock(duration)
 	_build_vote_cards(maps)
 	vote_box.visible = true
+	_content.get_node("ClassBox").visible = false # the class choice comes with the final phase
 
 
 func _on_vote_tally(tally: Dictionary) -> void:
@@ -275,12 +300,12 @@ func _finish_offline_vote() -> void:
 
 func _final_rects() -> Array[Rect2]:
 	var n := maxi(1, _vote_maps.size())
-	var w := clampf(size.x * 0.27, 240.0, 620.0)
+	var w := clampf(size.x * 0.25, 240.0, 560.0)
 	var gap := clampf(size.x * 0.045, 20.0, 100.0)
 	var h := w / VoteCard.ASPECT
 	var total := n * w + (n - 1) * gap
 	var x0 := (size.x - total) * 0.5
-	var y := size.y * 0.57 - h * 0.5
+	var y := size.y * 0.5 - h * 0.5
 	var out: Array[Rect2] = []
 	for i in n:
 		out.append(Rect2(Vector2(x0 + i * (w + gap), y), Vector2(w, h)))
@@ -300,11 +325,20 @@ func _layout_stage() -> void:
 	_stage_count.size = Vector2(s.x, s.y * 0.17)
 	_stage_count.pivot_offset = _stage_count.size * 0.5
 	var bar_w := s.x * 0.3
-	_stage_bar_bg.position = Vector2((s.x - bar_w) * 0.5, top + h + s.y * 0.035)
+	_stage_bar_bg.position = Vector2((s.x - bar_w) * 0.5, top + h + s.y * 0.03)
 	_stage_bar_bg.size = Vector2(bar_w, 6.0)
-	_stage_hint.position = Vector2(0.0, _stage_bar_bg.position.y + 22.0)
+	_stage_hint.position = Vector2(0.0, _stage_bar_bg.position.y + 18.0)
 	_stage_hint.size = Vector2(s.x, 36.0)
-	_stage_leave.position = Vector2(24.0, s.y - 24.0 - _stage_leave.size.y)
+	# bottom: class choice, centred; below it the main menu button, also centred
+	var leave_size := _stage_leave.get_combined_minimum_size()
+	_stage_leave.size = leave_size
+	_stage_leave.position = Vector2((s.x - leave_size.x) * 0.5, s.y - 22.0 - leave_size.y)
+	var strip_h := 112.0
+	var strip_y := _stage_leave.position.y - 16.0 - strip_h
+	_stage_class_host.position = Vector2(0.0, strip_y)
+	_stage_class_host.size = Vector2(s.x, strip_h)
+	_stage_class_label.position = Vector2(0.0, strip_y - 26.0)
+	_stage_class_label.size = Vector2(s.x, 24.0)
 
 
 func _make_card(id: String) -> VoteCard:
@@ -355,13 +389,13 @@ func _enter_final(instant: bool = false) -> void:
 		tw.tween_property(_content, "position:y", _content.position.y - 40.0, 0.75)
 		tw.tween_property(_content, "modulate:a", 0.0, 0.6)
 		tw.tween_property(_dim, "color:a", 0.84, 0.7)
-		for l in [_stage_title, _stage_count, _stage_bar_bg, _stage_hint, _stage_leave]:
-			tw.tween_property(l, "modulate:a", 1.0, 0.5).set_delay(0.35)
+		for l in [_stage_title, _stage_count, _stage_bar_bg, _stage_hint, _stage_leave, _stage_class_label, _stage_class_host]:
+			tw.tween_property(l, "modulate:a", 1.0, 0.5).set_delay(0.55)
 		tw.chain().tween_callback(_hide_content)
 	else:
 		_hide_content()
 		_dim.color.a = 0.84
-		for l in [_stage_title, _stage_count, _stage_bar_bg, _stage_hint, _stage_leave]:
+		for l in [_stage_title, _stage_count, _stage_bar_bg, _stage_hint, _stage_leave, _stage_class_label, _stage_class_host]:
 			l.modulate.a = 1.0
 
 
@@ -426,7 +460,7 @@ func _start_outcome(winner_map: String) -> void:
 	_stage.move_child(_flash, -1)
 	var tw := create_tween().set_parallel(true)
 	_intro_tween = tw
-	for l in [_stage_count, _stage_bar_bg, _stage_hint]:
+	for l in [_stage_count, _stage_bar_bg, _stage_hint, _stage_class_label, _stage_class_host]:
 		tw.tween_property(l, "modulate:a", 0.0, 0.25 * k)
 	# the other maps shrink away to the sides
 	for id in _vote_maps:
@@ -488,17 +522,19 @@ func configure_for_network() -> void:
 	next_btn.visible = not online or host
 	lobby_btn.visible = online and host
 	wait_label.visible = online and not host and not _online_vote
+	_content.get_node("ClassBox").visible = not _online_vote and not (not online and MatchManager.config.map_voting)
 
 
 func show_results() -> void:
 	visible = true
 	scoreboard.visible = true
+	scoreboard.side_by_side = MatchManager.mode.uses_teams
 	scoreboard.panel.set_anchors_preset(Control.PRESET_TOP_LEFT)
-	scoreboard.panel.position = Vector2(50, 0)
 	scoreboard.rebuild()
-	# the scoreboard panel is not layout-managed: reserve its height
-	var rows := MatchManager.participants.size() + (2 if MatchManager.mode.uses_teams else 0)
-	scoreboard.custom_minimum_size = Vector2(860, 130 + rows * 32)
+	# the scoreboard panel is not layout-managed: reserve its size
+	var panel_size := scoreboard.panel.get_combined_minimum_size()
+	scoreboard.panel.position = Vector2(0, 0)
+	scoreboard.custom_minimum_size = Vector2(panel_size.x, panel_size.y + 4.0)
 	if not NetworkManager.is_online() and MatchManager.config.map_voting:
 		# offline: the same vote sequence, our own pick decides
 		_online_vote = false
@@ -509,6 +545,7 @@ func show_results() -> void:
 		_refresh_vote_ui()
 		next_btn.visible = false
 		vote_box.visible = true
+		_content.get_node("ClassBox").visible = false
 	var me := MatchManager.get_local_participant()
 	if MatchManager.is_draw():
 		result_label.text = "UNENTSCHIEDEN"

@@ -292,11 +292,20 @@ func _volume(grid: GridContainer, entry: Dictionary) -> void:
 	var val := UITheme.label("", 18, UITheme.ACCENT, HORIZONTAL_ALIGNMENT_RIGHT)
 	_row(grid, String(entry["label"]), s, val)
 	var e := _register({"kind": "volume", "prop": String(entry["id"]), "ctrl": s, "value_label": val, "tab": 1})
+	# every volume slider gives a soft confirmation tick: when the drag ends, and for keyboard/wheel steps (throttled)
+	var state := {"dragging": false, "last_msec": 0}
+	s.drag_started.connect(func() -> void: state["dragging"] = true)
 	s.value_changed.connect(func(v: float) -> void:
 		val.text = "%d %%" % int(v)
-		if not _loading:
-			GameSettings.set_volume(String(e["prop"]), v / 100.0))
+		if _loading:
+			return
+		GameSettings.set_volume(String(e["prop"]), v / 100.0)
+		var now := Time.get_ticks_msec()
+		if not state["dragging"] and now - int(state["last_msec"]) > 120:
+			state["last_msec"] = now
+			AudioManager.play_preview(String(e["prop"])))
 	s.drag_ended.connect(func(changed: bool) -> void:
+		state["dragging"] = false
 		if changed:
 			AudioManager.play_preview(String(e["prop"])))
 

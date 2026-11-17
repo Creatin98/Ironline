@@ -8,7 +8,7 @@ extends Node3D
 enum State { HOLSTERED, DRAWING, IDLE, RELOADING, PUMPING, RELOAD_EXIT }
 
 const RELOAD_EXIT_TIME := 0.2
-const ADS_BLOOM := 0.4 # share of the spread bloom (spread_bonus) that applies while aiming down the sights
+const ADS_BLOOM := 0.5 # share of the spread bloom (spread_bonus) that applies while aiming down the sights
 const HIT_MASK := 1 | 2 # World + Players
 const IMPACT_SCENE := preload("res://scenes/effects/bullet_impact.tscn")
 const MUZZLE_FLASH_SCENE := preload("res://scenes/effects/muzzle_flash.tscn")
@@ -30,6 +30,8 @@ var anim_rotation: Vector3 = Vector3.ZERO
 var model: Node3D
 var muzzle: Node3D
 var pump_node: Node3D
+var _pump_hand: Node3D # the support hand holds the pump: it travels with it
+var _pump_hand_rest: Vector3 = Vector3.ZERO
 var slide_node: Node3D
 var muzzle_flash: Node3D
 
@@ -60,6 +62,9 @@ func setup(new_data: WeaponData, new_player: Player, local: bool) -> void:
 		slide_node = model.get_node_or_null("Slide")
 		if pump_node:
 			_pump_rest = pump_node.position
+			_pump_hand = model.get_node_or_null("LeftHand") as Node3D
+			if _pump_hand:
+				_pump_hand_rest = _pump_hand.position
 		rig = ReloadRig.create(model, data.reload_style)
 		if local:
 			# the first-person view gets IK arms (FirstPersonArms); the model's built-in sleeves would end in mid-air
@@ -111,6 +116,8 @@ func cancel_actions() -> void:
 	anim_rotation = Vector3.ZERO
 	if pump_node:
 		pump_node.position = _pump_rest
+	if _pump_hand:
+		_pump_hand.position = _pump_hand_rest
 
 
 func _set_state(new_state: int, duration: float) -> void:
@@ -161,12 +168,16 @@ func update(delta: float) -> void:
 			var f := data.impact_feel
 			if pump_node:
 				pump_node.position = _pump_rest + Vector3(0.0, 0.0, 0.08 * s * minf(f, 1.6))
+				if _pump_hand:
+					_pump_hand.position = _pump_hand_rest + Vector3(0.0, 0.0, 0.08 * s * minf(f, 1.6))
 			# aggressive pump: the weapon is yanked down/back and rolled with each rack
 			anim_offset = Vector3(0.0, -0.02 * s * f, 0.02 * s * f)
 			anim_rotation = Vector3(0.12 * s * f, 0.04 * s * (f - 1.0), 0.15 * s * f)
 			if _state_timer <= 0.0:
 				if pump_node:
 					pump_node.position = _pump_rest
+				if _pump_hand:
+					_pump_hand.position = _pump_hand_rest
 				anim_offset = Vector3.ZERO
 				anim_rotation = Vector3.ZERO
 				_set_state(State.IDLE, 0.0)
@@ -218,7 +229,7 @@ func try_fire(is_aiming: bool, move_ratio: float, in_air: bool, crouching: bool)
 	var hit_enemy := false
 	var headshot_any := false
 	var killed_any := false
-	var impacts: Array = [] # [position, normal, hit_player] for the other machines
+	var impacts: Array = [] # [position, normal, hit_player, hit_code] for the other machines
 	last_fire_msec = Time.get_ticks_msec()
 	player.shot_flag = true
 	for i in data.pellets:
@@ -229,7 +240,7 @@ func try_fire(is_aiming: bool, move_ratio: float, in_air: bool, crouching: bool)
 		var collider: Object = result["collider"]
 		var hit_pos: Vector3 = result["position"]
 		var normal: Vector3 = result["normal"]
-		impacts.append([hit_pos, normal, collider is Player])
+		var pellet_code := 0
 		if collider is Player:
 			var target := collider as Player
 			var distance := origin.distance_to(hit_pos)
@@ -242,10 +253,14 @@ func try_fire(is_aiming: bool, move_ratio: float, in_air: bool, crouching: bool)
 				hit_enemy = true
 				headshot_any = headshot_any or headshot
 				killed_any = killed_any or killed
+				pellet_code = HitFeedback.BODY | (HitFeedback.HEAD if headshot else 0) | (HitFeedback.KILL if killed else 0)
 			_spawn_impact(hit_pos, normal, true)
 		else:
 			_spawn_impact(hit_pos, normal, false)
+		impacts.append([hit_pos, normal, collider is Player, pellet_code])
 
+	if hit_enemy:
+		player.hit_flag |= HitFeedback.BODY | (HitFeedback.HEAD if headshot_any else 0) | (HitFeedback.KILL if killed_any else 0)
 	_play_shot_feedback()
 	_apply_recoil(is_aiming, crouching)
 	if is_local and hit_enemy:
@@ -303,6 +318,8 @@ func play_remote_shot(impacts: Array) -> void:
 	for entry in impacts:
 		if typeof(entry) == TYPE_ARRAY and entry.size() >= 3:
 			_spawn_impact(entry[0], entry[1], bool(entry[2]))
+			if entry.size() >= 4:
+				player.hit_flag |= int(entry[3]) # killcam: the hitmarker of this shot
 	GameEvents.shot_fired.emit(player.participant_id, player.get_eye_position())
 
 

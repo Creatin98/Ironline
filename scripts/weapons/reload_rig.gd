@@ -97,6 +97,35 @@ static func create(model: Node3D, reload_style: String) -> ReloadRig:
 	return r
 
 
+## Tints the bare hands of a weapon model to a skin tone (the same tone as the arm / the character):
+## the model's skin materials are shared by all instances, so every model gets its own copies.
+static func apply_skin(model: Node3D, skin: Color) -> void:
+	var mats := {}
+	for hand_name in ["LeftHand", "RightHand"]:
+		var hand := model.get_node_or_null(hand_name)
+		if hand == null:
+			continue
+		for n in hand.find_children("*", "MeshInstance3D", true, false):
+			var mi := n as MeshInstance3D
+			var pm := mi.mesh as PrimitiveMesh
+			if pm == null or pm.material == null:
+				continue
+			var key := pm.material.resource_name
+			if key != "skin" and key != "skin_shade" and key != "nail":
+				continue
+			if not mats.has(key):
+				var m := pm.material.duplicate() as StandardMaterial3D
+				match key:
+					"skin":
+						m.albedo_color = skin
+					"skin_shade":
+						m.albedo_color = skin.darkened(0.13)
+					_:
+						m.albedo_color = skin.lerp(Color(1.0, 0.93, 0.88), 0.3)
+				mats[key] = m
+			mi.material_override = mats[key]
+
+
 ## Back to the rest pose (end of reload, weapon switch, death).
 func reset() -> void:
 	left_elbow_shift = Vector3.ZERO

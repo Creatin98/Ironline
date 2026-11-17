@@ -9,6 +9,8 @@ extends Node
 ##    players (the real ones are hidden by the Game) and shows the last seconds of the killer's view.
 
 signal finished
+## The killer's shot hit an enemy in the replay (hitmarker + sounds of the killer's view).
+signal killer_hit(headshot: bool, killed: bool)
 
 const WINDOW := 12.0
 const RATE := 30.0
@@ -23,7 +25,7 @@ var killer_aim: float = 0.0
 var _killer_aim_target: float = 0.0
 var kill: Dictionary = {}
 
-var _frames: Array = [] # {"t": float, "p": {id: [pos, yaw, pitch, crouch, alive, weapon, fired]}}
+var _frames: Array = [] # {"t": float, "p": {id: [pos, yaw, pitch, crouch, alive, weapon, fired, aiming, hit_code]}}
 var _kills: Array = [] # {"t", "killer", "victim", "weapon", "headshot"}
 var _accum: float = 0.0
 var _cursor: float = 0.0
@@ -59,7 +61,7 @@ func _record() -> void:
 		var n := p.node as Player
 		if n == null or not is_instance_valid(n) or n.replay_mode:
 			continue
-		snap[p.id] = [n.global_position, n.rotation.y, n.head.pitch, n.is_crouching, n.alive, n.weapon_manager.current_index, n.consume_shot_flag(), n.is_aiming]
+		snap[p.id] = [n.global_position, n.rotation.y, n.head.pitch, n.is_crouching, n.alive, n.weapon_manager.current_index, n.consume_shot_flag(), n.is_aiming, n.consume_hit_flag()]
 	var t := _now()
 	_frames.append({"t": t, "p": snap})
 	while _frames.size() > 2 and float(_frames[0]["t"]) < t - WINDOW:
@@ -329,10 +331,14 @@ func _apply(t: float, first: bool) -> void:
 		for f in range(_index_at(_prev_cursor) + 1, i + 1):
 			var fr: Dictionary = _frames[f]
 			for id in fr["p"]:
-				if bool((fr["p"][id] as Array)[6]):
+				var st: Array = fr["p"][id]
+				if bool(st[6]):
 					var shooter: Player = _targets.get(int(id))
 					if shooter != null and is_instance_valid(shooter):
 						shooter.replay_shot()
+				if int(id) == _killer_id and st.size() > 8 and int(st[8]) != 0:
+					var code := int(st[8])
+					killer_hit.emit(code & HitFeedback.HEAD != 0, code & HitFeedback.KILL != 0)
 	_prev_cursor = t
 	# the recording may end right at the kill: make sure the victim goes down on screen
 	if t >= float(kill["t"]) and not _victim_dead_shown:

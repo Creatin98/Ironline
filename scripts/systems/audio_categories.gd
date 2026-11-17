@@ -9,8 +9,8 @@ extends RefCounted
 ## Sounds are assigned to a category in EXACT_SOUNDS / SOUND_PREFIXES by their file name.
 
 ## id: key in GameSettings.volumes and in settings.cfg; bus: AudioServer bus; parent: bus it sends to
-## (a parent's volume affects all its children); group: heading in the settings menu; preview: sound
-## that plays when the slider is released (empty = none).
+## (a parent's volume affects all its children); group: heading in the settings menu; preview: unused since every
+## slider confirms with the same quiet tick (AudioManager.play_preview).
 const ENTRIES: Array[Dictionary] = [
 	{"id": "master", "bus": "Master", "parent": "", "label": "Gesamtlautstärke", "group": "Gesamt", "default": 1.0, "preview": "kill_confirm"},
 	{"id": "music", "bus": "Music", "parent": "Master", "label": "Musik", "group": "Gesamt", "default": 0.6, "preview": ""},

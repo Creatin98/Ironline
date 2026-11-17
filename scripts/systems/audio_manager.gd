@@ -145,16 +145,17 @@ func play_2d(sfx_name: String, volume_db: float = 0.0, pitch_variation: float = 
 
 
 ## Plays the sample of a category (volume slider feedback in the sound settings).
+## Confirmation tick of a volume slider: the same soft sound for every category, played on that category's bus
+## (so it also shows the new level) and far quieter than the game sounds.
+const SLIDER_CONFIRM_SOUND := "kill_confirm"
+const SLIDER_CONFIRM_DB := -27.0
+
+
 func play_preview(category_id: String) -> void:
-	var sample := String(AudioCategories.get_entry(category_id).get("preview", ""))
-	if sample == "":
+	var entry := AudioCategories.get_entry(category_id)
+	if entry.is_empty():
 		return
-	var p := play_2d(sample, -3.0, 0.0, String(AudioCategories.get_entry(category_id)["bus"]))
-	if p != null and p.stream != null and p.stream.get_length() > 2.0:
-		var stream := p.stream
-		get_tree().create_timer(1.8, true, false, true).timeout.connect(func() -> void:
-			if is_instance_valid(p) and p.stream == stream:
-				p.stop())
+	play_2d(SLIDER_CONFIRM_SOUND, SLIDER_CONFIRM_DB, 0.0, String(entry["bus"]))
 
 
 func play_ui(sfx_name: String, volume_db: float = 0.0) -> void:

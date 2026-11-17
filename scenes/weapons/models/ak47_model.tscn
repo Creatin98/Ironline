@@ -1,4 +1,4 @@
-[gd_scene load_steps=79 format=3]
+[gd_scene load_steps=104 format=3]
 
 [sub_resource type="StandardMaterial3D" id="mat_gunmetal"]
 albedo_color = Color(0.240, 0.250, 0.280, 1)
@@ -179,155 +179,258 @@ size = Vector3(0.0400, 0.0820, 0.1500)
 material = SubResource("mat_polymer")
 size = Vector3(0.0420, 0.0980, 0.0140)
 
-[sub_resource type="StandardMaterial3D" id="mat_glove"]
-albedo_color = Color(0.130, 0.130, 0.140, 1)
-roughness = 0.90
+[sub_resource type="StandardMaterial3D" id="mat_skin"]
+resource_name = "skin"
+albedo_color = Color(0.880, 0.720, 0.580, 1)
+roughness = 0.85
 
 [sub_resource type="BoxMesh" id="mesh_35"]
-material = SubResource("mat_glove")
-size = Vector3(0.0560, 0.0200, 0.0820)
+material = SubResource("mat_skin")
+size = Vector3(0.0560, 0.0220, 0.0820)
 
-[sub_resource type="StandardMaterial3D" id="mat_glove_pad"]
-albedo_color = Color(0.200, 0.210, 0.230, 1)
-roughness = 0.80
+[sub_resource type="StandardMaterial3D" id="mat_skin_shade"]
+resource_name = "skin_shade"
+albedo_color = Color(0.770, 0.600, 0.470, 1)
+roughness = 0.90
 
 [sub_resource type="BoxMesh" id="mesh_36"]
-material = SubResource("mat_glove_pad")
-size = Vector3(0.0460, 0.0060, 0.0500)
+material = SubResource("mat_skin_shade")
+size = Vector3(0.0400, 0.0070, 0.0300)
 
 [sub_resource type="BoxMesh" id="mesh_37"]
-material = SubResource("mat_glove")
-size = Vector3(0.0346, 0.0160, 0.0170)
+material = SubResource("mat_skin")
+size = Vector3(0.0320, 0.0165, 0.0162)
 
 [sub_resource type="BoxMesh" id="mesh_38"]
-material = SubResource("mat_glove")
-size = Vector3(0.0160, 0.0309, 0.0170)
+material = SubResource("mat_skin")
+size = Vector3(0.0165, 0.0340, 0.0162)
 
 [sub_resource type="BoxMesh" id="mesh_39"]
-material = SubResource("mat_glove")
-size = Vector3(0.0200, 0.0130, 0.0160)
+material = SubResource("mat_skin")
+size = Vector3(0.0145, 0.0120, 0.0152)
 
 [sub_resource type="BoxMesh" id="mesh_40"]
-material = SubResource("mat_glove_pad")
-size = Vector3(0.0030, 0.0120, 0.0140)
+material = SubResource("mat_skin_shade")
+size = Vector3(0.0171, 0.0028, 0.0166)
 
 [sub_resource type="BoxMesh" id="mesh_41"]
-material = SubResource("mat_glove")
-size = Vector3(0.0369, 0.0160, 0.0170)
+material = SubResource("mat_skin_shade")
+size = Vector3(0.0171, 0.0024, 0.0166)
+
+[sub_resource type="StandardMaterial3D" id="mat_nail"]
+resource_name = "nail"
+albedo_color = Color(0.930, 0.800, 0.730, 1)
+roughness = 0.60
 
 [sub_resource type="BoxMesh" id="mesh_42"]
-material = SubResource("mat_glove")
-size = Vector3(0.0160, 0.0330, 0.0170)
+material = SubResource("mat_nail")
+size = Vector3(0.0016, 0.0085, 0.0105)
 
 [sub_resource type="BoxMesh" id="mesh_43"]
-material = SubResource("mat_glove")
-size = Vector3(0.0200, 0.0130, 0.0160)
+material = SubResource("mat_skin")
+size = Vector3(0.0320, 0.0165, 0.0162)
 
 [sub_resource type="BoxMesh" id="mesh_44"]
-material = SubResource("mat_glove_pad")
-size = Vector3(0.0030, 0.0120, 0.0140)
+material = SubResource("mat_skin")
+size = Vector3(0.0165, 0.0367, 0.0162)
 
 [sub_resource type="BoxMesh" id="mesh_45"]
-material = SubResource("mat_glove")
-size = Vector3(0.0369, 0.0160, 0.0170)
+material = SubResource("mat_skin")
+size = Vector3(0.0145, 0.0130, 0.0152)
 
 [sub_resource type="BoxMesh" id="mesh_46"]
-material = SubResource("mat_glove")
-size = Vector3(0.0160, 0.0330, 0.0170)
+material = SubResource("mat_skin_shade")
+size = Vector3(0.0171, 0.0028, 0.0166)
 
 [sub_resource type="BoxMesh" id="mesh_47"]
-material = SubResource("mat_glove")
-size = Vector3(0.0200, 0.0130, 0.0160)
+material = SubResource("mat_skin_shade")
+size = Vector3(0.0171, 0.0024, 0.0166)
 
 [sub_resource type="BoxMesh" id="mesh_48"]
-material = SubResource("mat_glove_pad")
-size = Vector3(0.0030, 0.0120, 0.0140)
+material = SubResource("mat_nail")
+size = Vector3(0.0016, 0.0092, 0.0105)
 
 [sub_resource type="BoxMesh" id="mesh_49"]
-material = SubResource("mat_glove")
-size = Vector3(0.0346, 0.0160, 0.0170)
+material = SubResource("mat_skin")
+size = Vector3(0.0320, 0.0165, 0.0162)
 
 [sub_resource type="BoxMesh" id="mesh_50"]
-material = SubResource("mat_glove")
-size = Vector3(0.0160, 0.0309, 0.0170)
+material = SubResource("mat_skin")
+size = Vector3(0.0165, 0.0340, 0.0162)
 
 [sub_resource type="BoxMesh" id="mesh_51"]
-material = SubResource("mat_glove")
-size = Vector3(0.0200, 0.0130, 0.0160)
+material = SubResource("mat_skin")
+size = Vector3(0.0145, 0.0120, 0.0152)
 
 [sub_resource type="BoxMesh" id="mesh_52"]
-material = SubResource("mat_glove_pad")
-size = Vector3(0.0030, 0.0120, 0.0140)
+material = SubResource("mat_skin_shade")
+size = Vector3(0.0171, 0.0028, 0.0166)
 
 [sub_resource type="BoxMesh" id="mesh_53"]
-material = SubResource("mat_glove")
-size = Vector3(0.0160, 0.0300, 0.0200)
+material = SubResource("mat_skin_shade")
+size = Vector3(0.0171, 0.0024, 0.0166)
 
 [sub_resource type="BoxMesh" id="mesh_54"]
-material = SubResource("mat_glove")
-size = Vector3(0.0150, 0.0140, 0.0400)
+material = SubResource("mat_nail")
+size = Vector3(0.0016, 0.0085, 0.0105)
 
 [sub_resource type="BoxMesh" id="mesh_55"]
-material = SubResource("mat_glove_pad")
-size = Vector3(0.0620, 0.0500, 0.0260)
+material = SubResource("mat_skin")
+size = Vector3(0.0320, 0.0165, 0.0162)
+
+[sub_resource type="BoxMesh" id="mesh_56"]
+material = SubResource("mat_skin")
+size = Vector3(0.0165, 0.0286, 0.0162)
+
+[sub_resource type="BoxMesh" id="mesh_57"]
+material = SubResource("mat_skin")
+size = Vector3(0.0145, 0.0101, 0.0152)
+
+[sub_resource type="BoxMesh" id="mesh_58"]
+material = SubResource("mat_skin_shade")
+size = Vector3(0.0171, 0.0028, 0.0166)
+
+[sub_resource type="BoxMesh" id="mesh_59"]
+material = SubResource("mat_skin_shade")
+size = Vector3(0.0171, 0.0024, 0.0166)
+
+[sub_resource type="BoxMesh" id="mesh_60"]
+material = SubResource("mat_nail")
+size = Vector3(0.0016, 0.0071, 0.0105)
+
+[sub_resource type="BoxMesh" id="mesh_61"]
+material = SubResource("mat_skin")
+size = Vector3(0.0165, 0.0300, 0.0220)
+
+[sub_resource type="BoxMesh" id="mesh_62"]
+material = SubResource("mat_skin")
+size = Vector3(0.0155, 0.0155, 0.0320)
+
+[sub_resource type="BoxMesh" id="mesh_63"]
+material = SubResource("mat_skin")
+size = Vector3(0.0145, 0.0140, 0.0220)
+
+[sub_resource type="BoxMesh" id="mesh_64"]
+material = SubResource("mat_skin_shade")
+size = Vector3(0.0160, 0.0165, 0.0026)
+
+[sub_resource type="BoxMesh" id="mesh_65"]
+material = SubResource("mat_nail")
+size = Vector3(0.0105, 0.0016, 0.0125)
+
+[sub_resource type="BoxMesh" id="mesh_66"]
+material = SubResource("mat_skin")
+size = Vector3(0.0500, 0.0400, 0.0280)
 
 [sub_resource type="StandardMaterial3D" id="mat_sleeve"]
 albedo_color = Color(0.170, 0.200, 0.140, 1)
 roughness = 0.95
 
-[sub_resource type="BoxMesh" id="mesh_56"]
+[sub_resource type="BoxMesh" id="mesh_67"]
 material = SubResource("mat_sleeve")
 size = Vector3(0.0820, 0.0740, 0.3600)
 
-[sub_resource type="BoxMesh" id="mesh_57"]
-material = SubResource("mat_glove")
-size = Vector3(0.0200, 0.0620, 0.0440)
-
-[sub_resource type="BoxMesh" id="mesh_58"]
-material = SubResource("mat_glove_pad")
-size = Vector3(0.0400, 0.0500, 0.0160)
-
-[sub_resource type="BoxMesh" id="mesh_59"]
-material = SubResource("mat_glove")
-size = Vector3(0.0460, 0.0140, 0.0160)
-
-[sub_resource type="BoxMesh" id="mesh_60"]
-material = SubResource("mat_glove")
-size = Vector3(0.0140, 0.0140, 0.0220)
-
-[sub_resource type="BoxMesh" id="mesh_61"]
-material = SubResource("mat_glove")
-size = Vector3(0.0460, 0.0140, 0.0160)
-
-[sub_resource type="BoxMesh" id="mesh_62"]
-material = SubResource("mat_glove")
-size = Vector3(0.0140, 0.0140, 0.0220)
-
-[sub_resource type="BoxMesh" id="mesh_63"]
-material = SubResource("mat_glove")
-size = Vector3(0.0460, 0.0140, 0.0160)
-
-[sub_resource type="BoxMesh" id="mesh_64"]
-material = SubResource("mat_glove")
-size = Vector3(0.0140, 0.0140, 0.0220)
-
-[sub_resource type="BoxMesh" id="mesh_65"]
-material = SubResource("mat_glove")
-size = Vector3(0.0140, 0.0120, 0.0460)
-
-[sub_resource type="BoxMesh" id="mesh_66"]
-material = SubResource("mat_glove")
-size = Vector3(0.0160, 0.0200, 0.0240)
-
-[sub_resource type="BoxMesh" id="mesh_67"]
-material = SubResource("mat_glove")
-size = Vector3(0.0140, 0.0140, 0.0420)
-
 [sub_resource type="BoxMesh" id="mesh_68"]
-material = SubResource("mat_glove_pad")
-size = Vector3(0.0560, 0.0480, 0.0260)
+material = SubResource("mat_skin")
+size = Vector3(0.0220, 0.0640, 0.0460)
 
 [sub_resource type="BoxMesh" id="mesh_69"]
+material = SubResource("mat_skin")
+size = Vector3(0.0400, 0.0520, 0.0160)
+
+[sub_resource type="BoxMesh" id="mesh_70"]
+material = SubResource("mat_skin")
+size = Vector3(0.0460, 0.0158, 0.0165)
+
+[sub_resource type="BoxMesh" id="mesh_71"]
+material = SubResource("mat_skin")
+size = Vector3(0.0155, 0.0152, 0.0240)
+
+[sub_resource type="BoxMesh" id="mesh_72"]
+material = SubResource("mat_skin_shade")
+size = Vector3(0.0030, 0.0162, 0.0169)
+
+[sub_resource type="BoxMesh" id="mesh_73"]
+material = SubResource("mat_skin_shade")
+size = Vector3(0.0159, 0.0156, 0.0026)
+
+[sub_resource type="BoxMesh" id="mesh_74"]
+material = SubResource("mat_nail")
+size = Vector3(0.0016, 0.0098, 0.0125)
+
+[sub_resource type="BoxMesh" id="mesh_75"]
+material = SubResource("mat_skin")
+size = Vector3(0.0460, 0.0158, 0.0165)
+
+[sub_resource type="BoxMesh" id="mesh_76"]
+material = SubResource("mat_skin")
+size = Vector3(0.0155, 0.0152, 0.0240)
+
+[sub_resource type="BoxMesh" id="mesh_77"]
+material = SubResource("mat_skin_shade")
+size = Vector3(0.0030, 0.0162, 0.0169)
+
+[sub_resource type="BoxMesh" id="mesh_78"]
+material = SubResource("mat_skin_shade")
+size = Vector3(0.0159, 0.0156, 0.0026)
+
+[sub_resource type="BoxMesh" id="mesh_79"]
+material = SubResource("mat_nail")
+size = Vector3(0.0016, 0.0098, 0.0125)
+
+[sub_resource type="BoxMesh" id="mesh_80"]
+material = SubResource("mat_skin")
+size = Vector3(0.0460, 0.0158, 0.0165)
+
+[sub_resource type="BoxMesh" id="mesh_81"]
+material = SubResource("mat_skin")
+size = Vector3(0.0155, 0.0152, 0.0240)
+
+[sub_resource type="BoxMesh" id="mesh_82"]
+material = SubResource("mat_skin_shade")
+size = Vector3(0.0030, 0.0162, 0.0169)
+
+[sub_resource type="BoxMesh" id="mesh_83"]
+material = SubResource("mat_skin_shade")
+size = Vector3(0.0159, 0.0156, 0.0026)
+
+[sub_resource type="BoxMesh" id="mesh_84"]
+material = SubResource("mat_nail")
+size = Vector3(0.0016, 0.0098, 0.0125)
+
+[sub_resource type="BoxMesh" id="mesh_85"]
+material = SubResource("mat_skin")
+size = Vector3(0.0145, 0.0130, 0.0260)
+
+[sub_resource type="BoxMesh" id="mesh_86"]
+material = SubResource("mat_skin")
+size = Vector3(0.0135, 0.0120, 0.0220)
+
+[sub_resource type="BoxMesh" id="mesh_87"]
+material = SubResource("mat_skin_shade")
+size = Vector3(0.0150, 0.0135, 0.0026)
+
+[sub_resource type="BoxMesh" id="mesh_88"]
+material = SubResource("mat_nail")
+size = Vector3(0.0105, 0.0016, 0.0125)
+
+[sub_resource type="BoxMesh" id="mesh_89"]
+material = SubResource("mat_skin")
+size = Vector3(0.0165, 0.0210, 0.0260)
+
+[sub_resource type="BoxMesh" id="mesh_90"]
+material = SubResource("mat_skin")
+size = Vector3(0.0145, 0.0145, 0.0400)
+
+[sub_resource type="BoxMesh" id="mesh_91"]
+material = SubResource("mat_nail")
+size = Vector3(0.0110, 0.0016, 0.0125)
+
+[sub_resource type="BoxMesh" id="mesh_92"]
+material = SubResource("mat_skin")
+size = Vector3(0.0500, 0.0420, 0.0300)
+
+[sub_resource type="BoxMesh" id="mesh_93"]
 material = SubResource("mat_sleeve")
 size = Vector3(0.0780, 0.0700, 0.3600)
 
@@ -497,143 +600,239 @@ position = Vector3(0.0000, -0.0120, -0.3350)
 [node name="LeftPalm" type="MeshInstance3D" parent="LeftHand"]
 mesh = SubResource("mesh_35")
 
-[node name="LeftPalmPad" type="MeshInstance3D" parent="LeftHand"]
-position = Vector3(0.0000, -0.0110, -0.0100)
+[node name="LeftPalmHeel" type="MeshInstance3D" parent="LeftHand"]
+position = Vector3(-0.0040, -0.0125, 0.0280)
 mesh = SubResource("mesh_36")
 
 [node name="LeftFinger0A" type="MeshInstance3D" parent="LeftHand"]
-position = Vector3(0.0378, 0.0000, -0.0300)
+position = Vector3(0.0285, 0.0000, -0.0305)
 mesh = SubResource("mesh_37")
 
 [node name="LeftFinger0B" type="MeshInstance3D" parent="LeftHand"]
-position = Vector3(0.0360, 0.0160, -0.0300)
+position = Vector3(0.0353, 0.0090, -0.0305)
 mesh = SubResource("mesh_38")
 
 [node name="LeftFinger0C" type="MeshInstance3D" parent="LeftHand"]
-position = Vector3(0.0270, 0.0340, -0.0300)
+position = Vector3(0.0338, 0.0310, -0.0305)
 mesh = SubResource("mesh_39")
 
 [node name="LeftKnuckle0" type="MeshInstance3D" parent="LeftHand"]
-position = Vector3(0.0450, 0.0120, -0.0300)
+position = Vector3(0.0354, -0.0035, -0.0305)
 mesh = SubResource("mesh_40")
 
-[node name="LeftFinger1A" type="MeshInstance3D" parent="LeftHand"]
-position = Vector3(0.0378, 0.0000, -0.0100)
+[node name="LeftJoint0" type="MeshInstance3D" parent="LeftHand"]
+position = Vector3(0.0354, 0.0250, -0.0305)
 mesh = SubResource("mesh_41")
 
-[node name="LeftFinger1B" type="MeshInstance3D" parent="LeftHand"]
-position = Vector3(0.0360, 0.0160, -0.0100)
+[node name="LeftNail0" type="MeshInstance3D" parent="LeftHand"]
+position = Vector3(0.0424, 0.0310, -0.0305)
 mesh = SubResource("mesh_42")
 
-[node name="LeftFinger1C" type="MeshInstance3D" parent="LeftHand"]
-position = Vector3(0.0270, 0.0340, -0.0100)
+[node name="LeftFinger1A" type="MeshInstance3D" parent="LeftHand"]
+position = Vector3(0.0285, 0.0000, -0.0100)
 mesh = SubResource("mesh_43")
 
-[node name="LeftKnuckle1" type="MeshInstance3D" parent="LeftHand"]
-position = Vector3(0.0450, 0.0120, -0.0100)
+[node name="LeftFinger1B" type="MeshInstance3D" parent="LeftHand"]
+position = Vector3(0.0353, 0.0104, -0.0100)
 mesh = SubResource("mesh_44")
 
-[node name="LeftFinger2A" type="MeshInstance3D" parent="LeftHand"]
-position = Vector3(0.0378, 0.0000, 0.0100)
+[node name="LeftFinger1C" type="MeshInstance3D" parent="LeftHand"]
+position = Vector3(0.0338, 0.0337, -0.0100)
 mesh = SubResource("mesh_45")
 
-[node name="LeftFinger2B" type="MeshInstance3D" parent="LeftHand"]
-position = Vector3(0.0360, 0.0160, 0.0100)
+[node name="LeftKnuckle1" type="MeshInstance3D" parent="LeftHand"]
+position = Vector3(0.0354, -0.0035, -0.0100)
 mesh = SubResource("mesh_46")
 
-[node name="LeftFinger2C" type="MeshInstance3D" parent="LeftHand"]
-position = Vector3(0.0270, 0.0340, 0.0100)
+[node name="LeftJoint1" type="MeshInstance3D" parent="LeftHand"]
+position = Vector3(0.0354, 0.0277, -0.0100)
 mesh = SubResource("mesh_47")
 
-[node name="LeftKnuckle2" type="MeshInstance3D" parent="LeftHand"]
-position = Vector3(0.0450, 0.0120, 0.0100)
+[node name="LeftNail1" type="MeshInstance3D" parent="LeftHand"]
+position = Vector3(0.0424, 0.0337, -0.0100)
 mesh = SubResource("mesh_48")
 
-[node name="LeftFinger3A" type="MeshInstance3D" parent="LeftHand"]
-position = Vector3(0.0378, 0.0000, 0.0300)
+[node name="LeftFinger2A" type="MeshInstance3D" parent="LeftHand"]
+position = Vector3(0.0285, 0.0000, 0.0105)
 mesh = SubResource("mesh_49")
 
-[node name="LeftFinger3B" type="MeshInstance3D" parent="LeftHand"]
-position = Vector3(0.0360, 0.0160, 0.0300)
+[node name="LeftFinger2B" type="MeshInstance3D" parent="LeftHand"]
+position = Vector3(0.0353, 0.0090, 0.0105)
 mesh = SubResource("mesh_50")
 
-[node name="LeftFinger3C" type="MeshInstance3D" parent="LeftHand"]
-position = Vector3(0.0270, 0.0340, 0.0300)
+[node name="LeftFinger2C" type="MeshInstance3D" parent="LeftHand"]
+position = Vector3(0.0338, 0.0310, 0.0105)
 mesh = SubResource("mesh_51")
 
-[node name="LeftKnuckle3" type="MeshInstance3D" parent="LeftHand"]
-position = Vector3(0.0450, 0.0120, 0.0300)
+[node name="LeftKnuckle2" type="MeshInstance3D" parent="LeftHand"]
+position = Vector3(0.0354, -0.0035, 0.0105)
 mesh = SubResource("mesh_52")
 
-[node name="LeftThumbBase" type="MeshInstance3D" parent="LeftHand"]
-position = Vector3(-0.0350, 0.0140, 0.0140)
+[node name="LeftJoint2" type="MeshInstance3D" parent="LeftHand"]
+position = Vector3(0.0354, 0.0250, 0.0105)
 mesh = SubResource("mesh_53")
 
-[node name="LeftThumbTip" type="MeshInstance3D" parent="LeftHand"]
-position = Vector3(-0.0310, 0.0300, -0.0140)
+[node name="LeftNail2" type="MeshInstance3D" parent="LeftHand"]
+position = Vector3(0.0424, 0.0310, 0.0105)
 mesh = SubResource("mesh_54")
 
-[node name="LeftCuff" type="MeshInstance3D" parent="LeftHand"]
-position = Vector3(-0.0040, -0.0040, 0.0460)
+[node name="LeftFinger3A" type="MeshInstance3D" parent="LeftHand"]
+position = Vector3(0.0285, 0.0000, 0.0310)
 mesh = SubResource("mesh_55")
+
+[node name="LeftFinger3B" type="MeshInstance3D" parent="LeftHand"]
+position = Vector3(0.0353, 0.0063, 0.0310)
+mesh = SubResource("mesh_56")
+
+[node name="LeftFinger3C" type="MeshInstance3D" parent="LeftHand"]
+position = Vector3(0.0338, 0.0256, 0.0310)
+mesh = SubResource("mesh_57")
+
+[node name="LeftKnuckle3" type="MeshInstance3D" parent="LeftHand"]
+position = Vector3(0.0354, -0.0035, 0.0310)
+mesh = SubResource("mesh_58")
+
+[node name="LeftJoint3" type="MeshInstance3D" parent="LeftHand"]
+position = Vector3(0.0354, 0.0196, 0.0310)
+mesh = SubResource("mesh_59")
+
+[node name="LeftNail3" type="MeshInstance3D" parent="LeftHand"]
+position = Vector3(0.0424, 0.0256, 0.0310)
+mesh = SubResource("mesh_60")
+
+[node name="LeftThumbBase" type="MeshInstance3D" parent="LeftHand"]
+position = Vector3(-0.0345, 0.0130, 0.0160)
+mesh = SubResource("mesh_61")
+
+[node name="LeftThumbMid" type="MeshInstance3D" parent="LeftHand"]
+position = Vector3(-0.0325, 0.0285, 0.0000)
+mesh = SubResource("mesh_62")
+
+[node name="LeftThumbTip" type="MeshInstance3D" parent="LeftHand"]
+position = Vector3(-0.0325, 0.0285, -0.0245)
+mesh = SubResource("mesh_63")
+
+[node name="LeftThumbJoint" type="MeshInstance3D" parent="LeftHand"]
+position = Vector3(-0.0325, 0.0285, -0.0140)
+mesh = SubResource("mesh_64")
+
+[node name="LeftThumbNail" type="MeshInstance3D" parent="LeftHand"]
+position = Vector3(-0.0325, 0.0357, -0.0245)
+mesh = SubResource("mesh_65")
+
+[node name="LeftWrist" type="MeshInstance3D" parent="LeftHand"]
+position = Vector3(-0.0050, -0.0100, 0.0560)
+mesh = SubResource("mesh_66")
 
 [node name="LeftForearm" type="MeshInstance3D" parent="LeftHand"]
 position = Vector3(-0.0317, -0.1352, 0.1741)
 rotation = Vector3(-0.7093, 2.9523, 0.0000)
-mesh = SubResource("mesh_56")
+mesh = SubResource("mesh_67")
 
 [node name="RightHand" type="Node3D" parent="."]
 position = Vector3(0.0000, -0.0780, 0.0860)
 
 [node name="RightPalm" type="MeshInstance3D" parent="RightHand"]
-position = Vector3(0.0260, 0.0000, 0.0040)
-mesh = SubResource("mesh_57")
+position = Vector3(0.0260, 0.0000, 0.0060)
+mesh = SubResource("mesh_68")
 
-[node name="RightBackPad" type="MeshInstance3D" parent="RightHand"]
-position = Vector3(0.0040, -0.0040, 0.0260)
-mesh = SubResource("mesh_58")
+[node name="RightWeb" type="MeshInstance3D" parent="RightHand"]
+position = Vector3(0.0060, -0.0020, 0.0300)
+mesh = SubResource("mesh_69")
 
 [node name="RightFinger0A" type="MeshInstance3D" parent="RightHand"]
-position = Vector3(0.0020, 0.0140, -0.0260)
-mesh = SubResource("mesh_59")
+position = Vector3(0.0030, 0.0140, -0.0265)
+mesh = SubResource("mesh_70")
 
 [node name="RightFinger0B" type="MeshInstance3D" parent="RightHand"]
-position = Vector3(-0.0260, 0.0140, -0.0200)
-mesh = SubResource("mesh_60")
+position = Vector3(-0.0265, 0.0140, -0.0215)
+mesh = SubResource("mesh_71")
+
+[node name="RightKnuckle0" type="MeshInstance3D" parent="RightHand"]
+position = Vector3(0.0255, 0.0140, -0.0265)
+mesh = SubResource("mesh_72")
+
+[node name="RightJoint0" type="MeshInstance3D" parent="RightHand"]
+position = Vector3(-0.0265, 0.0140, -0.0155)
+mesh = SubResource("mesh_73")
+
+[node name="RightNail0" type="MeshInstance3D" parent="RightHand"]
+position = Vector3(-0.0345, 0.0140, -0.0235)
+mesh = SubResource("mesh_74")
 
 [node name="RightFinger1A" type="MeshInstance3D" parent="RightHand"]
-position = Vector3(0.0020, -0.0040, -0.0260)
-mesh = SubResource("mesh_61")
+position = Vector3(0.0030, -0.0040, -0.0265)
+mesh = SubResource("mesh_75")
 
 [node name="RightFinger1B" type="MeshInstance3D" parent="RightHand"]
-position = Vector3(-0.0260, -0.0040, -0.0200)
-mesh = SubResource("mesh_62")
+position = Vector3(-0.0265, -0.0040, -0.0215)
+mesh = SubResource("mesh_76")
+
+[node name="RightKnuckle1" type="MeshInstance3D" parent="RightHand"]
+position = Vector3(0.0255, -0.0040, -0.0265)
+mesh = SubResource("mesh_77")
+
+[node name="RightJoint1" type="MeshInstance3D" parent="RightHand"]
+position = Vector3(-0.0265, -0.0040, -0.0155)
+mesh = SubResource("mesh_78")
+
+[node name="RightNail1" type="MeshInstance3D" parent="RightHand"]
+position = Vector3(-0.0345, -0.0040, -0.0235)
+mesh = SubResource("mesh_79")
 
 [node name="RightFinger2A" type="MeshInstance3D" parent="RightHand"]
-position = Vector3(0.0020, -0.0220, -0.0260)
-mesh = SubResource("mesh_63")
+position = Vector3(0.0030, -0.0220, -0.0265)
+mesh = SubResource("mesh_80")
 
 [node name="RightFinger2B" type="MeshInstance3D" parent="RightHand"]
-position = Vector3(-0.0260, -0.0220, -0.0200)
-mesh = SubResource("mesh_64")
+position = Vector3(-0.0265, -0.0220, -0.0215)
+mesh = SubResource("mesh_81")
+
+[node name="RightKnuckle2" type="MeshInstance3D" parent="RightHand"]
+position = Vector3(0.0255, -0.0220, -0.0265)
+mesh = SubResource("mesh_82")
+
+[node name="RightJoint2" type="MeshInstance3D" parent="RightHand"]
+position = Vector3(-0.0265, -0.0220, -0.0155)
+mesh = SubResource("mesh_83")
+
+[node name="RightNail2" type="MeshInstance3D" parent="RightHand"]
+position = Vector3(-0.0345, -0.0220, -0.0235)
+mesh = SubResource("mesh_84")
 
 [node name="RightIndex" type="MeshInstance3D" parent="RightHand"]
-position = Vector3(0.0000, 0.0320, -0.0460)
-mesh = SubResource("mesh_65")
+position = Vector3(0.0000, 0.0320, -0.0360)
+mesh = SubResource("mesh_85")
+
+[node name="RightIndexTip" type="MeshInstance3D" parent="RightHand"]
+position = Vector3(0.0000, 0.0320, -0.0595)
+mesh = SubResource("mesh_86")
+
+[node name="RightIndexJoint" type="MeshInstance3D" parent="RightHand"]
+position = Vector3(0.0000, 0.0320, -0.0485)
+mesh = SubResource("mesh_87")
+
+[node name="RightIndexNail" type="MeshInstance3D" parent="RightHand"]
+position = Vector3(0.0000, 0.0388, -0.0595)
+mesh = SubResource("mesh_88")
 
 [node name="RightThumbBase" type="MeshInstance3D" parent="RightHand"]
 position = Vector3(-0.0200, 0.0300, 0.0180)
-mesh = SubResource("mesh_66")
+mesh = SubResource("mesh_89")
 
 [node name="RightThumbTip" type="MeshInstance3D" parent="RightHand"]
 position = Vector3(-0.0280, 0.0340, -0.0140)
-mesh = SubResource("mesh_67")
+mesh = SubResource("mesh_90")
 
-[node name="RightCuff" type="MeshInstance3D" parent="RightHand"]
-position = Vector3(0.0100, -0.0280, 0.0440)
-mesh = SubResource("mesh_68")
+[node name="RightThumbNail" type="MeshInstance3D" parent="RightHand"]
+position = Vector3(-0.0280, 0.0414, -0.0265)
+mesh = SubResource("mesh_91")
+
+[node name="RightWrist" type="MeshInstance3D" parent="RightHand"]
+position = Vector3(0.0080, -0.0260, 0.0500)
+mesh = SubResource("mesh_92")
 
 [node name="RightForearm" type="MeshInstance3D" parent="RightHand"]
 position = Vector3(0.0504, -0.1795, 0.1293)
 rotation = Vector3(-1.0008, -2.6434, 0.0000)
-mesh = SubResource("mesh_69")
+mesh = SubResource("mesh_93")

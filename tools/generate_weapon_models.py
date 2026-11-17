@@ -24,8 +24,10 @@ MATERIALS = {
     "wood_dark": dict(color=(0.30, 0.15, 0.06), metallic=0.0, roughness=0.65),
     "polymer": dict(color=(0.11, 0.11, 0.12), metallic=0.0, roughness=0.85),
     "polymer_grey": dict(color=(0.22, 0.23, 0.25), metallic=0.0, roughness=0.8),
-    "glove_pad": dict(color=(0.20, 0.21, 0.23), metallic=0.0, roughness=0.8),
-    "glove": dict(color=(0.13, 0.13, 0.14), metallic=0.0, roughness=0.9),
+    # bare hands: tinted per player at runtime (ReloadRig.apply_skin finds them by the material's resource_name)
+    "skin": dict(color=(0.88, 0.72, 0.58), metallic=0.0, roughness=0.85, name="skin"),
+    "skin_shade": dict(color=(0.77, 0.60, 0.47), metallic=0.0, roughness=0.9, name="skin_shade"),
+    "nail": dict(color=(0.93, 0.80, 0.73), metallic=0.0, roughness=0.6, name="nail"),
     "sleeve": dict(color=(0.17, 0.20, 0.14), metallic=0.0, roughness=0.95),
     "shell_red": dict(color=(0.72, 0.10, 0.08), metallic=0.0, roughness=0.55),
     "brass": dict(color=(0.80, 0.62, 0.26), metallic=0.8, roughness=0.3),
@@ -50,8 +52,10 @@ class Scene:
         if name not in self.mat_ids:
             m = MATERIALS[name]
             mid = "mat_" + name
-            lines = [f'[sub_resource type="StandardMaterial3D" id="{mid}"]',
-                     "albedo_color = Color(%.3f, %.3f, %.3f, 1)" % m["color"]]
+            lines = [f'[sub_resource type="StandardMaterial3D" id="{mid}"]']
+            if "name" in m:
+                lines.append(f'resource_name = "{m["name"]}"')
+            lines.append("albedo_color = Color(%.3f, %.3f, %.3f, 1)" % m["color"])
             if m.get("metallic"):
                 lines.append("metallic = %.2f" % m["metallic"])
             lines.append("roughness = %.2f" % m["roughness"])
@@ -177,35 +181,51 @@ class Scene:
 
 
 def support_hand(s, group, half):
-    """Left/support hand wrapped around a handguard from below (group origin = palm centre, the
-    handguard bottom is 0.012 above it): palm, four fingers curling up the right side, thumb on the left."""
-    s.box("LeftPalm", (0.0, 0.0, 0.0), (0.056, 0.020, 0.082), "glove", parent=group)
-    s.box("LeftPalmPad", (0.0, -0.011, -0.010), (0.046, 0.006, 0.050), "glove_pad", parent=group)
-    for k, zc in enumerate((-0.030, -0.010, 0.010, 0.030)):
-        reach = 1.0 - 0.06 * abs(k - 1.5) # the outer fingers are a little shorter
-        s.box(f"LeftFinger{k}A", (half * 0.55 + 0.024, 0.0, zc), (0.038 * reach, 0.016, 0.017), "glove", parent=group)
-        s.box(f"LeftFinger{k}B", (half + 0.011, 0.016, zc), (0.016, 0.034 * reach, 0.017), "glove", parent=group)
-        s.box(f"LeftFinger{k}C", (half + 0.002, 0.034, zc), (0.020, 0.013, 0.016), "glove", parent=group)
-        s.box(f"LeftKnuckle{k}", (half + 0.020, 0.012, zc), (0.003, 0.012, 0.014), "glove_pad", parent=group)
-    s.box("LeftThumbBase", (-(half + 0.010), 0.014, 0.014), (0.016, 0.030, 0.020), "glove", parent=group)
-    s.box("LeftThumbTip", (-(half + 0.006), 0.030, -0.014), (0.015, 0.014, 0.040), "glove", parent=group)
-    s.box("LeftCuff", (-0.004, -0.004, 0.046), (0.062, 0.050, 0.026), "glove_pad", parent=group)
+    """Bare left/support hand wrapped around a handguard from below (group origin = palm centre, the handguard
+    bottom is 0.012 above it): palm with heel pad, four fingers (index nearest the muzzle) curling up the right
+    side in three joints each with creases and nails, the thumb along the left side, a slim wrist."""
+    s.box("LeftPalm", (0.0, 0.0, 0.0), (0.056, 0.022, 0.082), "skin", parent=group)
+    s.box("LeftPalmHeel", (-0.004, -0.0125, 0.028), (0.040, 0.007, 0.030), "skin_shade", parent=group)
+    t = 0.0165 # finger thickness
+    for k, zc in enumerate((-0.0305, -0.0100, 0.0105, 0.0310)):
+        reach = (1.0, 1.08, 1.0, 0.84)[k] # index, middle, ring, little finger
+        xo = half + 0.002 + t / 2 # the finger rises beside the handguard
+        top = -0.008 + 0.034 * reach
+        s.box(f"LeftFinger{k}A", (0.0285, 0.0, zc), (0.032, t, 0.0162), "skin", parent=group)
+        s.box(f"LeftFinger{k}B", (xo, (-0.008 + top) / 2, zc), (t, top + 0.008, 0.0162), "skin", parent=group)
+        s.box(f"LeftFinger{k}C", (xo - 0.0015, top + 0.005, zc), (0.0145, 0.012 * reach, 0.0152), "skin", parent=group)
+        s.box(f"LeftKnuckle{k}", (xo + 0.0001, -0.0035, zc), (t + 0.0006, 0.0028, 0.0166), "skin_shade", parent=group)
+        s.box(f"LeftJoint{k}", (xo + 0.0001, top - 0.001, zc), (t + 0.0006, 0.0024, 0.0166), "skin_shade", parent=group)
+        s.box(f"LeftNail{k}", (xo + 0.0071, top + 0.005, zc), (0.0016, 0.0085 * reach, 0.0105), "nail", parent=group)
+    s.box("LeftThumbBase", (-(half + 0.0095), 0.013, 0.016), (0.0165, 0.030, 0.022), "skin", parent=group)
+    s.box("LeftThumbMid", (-(half + 0.0075), 0.0285, 0.000), (0.0155, 0.0155, 0.032), "skin", parent=group)
+    s.box("LeftThumbTip", (-(half + 0.0075), 0.0285, -0.0245), (0.0145, 0.0140, 0.022), "skin", parent=group)
+    s.box("LeftThumbJoint", (-(half + 0.0075), 0.0285, -0.0140), (0.0160, 0.0165, 0.0026), "skin_shade", parent=group)
+    s.box("LeftThumbNail", (-(half + 0.0075), 0.0357, -0.0245), (0.0105, 0.0016, 0.0125), "nail", parent=group)
+    s.box("LeftWrist", (-0.005, -0.010, 0.056), (0.050, 0.040, 0.028), "skin", parent=group)
 
 
 def grip_hand(s, group, mirror=False):
-    """Hand on a pistol grip (group origin = grip centre): palm and back-strap pad behind/beside it, three
-    fingers wrapped round the front, index finger forward along the trigger guard, thumb on the opposite side."""
+    """Bare hand on a pistol grip (group origin = grip centre): palm and web behind/beside it, three fingers wrapped
+    round the front (creases, nails), index finger forward along the trigger guard, thumb on the opposite side, slim wrist."""
     m = -1.0 if mirror else 1.0
     side = "Left" if mirror else "Right"
-    s.box(f"{side}Palm", (m * 0.026, 0.0, 0.004), (0.020, 0.062, 0.044), "glove", parent=group)
-    s.box(f"{side}BackPad", (m * 0.004, -0.004, 0.026), (0.040, 0.050, 0.016), "glove_pad", parent=group)
+    s.box(f"{side}Palm", (m * 0.026, 0.0, 0.006), (0.022, 0.064, 0.046), "skin", parent=group)
+    s.box(f"{side}Web", (m * 0.006, -0.002, 0.030), (0.040, 0.052, 0.016), "skin", parent=group)
     for k, y in enumerate((0.014, -0.004, -0.022)):
-        s.box(f"{side}Finger{k}A", (m * 0.002, y, -0.026), (0.046, 0.014, 0.016), "glove", parent=group)
-        s.box(f"{side}Finger{k}B", (m * -0.026, y, -0.020), (0.014, 0.014, 0.022), "glove", parent=group)
-    s.box(f"{side}Index", (0.0, 0.032, -0.046), (0.014, 0.012, 0.046), "glove", parent=group)
-    s.box(f"{side}ThumbBase", (m * -0.020, 0.030, 0.018), (0.016, 0.020, 0.024), "glove", parent=group)
-    s.box(f"{side}ThumbTip", (m * -0.028, 0.034, -0.014), (0.014, 0.014, 0.042), "glove", parent=group)
-    s.box(f"{side}Cuff", (m * 0.010, -0.028, 0.044), (0.056, 0.048, 0.026), "glove_pad", parent=group)
+        s.box(f"{side}Finger{k}A", (m * 0.003, y, -0.0265), (0.046, 0.0158, 0.0165), "skin", parent=group)
+        s.box(f"{side}Finger{k}B", (m * -0.0265, y, -0.0215), (0.0155, 0.0152, 0.024), "skin", parent=group)
+        s.box(f"{side}Knuckle{k}", (m * 0.0255, y, -0.0265), (0.0030, 0.0162, 0.0169), "skin_shade", parent=group)
+        s.box(f"{side}Joint{k}", (m * -0.0265, y, -0.0155), (0.0159, 0.0156, 0.0026), "skin_shade", parent=group)
+        s.box(f"{side}Nail{k}", (m * -0.0345, y, -0.0235), (0.0016, 0.0098, 0.0125), "nail", parent=group)
+    s.box(f"{side}Index", (0.0, 0.032, -0.036), (0.0145, 0.0130, 0.026), "skin", parent=group)
+    s.box(f"{side}IndexTip", (0.0, 0.032, -0.0595), (0.0135, 0.0120, 0.022), "skin", parent=group)
+    s.box(f"{side}IndexJoint", (0.0, 0.032, -0.0485), (0.0150, 0.0135, 0.0026), "skin_shade", parent=group)
+    s.box(f"{side}IndexNail", (0.0, 0.0388, -0.0595), (0.0105, 0.0016, 0.0125), "nail", parent=group)
+    s.box(f"{side}ThumbBase", (m * -0.020, 0.030, 0.018), (0.0165, 0.021, 0.026), "skin", parent=group)
+    s.box(f"{side}ThumbTip", (m * -0.028, 0.034, -0.014), (0.0145, 0.0145, 0.040), "skin", parent=group)
+    s.box(f"{side}ThumbNail", (m * -0.028, 0.0414, -0.0265), (0.0110, 0.0016, 0.0125), "nail", parent=group)
+    s.box(f"{side}Wrist", (m * 0.008, -0.026, 0.050), (0.050, 0.042, 0.030), "skin", parent=group)
 
 
 def reach(v, start, max_len):
@@ -218,7 +238,7 @@ def reach(v, start, max_len):
 
 
 def hands(s, left, right, left_target, right_target, parent=".", half=0.025, bottom=0.0):
-    """Gloved hands plus sleeves as two groups (LeftHand / RightHand) so reload animations can move them.
+    """Bare hands plus sleeves as two groups (LeftHand / RightHand) so reload animations can move them.
     left = (x, _, z) of the support hand (its height follows the handguard bottom `bottom`),
     right = grip centre, *_target = where the forearm comes from (model space)."""
     rel = lambda p, c: (p[0] - c[0], p[1] - c[1], p[2] - c[2])

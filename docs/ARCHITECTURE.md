@@ -54,7 +54,7 @@ Treffermarker und Schadensanzeige zurück. Die übrigen Clients erhalten Schuss 
 speichert die Wahl im Teilnehmer, beim nächsten Spawn tauscht `Game._sync_class` die Waffen (`Player.apply_class`), und
 `_rpc_spawn` überträgt die Klasse an alle Clients. Ein lebender Spieler behält seine Waffen bis zum Respawn.
 
-**Map-Voting.** Nach `match_ended` öffnet der Host `host_open_vote(ROTATION_MAPS)` (15 s). Clients stimmen per
+**Map-Voting.** Nach `match_ended` öffnet der Host `host_open_vote(ROTATION_MAPS)` (20 s). Clients stimmen per
 `_rpc_cast_vote` ab, der Host verteilt die Zwischenstände (`_rpc_vote_tally`) und wertet aus, sobald alle Spieler gewählt
 haben oder die Zeit abläuft (Gleichstand zufällig). Danach startet `host_start_match` mit der gewählten Map. Verlässt ein
 Spieler die Abstimmung, zählt sie ohne ihn. Offline wählt `MatchEndScreen` die Map direkt (`map_chosen`).
@@ -335,7 +335,7 @@ Python-Skripten in `tools/` erzeugt – keine Fremdinhalte, alles reproduzierbar
 
 * **Ende der Runde (nicht überspringbar):** Letzter-Abschuss-Replay → Abspann → Scoreboard laufen ohne Leertaste-Skip (`Game._unhandled_input` schluckt sie). Die normale Killcam nach dem eigenen Tod
   bleibt überspringbar.
-* **Kartenabstimmung als feste Choreografie** (`MatchEndScreen`, eine Uhr `NetworkManager.vote_time` = 15 s, kein vorzeitiges Ende mehr): *RESULTS* (10 s) Scoreboard + kleine Karten unten;
+* **Kartenabstimmung als feste Choreografie** (`MatchEndScreen`, eine Uhr `NetworkManager.vote_time` = 20 s, kein vorzeitiges Ende mehr): *RESULTS* (10 s) Scoreboard (Siegerteam links, Verlierer rechts, K/D-Spalte) + kleine Karten unten;
   *FINAL* (5 s) Scoreboard blendet aus und schrumpft, die Karten (`VoteCard`) gleiten groß und auseinander in die Bildschirmmitte, großer Countdown, Abstimmung läuft weiter;
   *OUTCOME* (`vote_outcome_time` 2.8 s) die zwei anderen Karten verschwinden, die Gewinnerkarte zentriert sich, Blitz + Lichtstreifen, füllt den Bildschirm (dasselbe Bild wie der
   Ladebildschirm) → Host startet die Runde. Online: Host zählt (`_finish_vote` → `vote_closed(winner)` per RPC, Start erst nach `vote_outcome_time`); offline läuft dieselbe Abfolge lokal
@@ -354,3 +354,10 @@ Python-Skripten in `tools/` erzeugt – keine Fremdinhalte, alles reproduzierbar
 * **Lade-Abbruch per Schuss:** Feuern im Zustand `RELOADING` mit Patronen im Rohr → `Weapon.State.RELOAD_EXIT` (0.2 s, `ReloadRig.begin_exit()/blend_out()` blendet die Pose
   weich in die Ruhelage), der Schuss wird per `fire_queue_t`/`take_queued_fire()` vorgemerkt und danach genau einmal ausgelöst. Leeres Rohr: Schuss ohne Wirkung, Nachladen läuft weiter.
   Andere Maschinen: `WeaponManager.stop_tp_reload()` bzw. `play_remote_shot` beendet die Nachlade-Animation der Figur.
+* **Endscreen:** `Scoreboard.side_by_side` (zwei Teamtabellen, Sieger links; `kd_text` = Kills/Tode mit 2 Nachkommastellen). Die Klassenwahl (`ClassStrip`: Bild, Name, Waffen, Schaden, Ausrüstung im HUD-Stil)
+  erscheint erst in der Finalphase (`FINAL_VOTE_TIME` 10 s, = Hälfte der Gesamtzeit), Hauptmenü-Knopf und Klassenwahl mittig unten. Ohne Abstimmung bleibt die Klassenwahl unter dem Scoreboard.
+* **Killcam-Hitmarker:** `HitFeedback` (Zeichnen + Sounds, von HUD und Killcam genutzt). Jeder Schuss trägt Trefferbits (`BODY`/`HEAD`/`KILL`) im Impact-Array (4. Eintrag) zu den anderen Maschinen;
+  `Player.hit_flag` → `ReplayRecorder` speichert sie je Frame (Index 8) und meldet sie als `killer_hit` → `Game` zeichnet Hitmarker + spielt die Sounds in Killcam und Last-Kill-Cam.
+* **Hände:** nackte Hände mit Fingergliedern, Knöcheln und Nägeln (`tools/generate_weapon_models.py`: `support_hand`/`grip_hand`); die Materialien `skin`/`skin_shade`/`nail` werden je Modell
+  per `ReloadRig.apply_skin` auf den Hautton des Spielers gesetzt (gleich wie Ego-Arm und Figur).
+* **Regler-Ton:** jeder Lautstärkeregler spielt `AudioManager.play_preview` = leises `kill_confirm` (−27 dB) auf dem Bus der Kategorie.

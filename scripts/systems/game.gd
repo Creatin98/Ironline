@@ -38,6 +38,10 @@ var _dead_elapsed: float = 0.0
 var _fade: ColorRect
 var _gray: ColorRect
 var _cam_cross: Control
+var _cam_hit_left: float = 0.0 # hitmarker of the killer's view in killcam / last kill
+var _cam_hit_total: float = 0.14
+var _cam_hit_head: bool = false
+var _cam_hit_kill: bool = false
 # last kill cam: cinema bars (21:9) in HUD style with title and name plate
 var _bars: Control
 var _bar_top: PanelContainer
@@ -95,6 +99,7 @@ func _ready() -> void:
 	recorder.ghost_scene = PLAYER_SCENE
 	add_child(recorder)
 	recorder.finished.connect(_on_replay_finished)
+	recorder.killer_hit.connect(_on_replay_hit)
 	GameEvents.participant_killed.connect(recorder.note_kill)
 	GameEvents.participant_killed.connect(_on_participant_killed_skull)
 	_build_cam_overlay()
@@ -626,6 +631,8 @@ func _draw_cam_cross() -> void:
 	if not recorder.playing:
 		return
 	var c := _cam_cross.size * 0.5
+	if _cam_hit_left > 0.0 and GameSettings.show_hit_markers:
+		HitFeedback.draw_marker(_cam_cross, c, _cam_hit_left, _cam_hit_total, _cam_hit_head, _cam_hit_kill)
 	var aim := recorder.killer_aim
 	var a := 1.0 - clampf((aim - 0.5) * 2.0, 0.0, 1.0)
 	var col := Color(1, 1, 1, 0.9)
@@ -639,8 +646,20 @@ func _draw_cam_cross() -> void:
 				_cam_cross.draw_line(c + off + d * 6.0, c + off + d * 15.0, lc, 2.0)
 
 
+## The killer hit an enemy in the replay: the same hitmarker and sounds as in the game.
+func _on_replay_hit(headshot: bool, killed: bool) -> void:
+	_cam_hit_head = headshot
+	_cam_hit_kill = killed
+	_cam_hit_total = HitFeedback.duration(headshot, killed)
+	_cam_hit_left = _cam_hit_total
+	var killer := MatchManager.get_participant(int(recorder.kill.get("killer", 0)))
+	HitFeedback.play_sounds(headshot, killed, maxi(1, killer.killstreak) if killer != null else 1)
+
+
 func _update_killcam(delta: float) -> void:
 	_update_bars(delta)
+	if _cam_hit_left > 0.0:
+		_cam_hit_left = maxf(0.0, _cam_hit_left - delta / maxf(Engine.time_scale, 0.05)) # real time, also in slow motion
 	if local_player != null and is_instance_valid(local_player) and not local_player.alive and MatchManager.state == MatchManager.State.RUNNING:
 		_dead_elapsed += delta
 	else:

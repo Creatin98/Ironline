@@ -20,7 +20,7 @@ const SNAPSHOT_EVERY_TICKS := 3 # 20 Hz at 60 physics ticks
 const OWNER_STATE_EVERY_TICKS := 6 # 10 Hz
 const LOAD_TIMEOUT := 12.0
 const CONNECT_TIMEOUT := 8.0
-const VOTE_TIME := 15.0 # fixed: 10 s scoreboard + 5 s final vote in the middle of the screen
+const VOTE_TIME := 20.0 # fixed: 10 s scoreboard + 10 s final vote (with the class choice) in the middle of the screen
 
 # held input bits (client -> server, every tick)
 const HELD_SPRINT := 1

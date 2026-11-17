@@ -163,7 +163,7 @@ func _simulate_reloads() -> void:
 
 ## MP5/AK: noticeable spread from the hip, only a little through the sights (and a light bloom when spraying).
 func _check_spread_values() -> void:
-	for pair in [["assault", 2.5, 3.5], ["smg", 2.0, 3.0]]:
+	for pair in [["assault", 3.5, 4.6], ["smg", 2.8, 3.8]]:
 		var wd: WeaponData = GameDirector.get_class_data(String(pair[0])).primary
 		var w := Weapon.new()
 		w.data = wd
@@ -175,9 +175,9 @@ func _check_spread_values() -> void:
 		w.free()
 		if hip < float(pair[1]) or hip > float(pair[2]):
 			_fail("%s: Huefte-Streuung %.2f ausserhalb %.1f-%.1f" % [wd.weapon_id, hip, float(pair[1]), float(pair[2])])
-		if ads < 0.3 or ads > 0.55:
-			_fail("%s: Streuung im Visier %.2f (kein Laser, aber nur leicht: 0.3-0.55)" % [wd.weapon_id, ads])
-		if ads_spray <= ads or ads_spray > 1.0:
+		if ads < 0.45 or ads > 0.8:
+			_fail("%s: Streuung im Visier %.2f (kein Laser, aber nur leicht: 0.45-0.8)" % [wd.weapon_id, ads])
+		if ads_spray <= ads or ads_spray > 1.6:
 			_fail("%s: Streuungs-Bloom im Visier unpassend (%.2f -> %.2f)" % [wd.weapon_id, ads, ads_spray])
 		if hip_spray <= hip:
 			_fail("%s: Dauerfeuer vergroessert die Huefte-Streuung nicht" % wd.weapon_id)
@@ -241,10 +241,16 @@ func _check_shotgun_interrupt() -> void:
 	local.input.fire_pressed = true # second click during the exit: only queued, no double shot
 	var shots := 0
 	var mag_before := w.magazine
-	for i in 40:
+	var pump_hand := w.model.get_node_or_null("LeftHand") as Node3D
+	var pump_travel := 0.0
+	for i in 60:
 		await get_tree().physics_frame
 		if w.magazine < mag_before - shots:
 			shots += 1
+		if pump_hand != null and w.state == Weapon.State.PUMPING:
+			pump_travel = maxf(pump_travel, pump_hand.position.z - w._pump_hand_rest.z)
+	if pump_travel < 0.04:
+		_fail("Schrotflinte: die linke Hand bewegt sich beim Repetieren nicht mit (%.3f m)" % pump_travel)
 	if w.magazine != mag_before - 1:
 		_fail("Schrotflinte: nach dem Abbruch genau ein Schuss erwartet (Magazin %d statt %d)" % [w.magazine, mag_before - 1])
 	if w.reserve != reserve_before:
@@ -516,17 +522,27 @@ func _check_end_screen_sequence() -> void:
 	while screen._phase == MatchEndScreen.Phase.RESULTS and t_results < 8.0:
 		if t_results < 0.3 and (screen._stage.visible or not screen.vote_box.visible or not screen.scoreboard.visible):
 			_fail("Zu Beginn muessen Scoreboard und kleine Karten sichtbar sein (Stage %s)" % str(screen._stage.visible))
+		if t_results < 0.3 and (screen._stage_class_host.modulate.a > 0.05 or screen._content.get_node("ClassBox").visible):
+			_fail("Die Klassenwahl darf erst erscheinen, wenn das Scoreboard verschwindet")
 		await get_tree().process_frame
 		t_results += get_process_delta_time()
-	# 6 s vote: the final vote starts after (6 - 2.04) = ~3.96 s
-	if t_results < 3.4 or t_results > 4.6:
-		_fail("Scoreboard-Phase dauerte %.1f s (erwartet ca. 4.0 s bei 6 s Abstimmung)" % t_results)
+	# 6 s vote: the final phase is half of it, so it starts after 3 s (the real vote: 10 s + 10 s)
+	if t_results < 2.5 or t_results > 3.8:
+		_fail("Scoreboard-Phase dauerte %.1f s (erwartet ca. 3.0 s bei 6 s Abstimmung)" % t_results)
 	if screen._phase != MatchEndScreen.Phase.FINAL or screen._cards.size() != 3 or not screen._stage.visible:
 		_fail("Finale Abstimmung startete nicht (Phase %d, Karten %d)" % [screen._phase, screen._cards.size()])
 	await get_tree().create_timer(1.4).timeout
 	if screen._content.visible or screen.vote_picker.modulate.a > 0.05:
 		_fail("Scoreboard und kleine Karten muessen nach dem Wechsel verschwunden sein")
 	var mid := screen.size * 0.5
+	if screen._stage_class_host.modulate.a < 0.9 or screen._stage_class.get_child_count() != GameDirector.get_class_ids().size():
+		_fail("Die Klassenwahl erscheint in der finalen Phase nicht (Alpha %.2f)" % screen._stage_class_host.modulate.a)
+	var leave_mid := screen._stage_leave.position.x + screen._stage_leave.size.x * 0.5
+	if absf(leave_mid - mid.x) > 3.0:
+		_fail("Hauptmenue-Knopf sitzt nicht mittig (x %.0f statt %.0f)" % [leave_mid, mid.x])
+	var strip_mid := screen._stage_class.global_position.x + screen._stage_class.size.x * 0.5
+	if absf(strip_mid - (screen.global_position.x + mid.x)) > 3.0:
+		_fail("Klassenwahl sitzt nicht mittig (x %.0f statt %.0f)" % [strip_mid, screen.global_position.x + mid.x])
 	var inside := 0
 	for id in screen._cards:
 		var card: VoteCard = screen._cards[id]
@@ -553,6 +569,8 @@ func _check_end_screen_sequence() -> void:
 	var win_card: VoteCard = screen._cards["harbor"]
 	if win_card.expand < 0.95 or win_card.size.x < screen.size.x * 0.95:
 		_fail("Gewinnerkarte fuellt am Ende nicht den Bildschirm (expand %.2f, Breite %.0f)" % [win_card.expand, win_card.size.x])
+	if Scoreboard.kd_text(10, 2) != "5.00" or Scoreboard.kd_text(7, 0) != "7.00" or Scoreboard.kd_text(1, 3) != "0.33":
+		_fail("K/D wird falsch berechnet (%s, %s, %s)" % [Scoreboard.kd_text(10, 2), Scoreboard.kd_text(7, 0), Scoreboard.kd_text(1, 3)])
 	print("Endscreen: %.1f s Scoreboard, finale Abstimmung mit %d grossen Karten, Gewinner fuellt den Bildschirm" % [t_results, inside])
 	NetworkManager.vote_time = NetworkManager.VOTE_TIME
 	NetworkManager.vote_outcome_time = 2.8
@@ -896,6 +914,32 @@ func _simulate_cams() -> void:
 	# let the recorder collect a few seconds
 	for i in 200:
 		await get_tree().physics_frame
+	# the killer hits us once with a real shot: the killcam must show his hitmarker
+	var space := local.get_world_3d().direct_space_state
+	for off in [Vector3(5, 0, 0), Vector3(-5, 0, 0), Vector3(0, 0, 5), Vector3(0, 0, -5), Vector3(3, 0, 3), Vector3(-3, 0, -3)]:
+		bot_node.global_position = local.global_position + off # a spot with a clear line to us
+		var los := PhysicsRayQueryParameters3D.create(bot_node.get_eye_position(), local.get_center(), 1)
+		if space.intersect_ray(los).is_empty():
+			break
+	bot_node.face_towards(local.get_eye_position())
+	for i in 40: # the turn takes 0.5 s
+		await get_tree().physics_frame
+	var bot_weapon := bot_node.weapon_manager.get_current_weapon()
+	bot_weapon.fire_cooldown = 0.0
+	bot_weapon.try_fire(true, 0.0, false, false)
+	if bot_node.hit_flag & HitFeedback.BODY == 0:
+		_fail("Treffer auf einen Gegner setzt kein Trefferflag (hit_flag=%d)" % bot_node.hit_flag)
+	var hit_events := {"n": 0, "kill": 0}
+	game.recorder.killer_hit.connect(func(_head: bool, killed: bool) -> void:
+		hit_events["n"] += 1
+		if killed:
+			hit_events["kill"] += 1)
+	await get_tree().physics_frame
+	await get_tree().physics_frame
+	var remote_probe := bot_node.weapon_manager.get_current_weapon()
+	remote_probe.play_remote_shot([[Vector3.ZERO, Vector3.UP, true, HitFeedback.BODY | HitFeedback.HEAD]])
+	if bot_node.hit_flag != HitFeedback.BODY | HitFeedback.HEAD:
+		_fail("Fremdschuss uebernimmt den Trefferstatus des Servers nicht (hit_flag=%d)" % bot_node.hit_flag)
 	# --- killcam: we die, the view switches to the killer and can be skipped after 1.5 s
 	local.take_damage(9999.0, bot.id, "ak47", local.get_center(), false, bot_node.global_position)
 	await get_tree().process_frame
@@ -917,6 +961,15 @@ func _simulate_cams() -> void:
 		_fail("Die Killcam spielt keinen Replay (Geister-Spieler) ab")
 	if game._cam_name.text != bot.display_name:
 		_fail("Killcam zeigt den Namen des Moerders nicht (%s statt %s)" % [game._cam_name.text, bot.display_name])
+	# jump the replay to the moment of the kill: the recorded hit of the killer shows up as hitmarker
+	var kill_t: float = game.recorder.kill["t"]
+	game.recorder._prev_cursor = kill_t - 0.6
+	game.recorder._cursor = kill_t + 0.1
+	await get_tree().process_frame
+	if int(hit_events["n"]) < 1:
+		_fail("Killcam: der Treffer des Moerders loest keinen Hitmarker aus")
+	elif game._cam_hit_left <= 0.0 and game._cam_hit_total <= 0.0:
+		_fail("Killcam: Hitmarker-Zustand wurde nicht gesetzt")
 	if game.players_container.visible:
 		_fail("Echte Spieler muessen waehrend der Killcam ausgeblendet sein")
 	var real_players := get_tree().get_nodes_in_group("players").size()
@@ -1007,6 +1060,22 @@ func _simulate_cams() -> void:
 		outro_waited += get_process_delta_time()
 	if not game.match_end.visible:
 		_fail("Endbildschirm erschien nach dem Abspann nicht")
+	# team match: the winner team's table on the left, the other one on the right, with a K/D column
+	var sb: Scoreboard = game.match_end.scoreboard
+	var tables := sb.content.get_child(sb.content.get_child_count() - 1)
+	if not sb.side_by_side or tables.get_child_count() != 2:
+		_fail("Teamergebnis: zwei Tabellen nebeneinander erwartet (side_by_side %s)" % str(sb.side_by_side))
+	else:
+		var first_head: Label = tables.get_child(0).get_child(0).get_child(0)
+		var winner_name: String = "TEAM " + Teams.name_of(int(MatchManager.winner["team"])).to_upper()
+		if first_head.text != winner_name:
+			_fail("Linke Tabelle gehoert nicht dem Siegerteam (%s statt %s)" % [first_head.text, winner_name])
+		var kd_found := false
+		for l in tables.get_child(0).find_children("*", "Label", true, false):
+			if (l as Label).text == "K/D":
+				kd_found = true
+		if not kd_found:
+			_fail("K/D-Spalte fehlt im Endscoreboard")
 	print("Killcams: Killcam, Ueberspringen, Last-Kill-Replay OK")
 	GameSettings.killcams = false
 	game.free()
