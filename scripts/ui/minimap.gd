@@ -7,6 +7,8 @@ extends Control
 const PX := 220
 const VIEW_METERS := 60.0 # width of the area shown: zoomed out, not glued to the player
 const FLASH_TIME := 1.6
+const ALLY_FLASH_TIME := 0.7
+const ALLY_COLOR := Color(0.25, 0.6, 1.0) # teammates are always blue on the map, whatever the team colour
 
 var player: Player
 
@@ -14,6 +16,8 @@ var _solids: Array = [] # [{pts: PackedVector2Array (world x/z), top: float}]
 var _floors: Array = []
 var _overlay: Control
 var _redraw_timer: float = 0.0
+var _ally_flash: Dictionary = {} # participant id -> seconds left of the "fired" glow
+var _self_flash: float = 0.0
 var _flashes: Array = [] # [{pos: Vector3, t: float}]
 
 
@@ -38,6 +42,11 @@ func _process(delta: float) -> void:
 	for f in _flashes:
 		f["t"] = float(f["t"]) - delta
 	_flashes = _flashes.filter(func(f: Dictionary) -> bool: return float(f["t"]) > 0.0)
+	for id in _ally_flash.keys():
+		_ally_flash[id] = float(_ally_flash[id]) - delta
+		if float(_ally_flash[id]) <= 0.0:
+			_ally_flash.erase(id)
+	_self_flash = maxf(0.0, _self_flash - delta)
 	if DisplayServer.get_name() == "headless" or not is_visible_in_tree():
 		return # nothing to draw (tests / dedicated runs / hidden HUD)
 	_redraw_timer -= delta
@@ -48,17 +57,16 @@ func _process(delta: float) -> void:
 
 func _on_shot(shooter_id: int, pos: Vector3) -> void:
 	if shooter_id == MatchManager.local_participant_id:
+		_self_flash = ALLY_FLASH_TIME # our own arrow lights up when we fire
 		return
 	var me := MatchManager.get_local_participant()
 	var shooter := MatchManager.get_participant(shooter_id)
 	if shooter == null:
 		return
 	if MatchManager.mode != null and MatchManager.mode.uses_teams and me != null and shooter.team == me.team:
-		return # teammates are drawn as dots anyway
-	var yaw := 0.0
-	if shooter.node != null and is_instance_valid(shooter.node):
-		yaw = (shooter.node as Node3D).rotation.y
-	_flashes.append({"pos": pos, "yaw": yaw, "t": FLASH_TIME})
+		_ally_flash[shooter_id] = ALLY_FLASH_TIME # teammates are always shown, they light up when firing
+		return
+	_flashes.append({"pos": pos, "t": FLASH_TIME})
 	if _flashes.size() > 12:
 		_flashes.pop_front()
 
@@ -142,15 +150,17 @@ func _draw_overlay() -> void:
 				continue
 			var n := p.node as Player
 			var pos := _clamp_to_edge(_to_map(n.global_position))
-			_draw_arrow(o, pos, _heading(n.rotation.y), Teams.color_of(p.team).lightened(0.15), 9.0)
-	# enemies: only the moment they fire (arrow flashes up and fades)
+			var glow := clampf(float(_ally_flash.get(p.id, 0.0)) / ALLY_FLASH_TIME, 0.0, 1.0)
+			_draw_arrow_glow(o, pos, _heading(n.rotation.y), ALLY_COLOR, 9.0, glow)
+	# enemies: only the moment they fire, as a red dot with a fading ring (no arrows)
 	for f in _flashes:
 		var life := clampf(float(f["t"]) / FLASH_TIME, 0.0, 1.0)
 		var pos2 := _clamp_to_edge(_to_map(f["pos"]))
-		var pulse := 1.0 + 0.35 * pow(life, 4.0)
-		_draw_arrow(o, pos2, _heading(float(f["yaw"])), Color(1.0, 0.18, 0.14, clampf(life * 1.6, 0.0, 1.0)), 10.5 * pulse)
-	# the local player in the middle
-	_draw_arrow(o, Vector2(PX, PX) * 0.5, Vector2(0, -1), Color(1.0, 0.95, 0.6), 9.0)
+		o.draw_circle(pos2, 5.0, Color(0.0, 0.0, 0.0, life * 0.7))
+		o.draw_circle(pos2, 4.0, Color(1.0, 0.18, 0.14, clampf(life * 1.6, 0.0, 1.0)))
+		o.draw_arc(pos2, 6.0 + (1.0 - life) * 12.0, 0.0, TAU, 20, Color(1.0, 0.3, 0.2, life * 0.8), 2.0)
+	# the local player in the middle (lights up while firing)
+	_draw_arrow_glow(o, Vector2(PX, PX) * 0.5, Vector2(0, -1), Color(1.0, 0.95, 0.6), 9.0, clampf(_self_flash / ALLY_FLASH_TIME, 0.0, 1.0))
 	o.draw_rect(Rect2(Vector2.ZERO, Vector2(PX, PX)), Color(0.9, 0.7, 0.3, 0.9), false, 2.0)
 
 
@@ -158,6 +168,14 @@ func _draw_overlay() -> void:
 func _heading(yaw: float) -> Vector2:
 	var h := Basis(Vector3.UP, -player.rotation.y) * (Basis(Vector3.UP, yaw) * Vector3(0, 0, -1))
 	return Vector2(h.x, h.z).normalized()
+
+
+## Arrow that lights up (white core, pulsing ring) while `glow` > 0, e.g. right after a shot.
+func _draw_arrow_glow(o: Control, c: Vector2, dir: Vector2, col: Color, r: float, glow: float) -> void:
+	if glow > 0.0:
+		o.draw_circle(c, r * (1.5 + 0.8 * (1.0 - glow)), Color(col.r, col.g, col.b, 0.35 * glow))
+		o.draw_arc(c, r * (1.3 + 1.2 * (1.0 - glow)), 0.0, TAU, 24, Color(1, 1, 1, 0.8 * glow), 2.0)
+	_draw_arrow(o, c, dir, col.lerp(Color.WHITE, 0.7 * glow), r * (1.0 + 0.25 * glow))
 
 
 func _draw_arrow(o: Control, c: Vector2, dir: Vector2, col: Color, r: float) -> void:

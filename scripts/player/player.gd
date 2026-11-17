@@ -27,7 +27,9 @@ const STEP_HEIGHT := 0.4
 const STEP_VIEW_SPEED := 1.7 # m/s the camera needs to catch up with a step
 ## Knee slide (sprint + crouch): ~1.5 m, decelerating; a small gadget, not a movement tech.
 const DEATH_FALL_TIME := 0.34
-const SLIDE_TIME := 0.8
+const SLIDE_TIME := 0.84
+## From this share of the slide on it can be cancelled (sprint key / jump), like in Call of Duty.
+const SLIDE_CANCEL_FROM := 0.4
 const SLIDE_MIN_SPEED := 5.2
 const SLIDE_MIN_START_SPEED := 6.6
 const SLIDE_COOLDOWN := 0.9
@@ -430,9 +432,18 @@ func apply_look(delta_look: Vector2) -> void:
 	_look_accum += delta_look
 
 
+## Enemy names are hidden behind walls; teammates' names (and only theirs) show through walls.
+func _update_name_label() -> void:
+	var me := MatchManager.get_local_participant()
+	var ally := me != null and MatchManager.mode != null and MatchManager.mode.uses_teams and team == me.team
+	if name_label.no_depth_test != ally:
+		name_label.no_depth_test = ally
+
+
 func _process(delta: float) -> void:
 	if head == null:
 		return
+	_update_name_label()
 	if replay_mode:
 		pass # the replay recorder drives the pose
 	else:
@@ -483,6 +494,12 @@ func _update_states(delta: float) -> void:
 		if input.jump_pressed:
 			input.jump_pressed = false # Space ends the slide and stands up; a second Space jumps
 			_end_slide(true)
+		elif _slide_t >= SLIDE_TIME * SLIDE_CANCEL_FROM and input.sprint and input.move.y > 0.4 and not input.aim:
+			# slide cancel: the sprint key stands us up and runs on (momentum is kept)
+			var carry := Vector3(velocity.x, 0.0, velocity.z)
+			_end_slide(true)
+			velocity.x = carry.x
+			velocity.z = carry.z
 		elif _slide_t >= SLIDE_TIME or not is_on_floor() or horizontal_speed < 0.9 and _slide_t > 0.2:
 			_end_slide(false)
 	if not is_sliding:
@@ -523,7 +540,7 @@ func _start_slide() -> void:
 	is_sliding = true
 	_slide_t = 0.0
 	_slide_dir = flat.normalized()
-	_slide_speed = maxf(horizontal_speed * 1.25, 10.0)
+	_slide_speed = maxf(horizontal_speed * 1.28, 10.4)
 	_slide_entry = horizontal_speed
 	_slide_cd = SLIDE_COOLDOWN
 	is_sprinting = false
@@ -571,7 +588,7 @@ func _move(delta: float) -> void:
 			if steered.length() > 0.1:
 				_slide_dir = steered.normalized()
 		# ramps from the entry speed to the slide speed (no jolt), then glides out
-		var profile := _slide_speed * pow(maxf(0.0, 1.0 - _slide_t / SLIDE_TIME), 1.4)
+		var profile := _slide_speed * pow(maxf(0.0, 1.0 - _slide_t / SLIDE_TIME), 1.35)
 		horizontal = _slide_dir * lerpf(_slide_entry, profile, smoothstep(0.0, 0.14, _slide_t))
 		if not on_floor:
 			velocity.y -= GRAVITY * delta

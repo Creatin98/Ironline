@@ -99,7 +99,7 @@ func _build() -> void:
 	_blood_layer.draw.connect(_draw_blood)
 	# own canvas layer: stays visible while the HUD is hidden (killcam)
 	var blood_canvas := CanvasLayer.new()
-	blood_canvas.layer = 3
+	blood_canvas.layer = 1 # behind the HUD (UI layer 2): the HUD is never covered by blood
 	add_child(blood_canvas)
 	blood_canvas.add_child(_blood_layer)
 

@@ -22,6 +22,7 @@ func _ready() -> void:
 	_scan("res://")
 	_instantiate_core_scenes()
 	await _check_loading_screen()
+	_check_death_skull()
 	await _check_settings_and_audio()
 	await _simulate_match()
 	_check_reload_rigs()
@@ -365,6 +366,18 @@ func _check_settings_and_audio() -> void:
 	print("Einstellungen/Audio: %d Kategorien, Busse, Unabhaengigkeit, Speichern, Menue OK" % AudioCategories.ENTRIES.size())
 
 
+## Death skull marker for fallen teammates: a sprite that shows through walls and removes itself.
+func _check_death_skull() -> void:
+	var holder := Node3D.new()
+	add_child(holder)
+	DeathSkull.spawn(holder, Vector3(0, 2, 0))
+	var sprite := holder.get_child(0) as Sprite3D
+	if sprite == null or not sprite.no_depth_test or sprite.texture == null or sprite.texture.get_width() < 32:
+		_fail("Totenkopf-Markierung fehlerhaft (nicht durch Waende sichtbar oder ohne Textur)")
+	holder.free()
+	print("Totenkopf-Markierung OK")
+
+
 ## Loading screen: shows for DURATION, then reports "finished" and removes itself.
 func _check_loading_screen() -> void:
 	var ls := LoadingScreen.new()
@@ -403,7 +416,7 @@ func _simulate_slide() -> void:
 		waited += get_process_delta_time()
 	var local: Player = MatchManager.get_local_participant().node as Player
 	local.human_controller.deactivate()
-	for run in 2:
+	for run in 3:
 		local.global_position = Vector3(0.0, 0.1, 0.0)
 		local.rotation.y = PI
 		local.velocity = Vector3.ZERO
@@ -445,6 +458,19 @@ func _simulate_slide() -> void:
 			if local.is_on_floor():
 				_fail("Slide-Test: zweites Leertasten-Druecken soll springen")
 			print("Slide: %.2f m in %d Ticks, bleibt geduckt, Leertaste steht auf, zweite springt" % [dist, ticks])
+		elif run == 2:
+			# slide cancel: holding sprint + forward ends the slide after ~40 % and runs on standing
+			var ticks2 := 0
+			while local.is_sliding and ticks2 < 120:
+				await get_tree().physics_frame
+				ticks2 += 1
+			if ticks2 < 12 or ticks2 > 48 or local.is_crouching:
+				_fail("Slide-Cancel: Slide endete nach %d Ticks / geduckt=%s (erwartet: Abbruch ab ~40 %%, stehend)" % [ticks2, str(local.is_crouching)])
+			for i in 30:
+				await get_tree().physics_frame
+			if not local.is_sprinting:
+				_fail("Slide-Cancel: Spieler sprintet danach nicht weiter")
+			print("Slide-Cancel: nach %d Ticks abgebrochen, sprintet weiter" % ticks2)
 		else:
 			# Space during the slide ends it and stands up
 			local.input.jump_pressed = true
@@ -578,7 +604,7 @@ func _simulate_cams() -> void:
 		_fail("Endbildschirm erschien schon waehrend des Replays")
 	for i in 20:
 		await get_tree().physics_frame
-	if game._cam_name.text == "":
+	if game._plate_name.text == "" or not game._bars.visible:
 		_fail("Die Last-Kill-Cam zeigt den Namen des Schuetzen nicht")
 	# slow motion: jump to just before the kill, the time scale must drop and be restored afterwards
 	game.recorder._cursor = float(game.recorder.kill["t"]) - 0.2

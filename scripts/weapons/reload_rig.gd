@@ -48,6 +48,9 @@ var _rest: Dictionary = {} # node -> [position, rotation]
 var _last_t: float = -1.0
 ## Forearms stay anchored at the elbow while the hand moves: {hand, fore, start, elbow, length}
 var _arms: Array = []
+## Pose-driven tweaks of the left forearm (rifle reload: crossing over the weapon without clipping through it).
+var left_elbow_shift: Vector3 = Vector3.ZERO
+var left_arm_slim: float = 1.0
 
 
 static func create(model: Node3D, reload_style: String) -> ReloadRig:
@@ -84,6 +87,10 @@ static func create(model: Node3D, reload_style: String) -> ReloadRig:
 
 ## Back to the rest pose (end of reload, weapon switch, death).
 func reset() -> void:
+	left_elbow_shift = Vector3.ZERO
+	left_arm_slim = 1.0
+	for arm in _arms:
+		(arm["fore"] as Node3D).visible = true
 	for n in _rest:
 		if is_instance_valid(n):
 			n.position = _rest[n][0]
@@ -130,6 +137,8 @@ func _update_arms() -> void:
 		var fore: Node3D = arm["fore"]
 		var a: Vector3 = hand.position + (arm["start"] as Vector3)
 		var b: Vector3 = arm["elbow"]
+		if hand == _left:
+			b += left_elbow_shift
 		var d := b - a
 		var dist := d.length()
 		if dist < 0.01:
@@ -137,7 +146,9 @@ func _update_arms() -> void:
 		var f := d / dist
 		fore.position = (a + b) * 0.5 - hand.position
 		fore.rotation = Vector3(asin(clampf(f.y, -1.0, 1.0)), atan2(-f.x, -f.z), 0.0)
-		fore.scale = Vector3(1.0, 1.0, dist / float(arm["length"]))
+		var slim := left_arm_slim if hand == _left else 1.0
+		fore.visible = slim > 0.08
+		fore.scale = Vector3(slim, slim, dist / float(arm["length"]))
 
 
 func _events() -> Array:
@@ -190,6 +201,7 @@ func _pose_rifle(t: float, cfg: Dictionary) -> void:
 	var grip: Vector3 = cfg["grip"]
 	var belt: Vector3 = cfg["belt"]
 	var off := mag0 - grip # the magazine sits at this offset to the hand that holds it
+	var side_x := -0.095 # clear of the weapon (it is +-0.025 wide) on the left
 	var pull := Vector3(0.0, -0.11, 0.02)
 	var hh: Vector3 = cfg["handle_hand"]
 	var lh: Vector3 = _key([
@@ -197,9 +209,14 @@ func _pose_rifle(t: float, cfg: Dictionary) -> void:
 		[0.24, grip + Vector3(0, -0.02, 0.008)], [0.32, grip + pull],
 		[0.46, belt], [0.50, belt],
 		[0.64, grip + pull], [0.74, grip + Vector3(0, -0.008, 0)], [0.78, grip + Vector3(0, 0.006, 0)],
-		[0.82, hh + Vector3(0, 0.01, 0.02)], [0.86, hh + Vector3(0, 0, float(cfg["handle_pull"]))],
-		[0.90, hh], [1.00, lh0],
+		# to the charging handle and back: around the LEFT side of the weapon, never through it
+		[0.80, Vector3(side_x, grip.y + 0.09, grip.z)], [0.825, Vector3(side_x, hh.y + 0.04, (grip.z + hh.z) * 0.5)],
+		[0.845, hh + Vector3(0, 0.02, 0.02)], [0.87, hh + Vector3(0, 0.01, float(cfg["handle_pull"]))],
+		[0.90, hh + Vector3(0, 0.01, 0)], [0.93, Vector3(side_x, hh.y + 0.01, hh.z - 0.05)],
+		[0.965, Vector3(side_x + 0.02, lh0.y + 0.05, lh0.z + 0.04)], [1.00, lh0],
 	], t)
+	# while the hand crosses over the weapon its sleeve shrinks away (a sleeve in the line of the weapon would clip through it)
+	left_arm_slim = 1.0 - (_smooth(_seg(t, 0.79, 0.815)) - _smooth(_seg(t, 0.94, 0.97)))
 	var mag_pos: Vector3 = _key([
 		[0.00, mag0], [0.17, mag0], [0.24, mag0 + Vector3(0, -0.02, 0.008)], [0.32, mag0 + pull],
 		[0.46, belt + off], [0.50, belt + off],

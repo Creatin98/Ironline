@@ -38,6 +38,17 @@ var _dead_elapsed: float = 0.0
 var _fade: ColorRect
 var _gray: ColorRect
 var _cam_cross: Control
+# last kill cam: cinema bars (21:9) in HUD style with title and name plate
+var _bars: Control
+var _bar_top: PanelContainer
+var _bar_bottom: PanelContainer
+var _bars_anim: float = 0.0
+var _plate_panel: PanelContainer
+var _plate_stripe: ColorRect
+var _plate_name: Label
+var _plate_detail: Label
+var _plate_assist: Label
+var _plate_hint: Label
 var _death_seq: int = 0 # invalidates a running death sequence (respawn, round end)
 var _replay_active: bool = false
 var _cam_ui: Control
@@ -86,6 +97,7 @@ func _ready() -> void:
 	add_child(recorder)
 	recorder.finished.connect(_on_replay_finished)
 	GameEvents.participant_killed.connect(recorder.note_kill)
+	GameEvents.participant_killed.connect(_on_participant_killed_skull)
 	_build_cam_overlay()
 	AudioManager.play_2d("round_start", -2.0)
 
@@ -132,6 +144,18 @@ func _load_map() -> void:
 	ambience.name = "Ambience"
 	add_child(ambience)
 	ambience.setup(MatchManager.config.map_id)
+
+
+## A teammate fell: a discreet skull floats above the body for 3 s (through walls, only for his team).
+func _on_participant_killed_skull(victim_id: int, _killer_id: int, _weapon: String, _headshot: bool) -> void:
+	if MatchManager.mode == null or not MatchManager.mode.uses_teams or victim_id == MatchManager.local_participant_id:
+		return
+	var me := MatchManager.get_local_participant()
+	var v := MatchManager.get_participant(victim_id)
+	if me == null or v == null or v.team != me.team or v.node == null or not is_instance_valid(v.node):
+		return
+	var fx := get_tree().get_first_node_in_group("effects_container")
+	DeathSkull.spawn(fx if fx != null else self, (v.node as Node3D).global_position + Vector3(0.0, 1.7, 0.0))
 
 
 func _on_settings_changed() -> void:
@@ -397,12 +421,128 @@ void fragment() {
 	_cam_cross.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_cam_cross.draw.connect(_draw_cam_cross)
 	_cam_ui.add_child(_cam_cross)
+	_build_bars()
 	_fade = ColorRect.new()
 	_fade.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_fade.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_fade.color = Color(0, 0, 0, 0)
 	ui_layer.add_child(_fade)
 	_fade.move_to_front()
+
+
+## Cinema bars of the last kill cam: translucent panels in HUD style. Top: "LETZTER ABSCHUSS",
+## bottom: name plate of the shooter (team colour stripe), weapon and victim.
+func _build_bars() -> void:
+	_bars = Control.new()
+	_bars.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_bars.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_bars.visible = false
+	_cam_ui.add_child(_bars)
+	var bar_bg := Color(0.05, 0.06, 0.08, 0.74)
+	_bar_top = PanelContainer.new()
+	_bar_top.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
+	_bar_top.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var top_style := UITheme.panel_style(bar_bg, 0)
+	top_style.border_width_bottom = 3
+	top_style.border_color = UITheme.ACCENT
+	_bar_top.add_theme_stylebox_override("panel", top_style)
+	_bars.add_child(_bar_top)
+	var title_row := UITheme.hbox(26)
+	title_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	title_row.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	for side in 3:
+		if side == 1:
+			title_row.add_child(UITheme.label("LETZTER ABSCHUSS", 56, UITheme.ACCENT, HORIZONTAL_ALIGNMENT_CENTER))
+		else:
+			var rule := ColorRect.new()
+			rule.color = Color(0.97, 0.63, 0.16, 0.7)
+			rule.custom_minimum_size = Vector2(160, 3)
+			rule.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+			title_row.add_child(rule)
+	_bar_top.add_child(title_row)
+	_bar_bottom = PanelContainer.new()
+	_bar_bottom.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
+	_bar_bottom.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var bottom_style := UITheme.panel_style(bar_bg, 0)
+	bottom_style.border_width_top = 3
+	bottom_style.border_color = UITheme.ACCENT
+	_bar_bottom.add_theme_stylebox_override("panel", bottom_style)
+	_bars.add_child(_bar_bottom)
+	var center := CenterContainer.new()
+	_bar_bottom.add_child(center)
+	_plate_panel = PanelContainer.new()
+	_plate_panel.add_theme_stylebox_override("panel", UITheme.panel_style(Color(0.07, 0.08, 0.1, 0.94), 5, Color(1, 1, 1, 0.18), 2))
+	center.add_child(_plate_panel)
+	var row := UITheme.hbox(16)
+	_plate_panel.add_child(row)
+	_plate_stripe = ColorRect.new()
+	_plate_stripe.custom_minimum_size = Vector2(8, 0)
+	row.add_child(_plate_stripe)
+	var col := UITheme.vbox(2)
+	col.custom_minimum_size = Vector2(420, 0)
+	row.add_child(col)
+	_plate_name = UITheme.label("", 38, UITheme.TEXT)
+	col.add_child(_plate_name)
+	_plate_detail = UITheme.label("", 20, UITheme.TEXT_DIM)
+	col.add_child(_plate_detail)
+	_plate_assist = UITheme.label("", 17, Color(0.5, 0.78, 1.0))
+	col.add_child(_plate_assist)
+	_plate_hint = UITheme.label("Leertaste: überspringen", 16, UITheme.TEXT_DIM, HORIZONTAL_ALIGNMENT_RIGHT)
+	_plate_hint.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT)
+	_plate_hint.offset_left = -330.0
+	_plate_hint.offset_right = -22.0
+	_plate_hint.offset_top = -40.0
+	_plate_hint.offset_bottom = -10.0
+	_bar_bottom.add_child(_plate_hint)
+	_plate_hint.top_level = false
+
+
+## Last kill cam vs. killcam: which labels are shown.
+func _set_cam_mode(last_kill: bool) -> void:
+	_bars.visible = last_kill
+	for l in [_cam_title, _cam_name, _cam_detail, _cam_assist, _cam_hint]:
+		l.visible = not last_kill
+	_bars_anim = 0.0 if last_kill else _bars_anim
+
+
+func _fill_plate(kill: Dictionary) -> void:
+	var killer := MatchManager.get_participant(int(kill["killer"]))
+	var victim := MatchManager.get_participant(int(kill["victim"]))
+	var col := Teams.color_of(killer.team) if killer else UITheme.TEXT
+	_plate_stripe.color = col
+	_plate_name.text = killer.display_name if killer else "?"
+	_plate_name.add_theme_color_override("font_color", col)
+	var detail := String(HUD.WEAPON_LABELS.get(String(kill["weapon"]), String(kill["weapon"])))
+	if bool(kill["headshot"]):
+		detail += "   •   KOPFSCHUSS"
+	if victim != null:
+		detail += "   ▸   %s" % victim.display_name
+	_plate_detail.text = detail
+	_plate_detail.add_theme_color_override("font_color", Color(1.0, 0.4, 0.3) if bool(kill["headshot"]) else UITheme.TEXT_DIM)
+	var names: Array[String] = []
+	for aid in kill.get("assists", []):
+		var a := MatchManager.get_participant(int(aid))
+		if a != null:
+			names.append(a.display_name)
+	_plate_assist.text = ("Assist: %s" % ", ".join(names)) if not names.is_empty() else ""
+	_plate_panel.add_theme_stylebox_override("panel", UITheme.panel_style(Color(0.07, 0.08, 0.1, 0.94), 5, col.darkened(0.2), 2))
+
+
+## Bars slide in (in real time, also during the slow motion) and always frame a 21:9 picture.
+func _update_bars(delta: float) -> void:
+	if not _bars.visible:
+		return
+	_bars_anim = move_toward(_bars_anim, 1.0, delta / maxf(Engine.time_scale, 0.05) * 2.2)
+	var vp := _cam_ui.size
+	var wide := vp.x / (21.0 / 9.0)
+	var bar_h := maxf(150.0, (vp.y - wide) * 0.5)
+	var k := _bars_anim * _bars_anim * (3.0 - 2.0 * _bars_anim)
+	_bar_top.custom_minimum_size = Vector2(0, bar_h)
+	_bar_bottom.custom_minimum_size = Vector2(0, bar_h)
+	_bar_top.offset_bottom = bar_h * k
+	_bar_top.offset_top = -bar_h * (1.0 - k)
+	_bar_bottom.offset_top = -bar_h * k
+	_bar_bottom.offset_bottom = bar_h * (1.0 - k)
 
 
 ## Fills the bottom block: killer name (team colour), weapon + headshot, assists.
@@ -470,6 +610,7 @@ func _start_killcam(killer_id: int) -> bool:
 	projectiles_container.visible = false
 	hud.visible = false
 	_cam.fov = GameSettings.fov
+	_set_cam_mode(false)
 	_cam_title.text = "KILLCAM"
 	_fill_cam_info(kill, false)
 	_cam_hint.text = ""
@@ -512,6 +653,7 @@ func _draw_cam_cross() -> void:
 
 
 func _update_killcam(delta: float) -> void:
+	_update_bars(delta)
 	if local_player != null and is_instance_valid(local_player) and not local_player.alive and MatchManager.state == MatchManager.State.RUNNING:
 		_dead_elapsed += delta
 	else:
@@ -639,9 +781,8 @@ func _start_last_kill_cam() -> bool:
 	_replay_active = true
 	projectiles_container.visible = false
 	_cam.fov = GameSettings.fov
-	_cam_title.text = "LAST KILL"
-	_fill_cam_info(final_kill, true)
-	_cam_hint.text = "Leertaste: überspringen"
+	_set_cam_mode(true)
+	_fill_plate(final_kill)
 	_cam_ui.visible = true
 	return true
 

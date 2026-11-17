@@ -311,3 +311,11 @@ Python-Skripten in `tools/` erzeugt – keine Fremdinhalte, alles reproduzierbar
 * **Matchende:** Nach dem letzten Kill läuft das Spiel `MatchManager.runout_time` (1.7 s) weiter: alle gleiten über `Player.run_out` (Verzögerung 7 m/s²) langsam
   zum Stehen, das HUD blendet aus, das letzte Opfer fällt. Danach startet die Last Kill Cam (3.5 s davor, 2.4 s danach; Zeitlupe bis 0.7 s nach dem Kill,
   dann normales Tempo, damit man das Hinfallen sieht), dann Abspann und Scoreboard wie zuvor. Der rote Kill-Marker wurde entfernt.
+
+* **Last Kill Cam (Kino-Look):** `Game._build_bars` – 21:9-Balken im HUD-Stil (halbtransparent, Akzentlinie): oben „LETZTER ABSCHUSS“, unten eine Namensbox des Schützen
+  (Teamfarben-Streifen, Waffe, Kopfschuss, Opfer, Assists). Die Balken fahren ein (`_update_bars`). Die normale Killcam behält ihre Textanzeige.
+* **Minimap:** Mates immer als blaue Pfeile (leuchten beim Schuss auf), eigener Pfeil leuchtet beim Schuss, Gegner nur als rote Punkte beim Schuss.
+* **Namen/Totenkopf:** Gegnernamen nur mit Tiefentest (nicht durch Wände), Mates durch Wände (`Player._update_name_label`). Stirbt ein Mate, schwebt
+  3 s ein dezenter Totenkopf (`DeathSkull`) über der Stelle, durch Wände sichtbar, nur für das eigene Team.
+* **Blut-Ebene:** Bildschirm-Blut liegt in Canvas-Layer 1 (hinter dem HUD in Layer 2). **Slide-Cancel:** ab 40 % der Slidezeit bricht Sprint + Vorwärts den Slide ab
+  (stehend, Schwung bleibt). **AK-Nachladen:** der linke Unterarm schrumpft beim Übergreifen zum Spannhebel weg, die Hand führt links an der Waffe vorbei.

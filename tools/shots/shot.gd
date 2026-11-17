@@ -315,12 +315,18 @@ func _game_ui(state: String) -> void:
 				await get_tree().physics_frame
 			local.input.fire_held = false
 			MatchManager.end_match()
+			var lk_wait := 0.0
+			while not game._replay_active and lk_wait < 4.0: # the match runs on briefly before the replay starts
+				await get_tree().process_frame
+				lk_wait += get_process_delta_time()
 			get_tree().paused = true
 			# jump the replay to just after the kill and pose everything once
 			var rec: ReplayRecorder = game.recorder
 			rec._cursor = float(rec.kill["t"]) + 0.35
 			rec._prev_cursor = rec._cursor - 0.05
 			rec._apply(rec._cursor, false)
+			game._bars_anim = 1.0
+			game._update_bars(0.0)
 			for i in 4:
 				await get_tree().process_frame
 	if state.begins_with("hit"):
