@@ -45,7 +45,12 @@ func _ready() -> void:
 	GameEvents.participant_killed.connect(func(_v: int, _k: int, _w: String, _h: bool) -> void: _stats["kills_seen"] += 1)
 	NetworkManager.vote_opened.connect(func(_m: Array, _d: float) -> void: _stats["votes"] += 1)
 	NetworkManager.disconnected.connect(func(_r: String) -> void: _stats["disconnected"] += 1)
-	if role == "host":
+	if scenario == "trio":
+		if role == "host":
+			await _host_trio()
+		else:
+			await _client_trio()
+	elif role == "host":
 		await _run_host()
 	else:
 		await _run_client()
@@ -90,6 +95,15 @@ func _player_of(id: int) -> Player:
 	if p == null or p.node == null or not is_instance_valid(p.node):
 		return null
 	return p.node as Player
+
+
+## True when every listed player (id -> start position) is at least `min_dist` away from its start.
+func _all_moved(starts: Dictionary, min_dist: float) -> bool:
+	for id in starts:
+		var p := _player_of(int(id))
+		if p == null or p.global_position.distance_to(starts[id]) < min_dist:
+			return false
+	return true
 
 
 func _client_id() -> int:
@@ -225,6 +239,115 @@ func _run_host() -> void:
 		_log("Abstimmung ausgewertet, neue Runde läuft auf Harbor")
 	await get_tree().create_timer(2.0).timeout
 	_log("Host beendet die Lobby")
+	_finish()
+
+
+## Three humans (host + two clients): everybody sees everybody, movement of
+## the others arrives, and the map vote waits for all three votes.
+func _host_trio() -> void:
+	if NetworkManager.host(port) != OK:
+		_fail("Host konnte nicht starten")
+		_finish()
+		return
+	if not await _wait(func() -> bool: return NetworkManager.peers.size() >= 3, 40.0):
+		_fail("Nicht beide Clients sind beigetreten (Peers %d)" % NetworkManager.peers.size())
+		_finish()
+		return
+	var cfg := MatchConfig.new()
+	cfg.mode_id = MatchConfig.MODE_TDM
+	cfg.map_id = "test_arena"
+	cfg.bots_enabled = false
+	cfg.time_limit = 0.0
+	NetworkManager.host_start_match(cfg)
+	if not await _wait(func() -> bool: return _match_running_with(3), 50.0):
+		_fail("Match mit drei Spielern lief nicht an (Teilnehmer %d, Zustand %d)" % [MatchManager.participants.size(), MatchManager.state])
+		_finish()
+		return
+	_log("Match mit drei Spielern läuft")
+	# both clients walk (client2 starts later); the host sees both move
+	var starts: Dictionary = {}
+	for id in NetworkManager.peers:
+		if int(id) != 1:
+			starts[int(id)] = _player_of(int(id)).global_position
+	var moved := await _wait(func() -> bool: return _all_moved(starts, 3.0), 25.0)
+	if not moved:
+		_fail("Bewegung beider Clients kam auf dem Host nicht an")
+	else:
+		_log("Beide Clients bewegen sich serverseitig")
+	await get_tree().create_timer(2.0).timeout
+	MatchManager.end_match()
+	if not await _wait(func() -> bool: return int(_stats["votes"]) >= 1, 5.0):
+		_fail("Abstimmung nicht geöffnet")
+	await get_tree().create_timer(2.0).timeout
+	if MatchManager.config.map_id == "frontier":
+		_fail("Abstimmung wurde beendet, obwohl nicht alle gewählt hatten")
+	NetworkManager.cast_vote("frontier")
+	if not await _wait(func() -> bool: return MatchManager.config.map_id == "frontier" and _match_running_with(3), 60.0):
+		_fail("Runde auf Frontier mit drei Spielern nicht gestartet (Map %s)" % MatchManager.config.map_id)
+	else:
+		_log("Alle drei haben gewählt, Runde läuft auf Frontier")
+	await get_tree().create_timer(2.0).timeout
+	_finish()
+
+
+func _client_trio() -> void:
+	var joined := false
+	for attempt in 10:
+		if NetworkManager.join("127.0.0.1", port) == OK and await _wait(func() -> bool: return NetworkManager.peers.has(NetworkManager.local_peer_id()), 6.0):
+			joined = true
+			break
+		NetworkManager.leave()
+		await get_tree().create_timer(1.0).timeout
+	if not joined:
+		_fail("Beitritt fehlgeschlagen")
+		_finish()
+		return
+	if not await _wait(func() -> bool: return _match_running_with(3), 60.0):
+		_fail("Match mit drei Spielern läuft nicht (Teilnehmer %d)" % MatchManager.participants.size())
+		_finish()
+		return
+	var my_id := NetworkManager.local_peer_id()
+	var me := _player_of(my_id)
+	var others: Array = []
+	for id in MatchManager.participants:
+		if int(id) != my_id:
+			others.append(int(id))
+	var starts: Dictionary = {}
+	for id in others:
+		if _player_of(id) == null or _player_of(id).is_local:
+			_fail("Mitspieler %d fehlt oder ist fälschlich lokal" % id)
+			_finish()
+			return
+		starts[id] = _player_of(id).global_position
+	me.human_controller.scripted = true
+	me.human_controller.activate()
+	if role == "client2":
+		await get_tree().create_timer(2.0).timeout
+	var walk_start := me.global_position
+	me.input.move = Vector2(0, 1)
+	await get_tree().create_timer(1.5).timeout
+	if me.global_position.distance_to(walk_start) < 2.0:
+		me.rotation.y += PI # spawned facing a wall: walk the other way
+		await get_tree().create_timer(1.5).timeout
+	me.input.move = Vector2.ZERO
+	# the two others (host stands still, the other client walks) must be visible at their server positions
+	var others_no_host: Dictionary = {}
+	for id in others:
+		if id != 1:
+			others_no_host[id] = starts[id]
+	var seen := await _wait(func() -> bool: return _all_moved(others_no_host, 2.0), 25.0)
+	if not seen:
+		_fail("Bewegung des anderen Clients kam nicht an")
+	else:
+		_log("Bewegung des anderen Clients sichtbar")
+	if not await _wait(func() -> bool: return int(_stats["votes"]) >= 1, 40.0):
+		_fail("Abstimmung nicht empfangen")
+	else:
+		NetworkManager.cast_vote("frontier")
+		if not await _wait(func() -> bool: return MatchManager.config.map_id == "frontier" and _match_running_with(3), 60.0):
+			_fail("Runde auf Frontier nicht gestartet")
+		else:
+			_log("Neue Runde auf Frontier mit drei Spielern")
 	_finish()
 
 

@@ -67,7 +67,7 @@ godot --headless --path . tests/smoke_test.tscn
 ```
 
 Netzwerktest (startet Host und Client als zwei Godot-Prozesse auf localhost und prüft Lobby, Matchstart,
-Bewegung, Serverkorrektur, Treffer, Kill/Respawn, Granaten, Map-Voting und Host-Abschied; ca. 60 s):
+Bewegung, Serverkorrektur, Treffer, Kill/Respawn, Granaten, Map-Voting, Host-Abschied, Client-Abbruch mitten im Match und ein Drei-Spieler-Match; ca. 2 min):
 
 ```bash
 py -3 tools/run_net_test.py "C:\Pfad\zu\godot.exe"

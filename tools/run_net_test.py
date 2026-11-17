@@ -30,9 +30,11 @@ def start(godot, role, port, scenario):
 def run_scenario(godot, port, scenario):
     host = start(godot, "host", port, scenario)
     time.sleep(2.0)
-    client = start(godot, "client", port, scenario)
+    procs = [("host", host), ("client", start(godot, "client", port, scenario))]
+    if scenario == "trio":
+        procs.append(("client2", start(godot, "client2", port, scenario)))
     results = {}
-    for name, proc in (("host", host), ("client", client)):
+    for name, proc in procs:
         try:
             out, _ = proc.communicate(timeout=240)
         except subprocess.TimeoutExpired:
@@ -55,6 +57,7 @@ def main():
     port = int(sys.argv[2]) if len(sys.argv) > 2 else 7791
     ok = run_scenario(godot, str(port), "full")
     ok = run_scenario(godot, str(port + 1), "leave") and ok
+    ok = run_scenario(godot, str(port + 2), "trio") and ok
     print("Ergebnis:", "OK" if ok else "FEHLGESCHLAGEN")
     sys.exit(0 if ok else 1)
 

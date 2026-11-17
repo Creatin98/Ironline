@@ -14,7 +14,7 @@ Architektur: docs/ARCHITECTURE.md (nur bei Bedarf lesen). Sprache: Deutsch.
 - Statisch: `python3 tools/validate_project.py`
 - Godot (Linux headless muss ggf. nachgeladen werden): `godot --headless --path . --import --quit`
   (nötig bei neuen `class_name`), dann `godot --headless --path . tests/smoke_test.tscn` (~30 s, Offline-Match, Maps, Bots).
-- Netzwerk: `python3 tools/run_net_test.py <godot>` (Host+Client, ~40 s). Nur bei Netzwerk-/Spieler-/Waffenänderungen.
+- Netzwerk: `python3 tools/run_net_test.py <godot>` (Szenarien: Host+Client, Client verlässt Match, 3 Spieler; ~2 min). Nur bei Netzwerk-/Spieler-/Waffenänderungen.
 
 ## Git
 - Es gibt nur `main` (laufend aktualisierter Teststand, direkt dort committen und pushen) und `sicherheitskopie` (fester Rückfallpunkt: nie ändern). Keine weiteren Branches anlegen.
