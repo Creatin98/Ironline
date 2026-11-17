@@ -3,7 +3,7 @@
 Schneller First-Person-Arena-Shooter im Stil der klassischen Konsolen-Multiplayer-Ära:
 drei Klassen, drei Drei-Wege-Maps, Team Deathmatch und Free for All, Bots und Online-Multiplayer.
 
-## Aktueller Stand (Phase 1–7 abgeschlossen)
+## Aktueller Stand (Phase 1–8 abgeschlossen)
 
 | Phase | Inhalt | Status |
 |---|---|---|
@@ -14,7 +14,7 @@ drei Klassen, drei Drei-Wege-Maps, Team Deathmatch und Free for All, Bots und On
 | 5 | Bot-KI | fertig |
 | 6 | Online-Multiplayer (ENet, Host spielt mit, serverautoritativ) | fertig |
 | 7 | Lobby (Team/Klasse/Bots), Map-Voting nach jeder Runde | fertig |
-| 8 | Polish | offen |
+| 8 | Polish: Schadensrichtung, Mündungsfeuer/Körperanimation anderer Spieler, Effekt-Limit | fertig |
 | 9 | Windows-Build, Tests | offen |
 
 ## Starten

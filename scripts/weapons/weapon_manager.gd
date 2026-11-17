@@ -32,6 +32,7 @@ var _lower_blend: float = 0.0
 var _grenade_timer: float = 0.0
 var _grenade_thrown: bool = true
 var _tp_models: Array[Node3D] = []
+var _tp_flashes: Array[Node3D] = []
 var _last_mag: int = -1
 var _last_reserve: int = -1
 
@@ -45,6 +46,7 @@ func setup(new_player: Player, class_data: ClassData, local: bool) -> void:
 	for m in _tp_models:
 		m.queue_free()
 	_tp_models.clear()
+	_tp_flashes.clear()
 	max_grenades = class_data.grenades
 	grenades = max_grenades
 	for data in [class_data.primary, class_data.secondary]:
@@ -59,6 +61,13 @@ func setup(new_player: Player, class_data: ClassData, local: bool) -> void:
 		tp.visible = false
 		player.hands.add_child(tp)
 		_tp_models.append(tp)
+		var tp_muzzle := tp.get_node_or_null("Muzzle")
+		if tp_muzzle != null and not is_local:
+			var flash: Node3D = Weapon.MUZZLE_FLASH_SCENE.instantiate()
+			tp_muzzle.add_child(flash)
+			_tp_flashes.append(flash)
+		else:
+			_tp_flashes.append(null)
 	current_index = 0
 	_switch_state = SwitchState.READY
 	_show_weapon(current_index, true)
@@ -293,6 +302,14 @@ func set_remote_weapon_index(index: int) -> void:
 	get_current_weapon().cancel_actions()
 	current_index = index
 	_show_weapon(current_index, true)
+
+
+## Muzzle flash on the third-person model (what other players see).
+func flash_third_person() -> void:
+	if current_index < _tp_flashes.size():
+		var f := _tp_flashes[current_index]
+		if f != null and f.has_method("flash"):
+			f.flash()
 
 
 func play_remote_shot(impacts: Array) -> void:

@@ -267,6 +267,8 @@ func _spawn_impact(pos: Vector3, normal: Vector3, blood: bool) -> void:
 func _play_shot_feedback() -> void:
 	if muzzle_flash and muzzle_flash.has_method("flash"):
 		muzzle_flash.flash()
+	if not is_local:
+		player.weapon_manager.flash_third_person()
 	if is_local:
 		AudioManager.play_2d(data.shot_sound, data.shot_volume_db, 0.05)
 	else:

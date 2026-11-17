@@ -79,6 +79,7 @@ var _step_distance: float = 0.0
 var _sprint_block_timer: float = 0.0
 var _team_material: StandardMaterial3D
 var _death_tween: Tween
+var _walk_phase: float = 0.0
 
 
 func _ready() -> void:
@@ -304,12 +305,28 @@ func _process(delta: float) -> void:
 		return
 	if alive and not has_movement_authority():
 		_interpolate_remote(delta)
+	if alive:
+		_animate_body(delta)
 	last_look_delta = _look_accum
 	_look_accum = Vector2.ZERO
 	var w := weapon_manager.get_current_weapon()
 	var ads_fov := w.data.ads_fov if w else GameSettings.fov
 	var ads_time := w.data.ads_time if w else 0.2
 	head.update_camera(delta, horizontal_speed, is_on_floor(), current_height - EYE_BELOW_TOP, is_aiming, ads_fov, ads_time, is_sprinting)
+
+
+## Cheap procedural animation of the visible body: walking bob, sprint lean,
+## and the held weapon follows the view pitch.
+func _animate_body(delta: float) -> void:
+	if is_local:
+		return
+	var speed_ratio := clampf(horizontal_speed / SPRINT_SPEED, 0.0, 1.0)
+	_walk_phase += delta * (4.0 + speed_ratio * 8.0)
+	var bob := absf(sin(_walk_phase)) * 0.045 * speed_ratio
+	body.position.y = lerpf(body.position.y, bob, minf(1.0, delta * 14.0))
+	var lean := -0.16 if is_sprinting else -0.05 * speed_ratio
+	body.rotation.x = lerpf(body.rotation.x, lean, minf(1.0, delta * 8.0))
+	hands.rotation.x = lerpf(hands.rotation.x, head.pitch, minf(1.0, delta * 12.0))
 
 
 func _update_states(delta: float) -> void:

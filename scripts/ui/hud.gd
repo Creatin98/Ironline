@@ -36,6 +36,7 @@ var _spread_display: float = 0.0
 var _respawn_time_left: float = -1.0
 var _popup_time: float = 0.0
 var _killfeed_entries: Array = [] # [{node, time}]
+var _damage_dirs: Array = [] # [{dir: Vector2 (world x/z), time: float}]
 var _warmup: bool = false
 var _hud_scale_nodes: Array = []
 var _hud_pivots: Dictionary = {} # Control -> pivot fraction (0..1, 0..1)
@@ -217,6 +218,9 @@ func _process(delta: float) -> void:
 			var move_ratio := clampf(_player.horizontal_speed / Player.SPRINT_SPEED, 0.0, 1.0)
 			target_spread = w.get_spread_degrees(_player.is_aiming, move_ratio, not _player.is_on_floor(), _player.is_crouching)
 		_spread_display = lerpf(_spread_display, target_spread, minf(1.0, delta * 12.0))
+	for d in _damage_dirs:
+		d["time"] = float(d["time"]) - delta
+	_damage_dirs = _damage_dirs.filter(func(d: Dictionary) -> bool: return float(d["time"]) > 0.0)
 	crosshair.queue_redraw()
 	# damage vignette decay
 	damage_flash.color.a = maxf(0.0, damage_flash.color.a - delta * 1.6)
@@ -267,6 +271,7 @@ func _draw_crosshair() -> void:
 			_draw_cross_lines(center + Vector2(1, 1), gap, arm, shadow, 2.0)
 			_draw_cross_lines(center, gap, arm, col, 2.0)
 			crosshair.draw_circle(center, 1.5, col)
+	_draw_damage_indicators(center)
 	if _hitmarker_time > 0.0:
 		var a := clampf(_hitmarker_time / 0.12, 0.0, 1.0)
 		var col2 := Color(1, 0.25, 0.2, a) if _hitmarker_kill else Color(1, 1, 1, a)
@@ -274,6 +279,19 @@ func _draw_crosshair() -> void:
 		var r2 := 13.0
 		for d in [Vector2(1, 1), Vector2(-1, 1), Vector2(1, -1), Vector2(-1, -1)]:
 			crosshair.draw_line(center + d * r1, center + d * r2, col2, 2.5)
+
+
+## Red arcs around the crosshair that point towards whoever hurt us.
+func _draw_damage_indicators(center: Vector2) -> void:
+	if _damage_dirs.is_empty() or _player == null or not is_instance_valid(_player):
+		return
+	var yaw := _player.rotation.y
+	var forward := Vector2(-sin(yaw), -cos(yaw))
+	for d in _damage_dirs:
+		var a := forward.angle_to(d["dir"])
+		var alpha := clampf(float(d["time"]) / 0.6, 0.0, 1.0) * 0.85
+		var radius := 150.0
+		crosshair.draw_arc(center, radius, a - PI / 2.0 - 0.28, a - PI / 2.0 + 0.28, 12, Color(0.95, 0.12, 0.08, alpha), 9.0, true)
 
 
 func _draw_cross_lines(center: Vector2, gap: float, arm: float, col: Color, width: float) -> void:
@@ -377,8 +395,14 @@ func _on_local_died(killer_id: int, respawn_delay: float) -> void:
 	sub_label.text = "Respawn in %d" % int(ceil(respawn_delay))
 
 
-func _on_local_damaged(amount: float, _source_position: Vector3) -> void:
+func _on_local_damaged(amount: float, source_position: Vector3) -> void:
 	damage_flash.color.a = clampf(damage_flash.color.a + amount / 100.0 * 0.8, 0.0, 0.7)
+	if _player != null and is_instance_valid(_player):
+		var to := Vector2(source_position.x - _player.global_position.x, source_position.z - _player.global_position.z)
+		if to.length() > 1.0:
+			_damage_dirs.append({"dir": to.normalized(), "time": 1.2})
+			if _damage_dirs.size() > 6:
+				_damage_dirs.pop_front()
 
 
 func _on_health_changed(current: float, maximum: float) -> void:

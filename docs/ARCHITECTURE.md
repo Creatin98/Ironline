@@ -145,6 +145,13 @@ Munition: leer im Kampf → Waffenwechsel, sonst nachladen; außerhalb des Kampf
 Stuck-Erkennung springt nach 1.3 s und wählt nach 3 s ein neues Ziel. Drei Profile in `BotDifficulty`
 (Reaktion 0.85/0.45/0.25 s, Zielfehler 7.5/3.8/2.2°, Sichtweite 32/45/50 m, Granatenchance, Rückzug).
 
+## Polish (Phase 8)
+
+* HUD: rote Bögen um das Fadenkreuz zeigen die Richtung des letzten Treffers (1.2 s, relativ zur Blickrichtung).
+* Fremde Spieler und Bots: Mündungsfeuer am Waffenmodell in der Hand, Waffe folgt der Blickneigung, Laufwippen und
+  Vorwärtsneigung beim Sprinten (`Player._animate_body`, rein visuell, nur lebende Körper).
+* Performance: höchstens 64 gleichzeitige Einschlag-Effekte (`BulletImpact.MAX_LIVE`), die ältesten verschwinden zuerst.
+
 ## Spawnsystem
 
 `SpawnSystem.pick_spawn`: Kandidaten (Teampunkte + neutrale), Score = min. Gegnerdistanz (max 40) +
