@@ -8,6 +8,7 @@ extends Node
 ## Targets: menu, menu_settings, menu_online, menu_quick, menu_classes,
 ##   fp_<class>_<hip|ads>   first-person view in the test arena (class: assault, smg, shotgun)
 ##   game_pause | game_scoreboard | game_end | game_killcam | game_lastkill   in-game UI states (test arena, a few bots)
+##   rl_<class>_<percent>[_sec]   reload pose at that progress (first person, hip), e.g. rl_assault_40
 ##   map_<id>      overview render of a map (preview image for menus)
 ##   class_<id>    weapon render of a class (preview image for menus)
 ##   Optional: --nohud=1 hides the HUD.
@@ -49,6 +50,10 @@ func _run() -> void:
 			"menu_classes":
 				menu._show_classes()
 		node = menu
+	elif target.begins_with("rlm_"):
+		await _reload_model_view()
+	elif target.begins_with("rl_"):
+		await _reload_view()
 	elif target.begins_with("fp_"):
 		await _first_person_view()
 	elif target.begins_with("game_"):
@@ -303,3 +308,77 @@ func _game_ui(state: String) -> void:
 			MatchManager.end_match()
 	for i in 20:
 		await get_tree().process_frame
+
+
+func _reload_view() -> void:
+	var parts := target.split("_")
+	var class_id := parts[1]
+	var progress := float(parts[2]) / 100.0
+	var cfg := MatchConfig.new()
+	cfg.mode_id = MatchConfig.MODE_FFA
+	cfg.map_id = "test_arena"
+	cfg.bots_enabled = false
+	cfg.time_limit = 0.0
+	cfg.local_class_id = class_id
+	MatchManager.prepare_match(cfg)
+	var game: Node = (load("res://scenes/game/game.tscn") as PackedScene).instantiate()
+	get_tree().root.add_child.call_deferred(game)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	MatchManager.warmup_left = 0.05
+	for i in 30:
+		await get_tree().physics_frame
+	var player: Player = MatchManager.get_local_participant().node
+	player.human_controller.deactivate()
+	player.global_position = Vector3(0.0, 0.1, -17.0)
+	player.rotation.y = PI
+	game.hud.visible = false
+	var wm := player.weapon_manager
+	if parts.size() > 3 and parts[3] == "sec":
+		wm.begin_switch(1)
+		for i in 60:
+			await get_tree().physics_frame
+	var w := wm.get_current_weapon()
+	w.magazine = 2
+	w.start_reload()
+	await get_tree().physics_frame
+	get_tree().paused = true
+	w._state_timer = (1.0 - progress) * w._state_duration
+	w._reload_total = 0.4
+	w._update_reload(0.0)
+	wm.holder.position = w.data.hip_position + w.anim_offset
+	wm.holder.rotation = w.anim_rotation
+	for i in 3:
+		await get_tree().process_frame
+
+
+## The weapon model alone from its left side at a reload progress (checks mag/hand motion, no view tilt).
+func _reload_model_view() -> void:
+	var parts := target.split("_")
+	var data := GameDirector.get_class_data(parts[1])
+	var weapon_data: WeaponData = data.secondary if parts.size() > 3 and parts[3] == "sec" else data.primary
+	var root := Node3D.new()
+	get_tree().root.add_child.call_deferred(root)
+	await get_tree().process_frame
+	var env := Environment.new()
+	env.background_mode = Environment.BG_COLOR
+	env.background_color = Color(0.16, 0.18, 0.22)
+	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+	env.ambient_light_color = Color(0.7, 0.72, 0.8)
+	env.ambient_light_energy = 1.0
+	var we := WorldEnvironment.new()
+	we.environment = env
+	root.add_child(we)
+	var key := DirectionalLight3D.new()
+	key.rotation_degrees = Vector3(-30.0, -50.0, 0.0)
+	root.add_child(key)
+	var model: Node3D = weapon_data.model_scene.instantiate()
+	root.add_child(model)
+	var rig := ReloadRig.create(model, weapon_data.reload_style)
+	rig.apply(float(parts[2]) / 100.0, 1.0)
+	var cam := Camera3D.new()
+	cam.fov = 15.0
+	root.add_child(cam)
+	cam.position = Vector3(-3.3, -0.10, -0.12)
+	cam.look_at(Vector3(0.0, -0.10, -0.12), Vector3.UP)
+	cam.current = true

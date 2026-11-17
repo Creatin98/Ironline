@@ -33,6 +33,10 @@ var _walk_amp: float = 0.0
 var _grenade_timer: float = 0.0
 var _grenade_thrown: bool = true
 var _tp_models: Array[Node3D] = []
+var _tp_rigs: Array = [] # ReloadRig per third-person model
+var _tp_reload_progress: float = -1.0 # in cycles; < 0 = idle
+var _tp_reload_cycles: int = 1
+var _tp_reload_silent: bool = false
 var _tp_flashes: Array[Node3D] = []
 var _last_mag: int = -1
 var _last_reserve: int = -1
@@ -47,6 +51,8 @@ func setup(new_player: Player, class_data: ClassData, local: bool) -> void:
 	for m in _tp_models:
 		m.queue_free()
 	_tp_models.clear()
+	_tp_rigs.clear()
+	_tp_reload_progress = -1.0
 	_tp_flashes.clear()
 	max_grenades = class_data.grenades
 	grenades = max_grenades
@@ -62,6 +68,7 @@ func setup(new_player: Player, class_data: ClassData, local: bool) -> void:
 		tp.visible = false
 		player.hands.add_child(tp)
 		_tp_models.append(tp)
+		_tp_rigs.append(ReloadRig.create(tp, data.reload_style))
 		var tp_muzzle := tp.get_node_or_null("Muzzle")
 		if tp_muzzle != null:
 			var flash: Node3D = Weapon.MUZZLE_FLASH_SCENE.instantiate()
@@ -89,6 +96,7 @@ func reset_for_spawn() -> void:
 
 
 func on_owner_died() -> void:
+	_stop_tp_reload()
 	for w in weapons:
 		w.cancel_actions()
 	visible = false
@@ -174,6 +182,7 @@ func process_input(input: PlayerInputState, delta: float) -> void:
 func begin_switch(index: int) -> void:
 	if index < 0 or index >= weapons.size() or index == current_index:
 		return
+	_stop_tp_reload()
 	var w := get_current_weapon()
 	w.cancel_actions()
 	_pending_index = index
@@ -248,8 +257,50 @@ func _spawn_grenade() -> void:
 
 # ----------------------------------------------------------------------------- view model
 
+## Starts the reload animation on the third-person model other players see.
+## silent: the sounds are already played by the simulating Weapon (server side).
+func begin_tp_reload(silent: bool, cycles: int = 1) -> void:
+	if is_local or current_index >= _tp_rigs.size():
+		return
+	_stop_tp_reload()
+	_tp_reload_progress = 0.0
+	_tp_reload_cycles = maxi(1, cycles)
+	_tp_reload_silent = silent
+	_tp_rigs[current_index].reset()
+
+
+func _stop_tp_reload() -> void:
+	if _tp_reload_progress >= 0.0 and current_index < _tp_rigs.size():
+		_tp_rigs[current_index].reset()
+	_tp_reload_progress = -1.0
+
+
+func _update_tp_reload(delta: float) -> void:
+	var w := get_current_weapon()
+	if w == null or current_index >= _tp_rigs.size():
+		_tp_reload_progress = -1.0
+		return
+	var cycle_time: float = w.data.shell_reload_time if w.data.reload_single_shells else w.data.reload_time
+	var before := floorf(_tp_reload_progress)
+	_tp_reload_progress += delta / maxf(0.05, cycle_time)
+	var rig: ReloadRig = _tp_rigs[current_index]
+	if int(floorf(_tp_reload_progress)) >= _tp_reload_cycles:
+		_stop_tp_reload()
+		return
+	if floorf(_tp_reload_progress) != before:
+		rig._last_t = -1.0 # next cycle (shotgun shells)
+	var tilt := 1.0
+	for ev in rig.apply(_tp_reload_progress - floorf(_tp_reload_progress), tilt):
+		if not _tp_reload_silent:
+			AudioManager.play_3d(ev, player.global_position + Vector3.UP, -9.0, 0.05, 28.0)
+
+
 func _process(delta: float) -> void:
-	if player == null or not is_local:
+	if player == null:
+		return
+	if not is_local:
+		if _tp_reload_progress >= 0.0:
+			_update_tp_reload(delta)
 		return
 	var w := get_current_weapon()
 	if w == null:
@@ -310,6 +361,7 @@ func _process(delta: float) -> void:
 func set_remote_weapon_index(index: int) -> void:
 	if index < 0 or index >= weapons.size() or index == current_index:
 		return
+	_stop_tp_reload()
 	get_current_weapon().cancel_actions()
 	current_index = index
 	_show_weapon(current_index, true)
@@ -334,8 +386,7 @@ func play_remote_event(event: String) -> void:
 	match event:
 		"reload":
 			var w := get_current_weapon()
-			if w and w.data.reload_sounds.size() > 0:
-				AudioManager.play_3d(w.data.reload_sounds[0], pos, -10.0, 0.05, 25.0)
+			begin_tp_reload(false, 3 if w != null and w.data.reload_single_shells else 1)
 		"switch":
 			AudioManager.play_3d("weapon_switch", pos, -10.0)
 		"grenade":

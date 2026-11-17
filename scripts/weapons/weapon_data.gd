@@ -55,7 +55,9 @@ enum Slot { PRIMARY, SECONDARY }
 @export_group("Audio")
 @export var shot_sound: String = "shot_ak47"
 @export var shot_sound_far: String = "shot_ak47_far"
-@export var reload_sounds: Array[String] = ["reload_mag_out", "reload_mag_in"]
+@export var reload_sounds: Array[String] = ["reload_mag_out", "reload_mag_in"] # legacy, the animation (ReloadRig) triggers the sounds
+## Reload animation style: "rifle", "smg", "pistol" or "shotgun" (see ReloadRig).
+@export var reload_style: String = "rifle"
 @export var shot_volume_db: float = 0.0
 
 @export_group("Bots")

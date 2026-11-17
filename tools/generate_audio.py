@@ -299,6 +299,72 @@ def make_hit_feedback():
     write_wav("kill_headshot", soft_clip(kill_h, 2.2), 0.97)
 
 
+def make_reload_sounds():
+    """Reload mechanics: magazine release/out/in, slap, charging handle, pistol slide, shotgun shell.
+    Dry, short and mechanical (filtered noise + damped metal resonances), no tones. Own random
+    generator so the other sounds stay byte-identical."""
+    local = random.Random(2024)
+
+    def nz(seconds):
+        return [local.uniform(-1, 1) for _ in range(int(seconds * SR))]
+
+    def modal(freqs, decays, gains, length, pitch=1.0):
+        out = [0.0] * int(length * SR)
+        for f, d, g in zip(freqs, decays, gains):
+            for k, s in enumerate(env_exp(sine(f * pitch, length), d)):
+                out[k] += s * g
+        return out
+
+    def tick(freq_scale=1.0, strength=1.0, length=0.05):
+        """Sharp metal tick: noise transient + short high resonance."""
+        return gain(mix(
+            env_exp(highpass(nz(length), 2500), 0.004),
+            gain(modal([2400, 3700], [0.012, 0.008], [0.7, 0.4], length, freq_scale), 0.5),
+        ), strength)
+
+    def thunk(freq=130.0, length=0.09, strength=1.0):
+        """Dull impact (plastic/steel on steel)."""
+        return gain(mix(
+            env_exp(sweep(freq * 1.6, freq * 0.7, length), 0.03),
+            gain(env_exp(lowpass(nz(length), 1400), 0.018), 0.6),
+        ), strength)
+
+    def scrape(length, lo=700, hi=3800, peak=0.5):
+        """Friction of a magazine sliding in/out: band-limited noise with a swelling envelope."""
+        n = lowpass(highpass(nz(length), lo), hi)
+        count = len(n)
+        return [s * (math.sin(math.pi * min(1.0, i / max(1, count))) ** 0.7) * peak for i, s in enumerate(n)]
+
+    def seq(*parts):
+        """Place (time, samples) parts on a timeline."""
+        total = max(int((tm * SR)) + len(sm) for tm, sm in parts)
+        out = [0.0] * total
+        for tm, sm in parts:
+            start = int(tm * SR)
+            for k, s in enumerate(sm):
+                out[start + k] += s
+        return out
+
+    write_wav("reload_release", mix(tick(1.0, 1.0, 0.05), thunk(220, 0.04, 0.5)), 0.7)
+
+    # rifle: magazine slides out of the well with a short scrape and a dull clunk when it clears
+    write_wav("reload_mag_out", seq((0.0, scrape(0.13, 800, 3000, 0.45)), (0.11, thunk(120, 0.1, 0.9)), (0.11, tick(0.8, 0.35, 0.04))), 0.8)
+    # rifle: new magazine slides in, then seats with a firm clack and a latch click
+    write_wav("reload_mag_in", seq((0.0, scrape(0.10, 900, 3500, 0.4)), (0.095, thunk(105, 0.1, 1.1)), (0.095, tick(0.9, 0.8, 0.05)), (0.125, tick(1.15, 0.6, 0.04))), 0.9)
+    # charging handle: back with a short scrape and a stop, forward with a heavy slam
+    write_wav("reload_bolt", seq((0.0, scrape(0.09, 600, 2600, 0.5)), (0.085, tick(0.8, 0.6, 0.05)), (0.2, thunk(95, 0.12, 1.2)), (0.2, tick(0.75, 1.1, 0.06)), (0.215, gain(modal([1100, 1800], [0.03, 0.02], [0.6, 0.4], 0.12), 0.4))), 0.95)
+    # palm slap on the magazine floor plate
+    write_wav("reload_slap", mix(thunk(150, 0.06, 0.9), env_exp(lowpass(nz(0.05), 2200), 0.012)), 0.6)
+
+    # pistol: light, higher variants
+    write_wav("reload_pistol_out", seq((0.0, scrape(0.07, 1000, 3800, 0.35)), (0.06, thunk(170, 0.06, 0.7)), (0.06, tick(1.1, 0.3, 0.03))), 0.7)
+    write_wav("reload_pistol_in", seq((0.0, scrape(0.06, 1000, 4000, 0.3)), (0.055, thunk(150, 0.07, 0.9)), (0.055, tick(1.25, 0.8, 0.04)), (0.08, tick(1.5, 0.45, 0.03))), 0.8)
+    write_wav("reload_slide", seq((0.0, tick(0.9, 1.0, 0.05)), (0.0, thunk(190, 0.06, 0.8)), (0.02, gain(modal([1300, 2200, 3500], [0.03, 0.025, 0.015], [0.7, 0.5, 0.3], 0.14), 0.5))), 0.85)
+
+    # shotgun shell: plastic shell on the loading gate, then the carrier latch clicks
+    write_wav("shell_insert", seq((0.0, mix(thunk(260, 0.05, 0.7), tick(1.2, 0.5, 0.03))), (0.045, tick(1.0, 0.7, 0.04)), (0.045, gain(modal([1500, 2300], [0.02, 0.014], [0.6, 0.4], 0.08), 0.3))), 0.75)
+
+
 def make_ui():
     write_wav("ui_click", mix(env_exp(sine(1800, 0.05), 0.012), env_exp(highpass(noise(0.05), 2000), 0.006)), 0.5)
     write_wav("ui_hover", env_exp(sine(1400, 0.04), 0.01), 0.3)
@@ -314,11 +380,15 @@ def make_ui():
 if __name__ == "__main__":
     os.makedirs(OUT_DIR, exist_ok=True)
     import sys
+    if "reload" in sys.argv[1:]:
+        make_reload_sounds()
+        sys.exit(0)
     if "hits" in sys.argv[1:]:
         make_hit_feedback() # only the hit/kill confirmation sounds
         sys.exit(0)
     make_guns()
     make_mechanical()
+    make_reload_sounds()
     make_movement()
     make_feedback()
     make_ui()

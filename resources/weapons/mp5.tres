@@ -42,6 +42,7 @@ ads_speed_multiplier = 0.75
 shot_sound = "shot_mp5"
 shot_sound_far = "shot_mp5_far"
 reload_sounds = Array[String](["reload_mag_out", "reload_mag_in"])
+reload_style = "smg"
 shot_volume_db = -1.0
 bot_effective_range = 24.0
 bot_burst_shots = 6

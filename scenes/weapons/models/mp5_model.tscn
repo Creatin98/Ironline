@@ -464,18 +464,21 @@ mesh = SubResource("mesh_37")
 position = Vector3(0.0000, 0.0400, -0.4400)
 mesh = SubResource("mesh_38")
 
-[node name="Magazine1" type="MeshInstance3D" parent="."]
-position = Vector3(0.0000, -0.0750, -0.0480)
+[node name="Mag" type="Node3D" parent="."]
+position = Vector3(0.0000, -0.0300, -0.0480)
+
+[node name="Magazine1" type="MeshInstance3D" parent="Mag"]
+position = Vector3(0.0000, -0.0450, 0.0000)
 rotation = Vector3(-0.0698, 0.0000, 0.0000)
 mesh = SubResource("mesh_39")
 
-[node name="Magazine2" type="MeshInstance3D" parent="."]
-position = Vector3(0.0000, -0.1650, -0.0340)
+[node name="Magazine2" type="MeshInstance3D" parent="Mag"]
+position = Vector3(0.0000, -0.1350, 0.0140)
 rotation = Vector3(-0.2094, 0.0000, 0.0000)
 mesh = SubResource("mesh_40")
 
-[node name="MagBase" type="MeshInstance3D" parent="."]
-position = Vector3(0.0000, -0.2130, -0.0200)
+[node name="MagBase" type="MeshInstance3D" parent="Mag"]
+position = Vector3(0.0000, -0.1830, 0.0280)
 rotation = Vector3(-0.2094, 0.0000, 0.0000)
 mesh = SubResource("mesh_41")
 
@@ -520,36 +523,41 @@ mesh = SubResource("mesh_50")
 [node name="Muzzle" type="Node3D" parent="."]
 position = Vector3(0.0000, 0.0160, -0.4800)
 
-[node name="LeftPalm" type="MeshInstance3D" parent="."]
-position = Vector3(-0.0040, -0.0060, -0.2200)
+[node name="LeftHand" type="Node3D" parent="."]
+position = Vector3(0.0000, 0.0040, -0.2200)
+
+[node name="LeftPalm" type="MeshInstance3D" parent="LeftHand"]
+position = Vector3(-0.0040, -0.0100, 0.0000)
 mesh = SubResource("mesh_51")
 
-[node name="LeftFingers" type="MeshInstance3D" parent="."]
-position = Vector3(0.0340, 0.0080, -0.2240)
+[node name="LeftFingers" type="MeshInstance3D" parent="LeftHand"]
+position = Vector3(0.0340, 0.0040, -0.0040)
 mesh = SubResource("mesh_52")
 
-[node name="LeftThumb" type="MeshInstance3D" parent="."]
-position = Vector3(-0.0360, 0.0260, -0.2300)
+[node name="LeftThumb" type="MeshInstance3D" parent="LeftHand"]
+position = Vector3(-0.0360, 0.0220, -0.0100)
 mesh = SubResource("mesh_53")
 
-[node name="LeftForearm" type="MeshInstance3D" parent="."]
-position = Vector3(-0.0630, -0.2820, 0.0550)
+[node name="LeftForearm" type="MeshInstance3D" parent="LeftHand"]
+position = Vector3(-0.0630, -0.2860, 0.2750)
 rotation = Vector3(-0.8171, 2.9130, 0.0000)
 mesh = SubResource("mesh_54")
 
-[node name="RightPalm" type="MeshInstance3D" parent="."]
+[node name="RightHand" type="Node3D" parent="."]
 position = Vector3(0.0000, -0.0740, 0.1120)
+
+[node name="RightPalm" type="MeshInstance3D" parent="RightHand"]
 mesh = SubResource("mesh_55")
 
-[node name="RightFingers" type="MeshInstance3D" parent="."]
-position = Vector3(0.0000, -0.0700, 0.0780)
+[node name="RightFingers" type="MeshInstance3D" parent="RightHand"]
+position = Vector3(0.0000, 0.0040, -0.0340)
 mesh = SubResource("mesh_56")
 
-[node name="RightThumb" type="MeshInstance3D" parent="."]
-position = Vector3(0.0280, -0.0520, 0.1160)
+[node name="RightThumb" type="MeshInstance3D" parent="RightHand"]
+position = Vector3(0.0280, 0.0220, 0.0040)
 mesh = SubResource("mesh_57")
 
-[node name="RightForearm" type="MeshInstance3D" parent="."]
-position = Vector3(0.0720, -0.3250, 0.2610)
+[node name="RightForearm" type="MeshInstance3D" parent="RightHand"]
+position = Vector3(0.0720, -0.2510, 0.1490)
 rotation = Vector3(-1.0237, -2.6224, 0.0000)
 mesh = SubResource("mesh_58")

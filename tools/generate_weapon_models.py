@@ -26,6 +26,8 @@ MATERIALS = {
     "polymer_grey": dict(color=(0.22, 0.23, 0.25), metallic=0.0, roughness=0.8),
     "glove": dict(color=(0.13, 0.13, 0.14), metallic=0.0, roughness=0.9),
     "sleeve": dict(color=(0.17, 0.20, 0.14), metallic=0.0, roughness=0.95),
+    "shell_red": dict(color=(0.72, 0.10, 0.08), metallic=0.0, roughness=0.55),
+    "brass": dict(color=(0.80, 0.62, 0.26), metallic=0.8, roughness=0.3),
     "sight_dot": dict(color=(0.95, 0.95, 0.9), metallic=0.0, roughness=0.4, emission=(1.0, 1.0, 0.95), energy=0.9),
 }
 
@@ -136,17 +138,26 @@ class Scene:
 
 
 def hands(s, left, right, left_target, right_target, parent="."):
-    """Gloved hands plus sleeves. left/right = hand centres, *_target = where the forearm comes from."""
+    """Gloved hands plus sleeves as two groups (LeftHand / RightHand) so reload animations can move them.
+    left/right = hand centres (the group origins), *_target = where the forearm comes from (model space)."""
+    rel = lambda p, c: (p[0] - c[0], p[1] - c[1], p[2] - c[2])
+    lg = s.group("LeftHand", left, parent)
     # left hand: palm under the handguard, fingers around, thumb on the side
-    s.box("LeftPalm", (left[0] - 0.004, left[1] - 0.010, left[2]), (0.062, 0.040, 0.085), "glove", parent=parent)
-    s.box("LeftFingers", (left[0] + 0.034, left[1] + 0.004, left[2] - 0.004), (0.014, 0.046, 0.078), "glove", parent=parent)
-    s.box("LeftThumb", (left[0] - 0.036, left[1] + 0.022, left[2] - 0.010), (0.014, 0.016, 0.058), "glove", parent=parent)
-    s.arm("LeftForearm", (left[0] - 0.006, left[1] - 0.018, left[2] + 0.030), left_target, 0.062, 0.056, "sleeve", parent=parent)
+    s.box("LeftPalm", (-0.004, -0.010, 0.0), (0.062, 0.040, 0.085), "glove", parent=lg)
+    s.box("LeftFingers", (0.034, 0.004, -0.004), (0.014, 0.046, 0.078), "glove", parent=lg)
+    s.box("LeftThumb", (-0.036, 0.022, -0.010), (0.014, 0.016, 0.058), "glove", parent=lg)
+    s.arm("LeftForearm", (-0.006, -0.018, 0.030), rel(left_target, left), 0.062, 0.056, "sleeve", parent=lg)
+    rg = s.group("RightHand", right, parent)
     # right hand: around the grip, trigger finger forward
-    s.box("RightPalm", (right[0], right[1], right[2]), (0.050, 0.060, 0.052), "glove", parent=parent)
-    s.box("RightFingers", (right[0], right[1] + 0.004, right[2] - 0.034), (0.040, 0.046, 0.016), "glove", parent=parent)
-    s.box("RightThumb", (right[0] + 0.028, right[1] + 0.022, right[2] + 0.004), (0.016, 0.016, 0.052), "glove", parent=parent)
-    s.arm("RightForearm", (right[0] + 0.004, right[1] - 0.026, right[2] + 0.030), right_target, 0.060, 0.054, "sleeve", parent=parent)
+    s.box("RightPalm", (0.0, 0.0, 0.0), (0.050, 0.060, 0.052), "glove", parent=rg)
+    s.box("RightFingers", (0.0, 0.004, -0.034), (0.040, 0.046, 0.016), "glove", parent=rg)
+    s.box("RightThumb", (0.028, 0.022, 0.004), (0.016, 0.016, 0.052), "glove", parent=rg)
+    s.arm("RightForearm", (0.004, -0.026, 0.030), rel(right_target, right), 0.060, 0.054, "sleeve", parent=rg)
+
+
+def mag_group(s, pivot):
+    """Group for the removable magazine; origin = top of the magazine well (rotation pivot)."""
+    return s.group("Mag", pivot)
 
 
 # --------------------------------------------------------------------------- AK-47
@@ -179,12 +190,15 @@ def ak47():
     s.box("FrontSightPost", (0, 0.0905, -0.560), (0.0042, 0.016, 0.0042), "steel")
     s.box("FrontSightEarL", (-0.0105, 0.0865, -0.560), (0.003, 0.024, 0.010), "steel")
     s.box("FrontSightEarR", (0.0105, 0.0865, -0.560), (0.003, 0.024, 0.010), "steel")
-    # magazine (curved, ribbed)
-    s.box("Magazine1", (0, -0.062, -0.082), (0.030, 0.074, 0.056), "steel", rot=(-6, 0, 0))
-    s.box("Magazine2", (0, -0.128, -0.068), (0.030, 0.074, 0.056), "steel", rot=(-16, 0, 0))
-    s.box("Magazine3", (0, -0.190, -0.044), (0.030, 0.070, 0.056), "steel", rot=(-28, 0, 0))
+    # magazine (curved, ribbed) as a group so it can be pulled out and swapped
+    mp = (0.0, -0.030, -0.082)
+    mg = mag_group(s, mp)
+    sub = lambda p: (p[0] - mp[0], p[1] - mp[1], p[2] - mp[2])
+    s.box("Magazine1", sub((0, -0.062, -0.082)), (0.030, 0.074, 0.056), "steel", rot=(-6, 0, 0), parent=mg)
+    s.box("Magazine2", sub((0, -0.128, -0.068)), (0.030, 0.074, 0.056), "steel", rot=(-16, 0, 0), parent=mg)
+    s.box("Magazine3", sub((0, -0.190, -0.044)), (0.030, 0.070, 0.056), "steel", rot=(-28, 0, 0), parent=mg)
     for i in range(3):
-        s.box(f"MagRib{i}", (0.0155, -0.070 - 0.060 * i, -0.078 + 0.017 * i), (0.002, 0.012, 0.050), "gunmetal", rot=(-6 - 11 * i, 0, 0))
+        s.box(f"MagRib{i}", sub((0.0155, -0.070 - 0.060 * i, -0.078 + 0.017 * i)), (0.002, 0.012, 0.050), "gunmetal", rot=(-6 - 11 * i, 0, 0), parent=mg)
     # trigger group + grip
     s.box("Grip", (0, -0.075, 0.082), (0.032, 0.096, 0.040), "polymer", rot=(16, 0, 0))
     s.box("TriggerGuardBottom", (0, -0.038, 0.034), (0.008, 0.008, 0.075), "steel")
@@ -221,9 +235,12 @@ def mp5():
     s.box("FrontSightPost", (0, 0.051, -0.440), (0.0040, 0.050, 0.0040), "steel")
     s.ring("FrontHood", (0, 0.082, -0.440), 0.0125, 0.0040, 0.016, "gunmetal")
     s.box("FrontHoodMount", (0, 0.040, -0.440), (0.012, 0.046, 0.016), "gunmetal")
-    s.box("Magazine1", (0, -0.075, -0.048), (0.026, 0.100, 0.050), "steel", rot=(-4, 0, 0))
-    s.box("Magazine2", (0, -0.165, -0.034), (0.026, 0.090, 0.050), "steel", rot=(-12, 0, 0))
-    s.box("MagBase", (0, -0.213, -0.020), (0.030, 0.008, 0.056), "polymer", rot=(-12, 0, 0))
+    mp = (0.0, -0.030, -0.048)
+    mg = mag_group(s, mp)
+    sub = lambda p: (p[0] - mp[0], p[1] - mp[1], p[2] - mp[2])
+    s.box("Magazine1", sub((0, -0.075, -0.048)), (0.026, 0.100, 0.050), "steel", rot=(-4, 0, 0), parent=mg)
+    s.box("Magazine2", sub((0, -0.165, -0.034)), (0.026, 0.090, 0.050), "steel", rot=(-12, 0, 0), parent=mg)
+    s.box("MagBase", sub((0, -0.213, -0.020)), (0.030, 0.008, 0.056), "polymer", rot=(-12, 0, 0), parent=mg)
     s.box("Grip", (0, -0.070, 0.108), (0.032, 0.095, 0.040), "polymer", rot=(14, 0, 0))
     s.box("TriggerGuardBottom", (0, -0.034, 0.062), (0.008, 0.008, 0.070), "steel")
     s.box("TriggerGuardFront", (0, -0.016, 0.028), (0.008, 0.034, 0.008), "steel")
@@ -270,6 +287,10 @@ def shotgun():
     s.box("StockPad", (0, -0.026, 0.424), (0.044, 0.104, 0.014), "polymer")
     s.marker("Muzzle", (0, 0.040, -0.715))
     hands(s, left=(0.0, 0.002, -0.360), right=(0.0, -0.032, 0.150), left_target=(-0.12, -0.55, 0.30), right_target=(0.14, -0.55, 0.40))
+    # a shell the right hand carries to the loading gate (hidden unless the reload animation shows it)
+    shell = s.group("ShellProp", (0.0, 0.0, -0.045), "RightHand")
+    s.cyl("ShellBody", (0.0, 0.0, -0.012), 0.0105, 0.044, "shell_red", parent=shell)
+    s.cyl("ShellBase", (0.0, 0.0, 0.016), 0.0112, 0.012, "brass", parent=shell)
     return s
 
 
@@ -296,21 +317,28 @@ def pistol():
     s.box("Grip", (0, -0.050, 0.050), (0.030, 0.092, 0.052), "polymer", rot=(12, 0, 0))
     for i in range(4):
         s.box(f"GripPanel{i}", (0.0155, -0.040 - 0.018 * i, 0.047 + 0.003 * i), (0.002, 0.010, 0.040), "polymer_grey", rot=(12, 0, 0))
-    s.box("MagBase", (0, -0.100, 0.066), (0.032, 0.008, 0.056), "steel", rot=(12, 0, 0))
+    mp = (0.0, -0.045, 0.055) # top of the magazine well inside the grip
+    mg = mag_group(s, mp)
+    s.box("MagBody", (0.0, -0.030, 0.003), (0.024, 0.070, 0.040), "steel", rot=(12, 0, 0), parent=mg)
+    s.box("MagBase", (0.0, -0.055 , 0.011), (0.032, 0.008, 0.056), "steel", rot=(12, 0, 0), parent=mg)
     s.box("TriggerGuardBottom", (0, -0.014, -0.020), (0.008, 0.008, 0.060), "polymer_grey")
     s.box("TriggerGuardFront", (0, -0.002, -0.048), (0.008, 0.024, 0.008), "polymer_grey")
     s.box("Trigger", (0, -0.004, -0.014), (0.006, 0.020, 0.007), "steel_light", rot=(16, 0, 0))
     s.box("Hammer", (0, 0.040, 0.064), (0.008, 0.012, 0.012), "steel")
     s.marker("Muzzle", (0, 0.032, -0.122))
-    # right hand on the grip, left hand cups it from below/left
-    s.box("RightPalm", (0.002, -0.044, 0.056), (0.046, 0.066, 0.052), "glove")
-    s.box("RightFingers", (0.0, -0.036, 0.028), (0.040, 0.040, 0.016), "glove")
-    s.box("RightThumb", (0.028, -0.010, 0.040), (0.016, 0.016, 0.050), "glove")
-    s.arm("RightForearm", (0.006, -0.070, 0.074), (0.09, -0.55, 0.30), 0.056, 0.050, "sleeve")
-    s.box("LeftPalm", (-0.032, -0.048, 0.044), (0.030, 0.062, 0.052), "glove")
-    s.box("LeftFingers", (0.0, -0.062, 0.020), (0.050, 0.020, 0.016), "glove")
-    s.box("LeftThumb", (-0.036, -0.018, 0.020), (0.014, 0.014, 0.052), "glove")
-    s.arm("LeftForearm", (-0.036, -0.070, 0.070), (-0.09, -0.55, 0.30), 0.056, 0.050, "sleeve")
+    # right hand on the grip, left hand cups it from below/left (both are groups for the reload animation)
+    rc = (0.002, -0.044, 0.056)
+    rg = s.group("RightHand", rc)
+    s.box("RightPalm", (0.0, 0.0, 0.0), (0.046, 0.066, 0.052), "glove", parent=rg)
+    s.box("RightFingers", (-0.002, 0.008, -0.028), (0.040, 0.040, 0.016), "glove", parent=rg)
+    s.box("RightThumb", (0.026, 0.034, -0.016), (0.016, 0.016, 0.050), "glove", parent=rg)
+    s.arm("RightForearm", (0.004, -0.026, 0.018), (0.09 - rc[0], -0.55 - rc[1], 0.30 - rc[2]), 0.056, 0.050, "sleeve", parent=rg)
+    lc = (-0.032, -0.048, 0.044)
+    lg = s.group("LeftHand", lc)
+    s.box("LeftPalm", (0.0, 0.0, 0.0), (0.030, 0.062, 0.052), "glove", parent=lg)
+    s.box("LeftFingers", (0.032, -0.014, -0.024), (0.050, 0.020, 0.016), "glove", parent=lg)
+    s.box("LeftThumb", (-0.004, 0.030, -0.024), (0.014, 0.014, 0.052), "glove", parent=lg)
+    s.arm("LeftForearm", (-0.004, -0.022, 0.026), (-0.09 - lc[0], -0.55 - lc[1], 0.30 - lc[2]), 0.056, 0.050, "sleeve", parent=lg)
     return s
 
 

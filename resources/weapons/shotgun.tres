@@ -45,6 +45,7 @@ ads_speed_multiplier = 0.65
 shot_sound = "shot_shotgun"
 shot_sound_far = "shot_shotgun_far"
 reload_sounds = Array[String](["shell_insert"])
+reload_style = "shotgun"
 shot_volume_db = 1.5
 bot_effective_range = 12.0
 bot_burst_shots = 1

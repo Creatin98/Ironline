@@ -162,6 +162,22 @@ U-Kimme mit Korn und Schutzohren (AK), Diopter-Ring mit Korn im Ring (MP5), Lauf
 Dreipunkt-Visier (Pistole). Wichtig für Änderungen: Teile, die zwischen Auge und Visier liegen, müssen unter der
 Visierlinie bleiben, sonst verdecken sie das Bild.
 
+## Nachlade-Animationen (Phase 8+)
+
+* `ReloadRig` (scripts/weapons/reload_rig.gd) bewegt die Teile eines Waffenmodells per Keyframes: **Magazin** (`Mag`, Pivot an
+  der Schachtoberseite), **Hände** (`LeftHand`/`RightHand`; die Unterarme bleiben am Ellbogen verankert und werden zur Hand
+  gestreckt), Ladegriff (`ChargingHandle`/`CockingHandle`), Pistolenschlitten (`Slide`) und die **Schrotpatrone** (`ShellProp`).
+  `apply(t)` liefert die Geräusche, deren Zeitpunkt in diesem Takt überschritten wurde, und die Kipp-Pose der ganzen Waffe.
+* Stile (`WeaponData.reload_style`): `rifle` (AK: Magazin lösen, herausziehen, neues vom Gürtel, einsetzen, abklopfen,
+  Ladegriff), `smg` (wie rifle, Spannhebel vorn links), `pistol` (Magazin fällt aus dem Griff, neues, Schlitten loslassen),
+  `shotgun` (pro Patrone ein Zyklus: Hand zum Gürtel, Patrone zum Ladefenster, einschieben; die Waffe kippt einmal ein).
+* Ablauf: `Weapon._update_reload` ruft `rig.apply`, spielt die Sounds (`reload_release`, `reload_mag_out`, `reload_mag_in`,
+  `reload_slap`, `reload_bolt`, `reload_pistol_out/in`, `reload_slide`, `shell_insert`) und setzt `anim_offset/rotation` für
+  den Viewmodel-Halter. Andere Spieler: `WeaponManager.begin_tp_reload` animiert deren Modell (Server-Simulation still, weil
+  die `Weapon` die Sounds schon spielt; Clients über das Waffenereignis „reload“ mit 3D-Sound).
+* Sounds (`tools/generate_audio.py reload`): trocken und mechanisch aus gefiltertem Rauschen und gedämpften Metallresonanzen
+  (Klick, dumpfes Einrasten, Reiben des Magazins, Ladegriff mit Rückschlag), keine Töne.
+
 ## Bewegung, Kamera und HUD-Layout (Phase 8+)
 
 * **Bordsteine/Stufen:** `Player._try_step_up` hebt den Körper bis `STEP_HEIGHT` = 0.4 m auf niedrige Hindernisse

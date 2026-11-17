@@ -32,7 +32,8 @@ var muzzle_flash: Node3D
 
 var _state_timer: float = 0.0
 var _state_duration: float = 1.0
-var _reload_sound_queue: Array = []
+var rig: ReloadRig # reload animation of the first-person model
+var _reload_total: float = 0.0
 var _reload_elapsed: float = 0.0
 var _shell_cancel: bool = false
 var _slide_timer: float = 0.0
@@ -53,6 +54,7 @@ func setup(new_data: WeaponData, new_player: Player, local: bool) -> void:
 		slide_node = model.get_node_or_null("Slide")
 		if pump_node:
 			_pump_rest = pump_node.position
+		rig = ReloadRig.create(model, data.reload_style)
 	if muzzle == null:
 		muzzle = Node3D.new()
 		muzzle.position = Vector3(0, 0, -0.6)
@@ -78,6 +80,8 @@ func draw() -> void:
 
 
 func holster() -> void:
+	if rig:
+		rig.reset()
 	visible = false
 	_set_state(State.HOLSTERED, 0.0)
 	anim_offset = Vector3.ZERO
@@ -87,7 +91,9 @@ func holster() -> void:
 func cancel_actions() -> void:
 	if state == State.RELOADING or state == State.PUMPING:
 		_set_state(State.IDLE, 0.0)
-	_reload_sound_queue.clear()
+	_reload_total = 0.0
+	if rig:
+		rig.reset()
 	anim_offset = Vector3.ZERO
 	anim_rotation = Vector3.ZERO
 	if pump_node:
@@ -298,40 +304,33 @@ func start_reload() -> bool:
 		NetworkManager.broadcast_weapon_event(player.participant_id, "reload")
 	_shell_cancel = false
 	_reload_elapsed = 0.0
-	_reload_sound_queue.clear()
+	_reload_total = 0.0
+	if rig:
+		rig.reset()
+	if not player.is_local:
+		# other players: animate the third-person copy (the first-person model is hidden)
+		player.weapon_manager.begin_tp_reload(true, data.magazine_size - magazine)
 	if data.reload_single_shells:
 		_set_state(State.RELOADING, data.shell_reload_time)
-		_reload_sound_queue.append({"t": data.shell_reload_time * 0.45, "name": data.reload_sounds[0] if data.reload_sounds.size() > 0 else "shell_insert"})
 	else:
 		_set_state(State.RELOADING, data.reload_time)
-		var fractions := [0.12, 0.58, 0.86]
-		for i in data.reload_sounds.size():
-			var f: float = fractions[i] if i < fractions.size() else 0.9
-			_reload_sound_queue.append({"t": data.reload_time * f, "name": data.reload_sounds[i]})
 	return true
 
 
 func _update_reload(delta: float) -> void:
 	_state_timer -= delta
 	_reload_elapsed += delta
-	# timed sounds
-	var i := 0
-	while i < _reload_sound_queue.size():
-		var entry: Dictionary = _reload_sound_queue[i]
-		if _reload_elapsed >= float(entry["t"]):
-			_play_mech_sound(String(entry["name"]))
-			_reload_sound_queue.remove_at(i)
-		else:
-			i += 1
-	# animation: dip + tilt
+	_reload_total += delta
+	# pose the model (magazine, hands, handle, slide, shell); the rig reports the sounds to play
 	var t := 1.0 - clampf(_state_timer / _state_duration, 0.0, 1.0)
-	var s := sin(t * PI)
+	var tilt := 1.0
 	if data.reload_single_shells:
-		anim_offset = Vector3(0.0, -0.04 * s, 0.03 * s)
-		anim_rotation = Vector3(0.1 * s, 0.0, 0.3 * s)
-	else:
-		anim_offset = Vector3(0.0, -0.1 * s, 0.03 * s)
-		anim_rotation = Vector3(-0.35 * s, 0.3 * s, 0.45 * s)
+		tilt = ReloadRig._smooth(_reload_total / 0.18) # the shotgun tilts in once, not per shell
+	if rig:
+		for ev in rig.apply(t, tilt):
+			_play_mech_sound(ev)
+		anim_offset = rig.holder_offset
+		anim_rotation = rig.holder_rotation
 	if _state_timer > 0.0:
 		return
 	# cycle complete
@@ -341,15 +340,20 @@ func _update_reload(delta: float) -> void:
 		if magazine < data.magazine_size and reserve > 0 and not _shell_cancel:
 			_reload_elapsed = 0.0
 			_set_state(State.RELOADING, data.shell_reload_time)
-			_reload_sound_queue.append({"t": data.shell_reload_time * 0.45, "name": data.reload_sounds[0] if data.reload_sounds.size() > 0 else "shell_insert"})
+			if rig:
+				rig.apply(0.0, tilt) # next shell: hand back to the grip, restart the cycle
+				rig._last_t = -1.0
 			return
 	else:
 		var needed := data.magazine_size - magazine
 		var taken := mini(needed, reserve)
 		magazine += taken
 		reserve -= taken
+	if rig:
+		rig.reset()
 	anim_offset = Vector3.ZERO
 	anim_rotation = Vector3.ZERO
+	_reload_total = 0.0
 	_set_state(State.IDLE, 0.0)
 
 

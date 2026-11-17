@@ -42,6 +42,7 @@ ads_speed_multiplier = 0.6
 shot_sound = "shot_ak47"
 shot_sound_far = "shot_ak47_far"
 reload_sounds = Array[String](["reload_mag_out", "reload_mag_in", "reload_bolt"])
+reload_style = "rifle"
 shot_volume_db = 0.0
 bot_effective_range = 35.0
 bot_burst_shots = 5

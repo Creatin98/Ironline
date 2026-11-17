@@ -19,6 +19,8 @@ func _ready() -> void:
 	_scan("res://")
 	_instantiate_core_scenes()
 	await _simulate_match()
+	_check_reload_rigs()
+	await _simulate_reloads()
 	await _simulate_cams()
 	await _simulate_steps()
 	await _check_maps()
@@ -98,6 +100,94 @@ func _instantiate_core_scenes() -> void:
 			_fail("Klassen-Ressource unvollstaendig: " + path)
 		elif c.primary.model_scene == null:
 			_fail("Waffenmodell fehlt fuer " + path)
+
+
+## Real reloads in a running match: ammo is refilled, the animation ends in the rest pose.
+func _simulate_reloads() -> void:
+	for class_id in GameDirector.get_class_ids():
+		var cfg := MatchConfig.new()
+		cfg.mode_id = MatchConfig.MODE_FFA
+		cfg.map_id = "test_arena"
+		cfg.bots_enabled = false
+		cfg.time_limit = 0.0
+		cfg.local_class_id = class_id
+		MatchManager.prepare_match(cfg)
+		var game: Node = (load("res://scenes/game/game.tscn") as PackedScene).instantiate()
+		add_child(game)
+		await get_tree().process_frame
+		MatchManager.warmup_left = 0.05
+		var waited := 0.0
+		while MatchManager.state != MatchManager.State.RUNNING and waited < 6.0:
+			await get_tree().process_frame
+			waited += get_process_delta_time()
+		var local: Player = MatchManager.get_local_participant().node as Player
+		local.human_controller.deactivate()
+		for slot in 2:
+			if slot == 1:
+				local.weapon_manager.begin_switch(1)
+			for i in 70: # drawing the weapon takes a moment
+				await get_tree().physics_frame
+			var w := local.weapon_manager.get_current_weapon()
+			var before := 2
+			w.magazine = before
+			if not w.start_reload():
+				_fail("%s: Nachladen liess sich nicht starten" % w.data.weapon_id)
+				continue
+			var frames := 0
+			while w.is_reloading() and frames < 900:
+				await get_tree().physics_frame
+				frames += 1
+			if w.is_reloading() or w.magazine <= before:
+				_fail("%s: Nachladen wurde nicht abgeschlossen (Magazin %d)" % [w.data.weapon_id, w.magazine])
+			var model_ok := true
+			for pr in [["Mag", w.model.get_node_or_null("Mag")], ["LeftHand", w.model.get_node_or_null("LeftHand")]]:
+				if pr[1] != null and not (pr[1] as Node3D).visible:
+					model_ok = false
+			if not model_ok:
+				_fail("%s: Teile des Modells sind nach dem Nachladen unsichtbar" % w.data.weapon_id)
+		game.free()
+		await get_tree().process_frame
+	print("Nachladen im Spiel: alle Klassen und Waffen laden mit Animation nach")
+
+
+## Reload animation: every weapon fires its sounds in order, moves its parts and returns to the rest pose.
+func _check_reload_rigs() -> void:
+	var expected := {
+		"rifle": ["reload_release", "reload_mag_out", "reload_mag_in", "reload_slap", "reload_bolt"],
+		"smg": ["reload_release", "reload_mag_out", "reload_mag_in", "reload_slap", "reload_bolt"],
+		"pistol": ["reload_release", "reload_pistol_out", "reload_pistol_in", "reload_slide"],
+		"shotgun": ["shell_insert"],
+	}
+	for class_id in GameDirector.get_class_ids():
+		var cls := GameDirector.get_class_data(class_id)
+		for wd in [cls.primary, cls.secondary]:
+			var model: Node3D = (wd as WeaponData).model_scene.instantiate()
+			add_child(model)
+			var rig := ReloadRig.create(model, wd.reload_style)
+			var moved := false
+			var events: Array[String] = []
+			var parts: Array = []
+			for n in ["Mag", "LeftHand", "RightHand"]:
+				var node := model.get_node_or_null(n) as Node3D
+				if node:
+					parts.append([node, node.position])
+			for i in 101:
+				events.append_array(rig.apply(float(i) / 100.0, 1.0))
+				for pr in parts:
+					if (pr[0] as Node3D).position.distance_to(pr[1]) > 0.02:
+						moved = true
+			if events != expected[wd.reload_style]:
+				_fail("%s (%s): Reload-Sounds %s statt %s" % [wd.weapon_id, wd.reload_style, str(events), str(expected[wd.reload_style])])
+			if not moved:
+				_fail("%s: Reload-Animation bewegt keine Teile" % wd.weapon_id)
+			rig.reset()
+			for pr in parts:
+				if (pr[0] as Node3D).position.distance_to(pr[1]) > 0.0005:
+					_fail("%s: %s kehrt nach dem Reload nicht in die Ruhelage zurueck" % [wd.weapon_id, (pr[0] as Node).name])
+			if wd.reload_style in ["rifle", "smg", "pistol"] and model.get_node_or_null("Mag") == null:
+				_fail("%s: Modell hat kein Mag fuer den Magazinwechsel" % wd.weapon_id)
+			model.free()
+	print("Reload-Rigs: alle Waffen animieren, Sounds in Reihenfolge, Ruhelage nach dem Reload OK")
 
 
 ## Curbs: a 0.2 m edge is walked over without jumping, a 0.7 m wall still blocks.

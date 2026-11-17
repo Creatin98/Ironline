@@ -27,6 +27,9 @@ drei Klassen, drei Drei-Wege-Maps, Team Deathmatch und Free for All, Bots und On
    * **Training (Offline)**: Modus, Klasse, Bots wählen → **Match starten**.
    * **Online**: siehe „Online spielen“.
 
+Nachladen ist animiert: Das Magazin wird gelöst, gewechselt und eingesetzt (Gewehr, MP5, Pistole), die Schrotflinte lädt Patrone
+für Patrone, jeweils mit passenden mechanischen Geräuschen; andere Spieler sieht man ebenfalls nachladen.
+
 Punkte (nur pro Runde, im Scoreboard unter Tab): 1 Kill = 100, 1 Assist = 50 (Schaden von mindestens 30 in den letzten
 8 Sekunden vor dem Tod des Gegners). Neue Punkte poppen wie bei Call of Duty unter dem Fadenkreuz auf.
 
