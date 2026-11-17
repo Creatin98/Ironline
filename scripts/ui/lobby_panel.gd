@@ -14,25 +14,23 @@ var _port_join: LineEdit
 var _address_hint: Label
 var _player_list: VBoxContainer
 var _team_opt: OptionButton
-var _class_opt: OptionButton
+var _class_picker: PreviewPicker
 var _mode_opt: OptionButton
-var _map_opt: OptionButton
+var _map_picker: PreviewPicker
 var _bots_check: CheckBox
 var _bot_count: HSlider
 var _bot_count_label: Label
 var _bot_diff: OptionButton
 var _start_btn: Button
 var _info_label: Label
-var _map_ids: Array = []
-var _class_ids: Array = []
 var _updating: bool = false
 
 
 func _ready() -> void:
 	add_theme_stylebox_override("panel", UITheme.panel_style(Color(0.05, 0.06, 0.08, 0.95), 6))
 	mouse_filter = Control.MOUSE_FILTER_STOP
-	position = Vector2(600, 100)
-	custom_minimum_size = Vector2(800, 0)
+	position = Vector2(560, 20)
+	custom_minimum_size = Vector2(860, 0)
 	var root := UITheme.vbox(10)
 	add_child(root)
 	root.add_child(UITheme.label("ONLINE", 32, UITheme.ACCENT))
@@ -110,24 +108,10 @@ func _build_lobby(root: VBoxContainer) -> void:
 	_team_opt = UITheme.option(["Rot", "Blau"], 0, 360)
 	_team_opt.item_selected.connect(func(_i: int) -> void: _on_loadout_changed())
 	_grid_row(grid, "Dein Team", _team_opt)
-	_class_ids = GameDirector.get_class_ids()
-	var class_names: Array = []
-	for id in _class_ids:
-		class_names.append(GameDirector.get_class_data(id).display_name)
-	_class_opt = UITheme.option(class_names, 0, 360)
-	_class_opt.item_selected.connect(func(_i: int) -> void: _on_loadout_changed())
-	_grid_row(grid, "Deine Klasse", _class_opt)
 
 	_mode_opt = UITheme.option(["Team Deathmatch (bis 12, 50 Kills)", "Free for All (bis 8, 25 Kills)"], 0, 360)
 	_mode_opt.item_selected.connect(func(_i: int) -> void: _on_settings_changed())
 	_grid_row(grid, "Spielmodus", _mode_opt)
-	_map_ids = GameDirector.get_map_ids()
-	var map_names: Array = []
-	for id in _map_ids:
-		map_names.append(GameDirector.get_map_info(id)["name"])
-	_map_opt = UITheme.option(map_names, 0, 360)
-	_map_opt.item_selected.connect(func(_i: int) -> void: _on_settings_changed())
-	_grid_row(grid, "Map", _map_opt)
 	_bots_check = CheckBox.new()
 	_bots_check.text = "Freie Plätze mit Bots füllen"
 	_bots_check.button_pressed = true
@@ -148,6 +132,16 @@ func _build_lobby(root: VBoxContainer) -> void:
 	_bot_diff.item_selected.connect(func(_i: int) -> void: _on_settings_changed())
 	_grid_row(grid, "Bot-Schwierigkeit", _bot_diff)
 
+	_lobby_box.add_child(UITheme.label("Map (Host wählt)", 18, UITheme.TEXT))
+	_map_picker = PreviewPicker.new()
+	_map_picker.setup(GameDirector.map_picker_items(), Vector2(176, 99), 17)
+	_map_picker.selected.connect(func(_id: String) -> void: _on_settings_changed())
+	_lobby_box.add_child(_map_picker)
+	_lobby_box.add_child(UITheme.label("Deine Klasse", 18, UITheme.TEXT))
+	_class_picker = PreviewPicker.new()
+	_class_picker.setup(GameDirector.class_picker_items(), Vector2(150, 84), 17)
+	_class_picker.selected.connect(func(_id: String) -> void: _on_loadout_changed())
+	_lobby_box.add_child(_class_picker)
 	_info_label = UITheme.label("", 16, UITheme.TEXT_DIM)
 	_lobby_box.add_child(_info_label)
 	var buttons := UITheme.hbox(20)
@@ -232,17 +226,18 @@ func _refresh() -> void:
 	# own loadout
 	var mine: Dictionary = NetworkManager.peers.get(NetworkManager.local_peer_id(), NetworkManager.local_info())
 	_team_opt.selected = 1 if int(mine.get("team", 1)) == Teams.Team.BLUE else 0
-	_class_opt.selected = maxi(0, _class_ids.find(String(mine.get("class_id", "assault"))))
+	_class_picker.set_selected(String(mine.get("class_id", "assault")))
 	_team_opt.disabled = cfg.mode_id != MatchConfig.MODE_TDM
 	# match settings (editable by the host only)
 	_mode_opt.selected = 0 if cfg.mode_id == MatchConfig.MODE_TDM else 1
-	_map_opt.selected = maxi(0, _map_ids.find(cfg.map_id))
+	_map_picker.set_selected(cfg.map_id)
+	_map_picker.set_disabled(not is_host)
 	_bots_check.button_pressed = cfg.bots_enabled
 	_bot_count.max_value = cfg.max_participants() - 1
 	_bot_count.value = cfg.bot_count
 	_bot_count_label.text = str(int(_bot_count.value))
 	_bot_diff.selected = cfg.bot_difficulty
-	for c in [_mode_opt, _map_opt, _bots_check, _bot_count, _bot_diff]:
+	for c in [_mode_opt, _bots_check, _bot_count, _bot_diff]:
 		if c is OptionButton:
 			(c as OptionButton).disabled = not is_host
 		elif c is CheckBox:
@@ -307,7 +302,7 @@ func _on_loadout_changed() -> void:
 	if _updating:
 		return
 	var team := Teams.Team.RED if _team_opt.selected == 0 else Teams.Team.BLUE
-	NetworkManager.set_local_loadout(team, _class_ids[_class_opt.selected])
+	NetworkManager.set_local_loadout(team, _class_picker.selected_id)
 	GameSettings.save()
 
 
@@ -316,7 +311,7 @@ func _on_settings_changed() -> void:
 		return
 	var cfg := MatchConfig.new()
 	cfg.mode_id = MatchConfig.MODE_TDM if _mode_opt.selected == 0 else MatchConfig.MODE_FFA
-	cfg.map_id = _map_ids[_map_opt.selected]
+	cfg.map_id = _map_picker.selected_id
 	cfg.bots_enabled = _bots_check.button_pressed
 	cfg.bot_count = int(_bot_count.value)
 	cfg.bot_difficulty = _bot_diff.selected

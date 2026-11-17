@@ -8,15 +8,13 @@ var _lobby_panel: LobbyPanel
 var _classes_panel: PanelContainer
 var _settings: SettingsPanel
 var _mode_opt: OptionButton
-var _map_opt: OptionButton
+var _map_picker: PreviewPicker
 var _team_opt: OptionButton
-var _class_opt: OptionButton
+var _class_picker: PreviewPicker
 var _bots_check: CheckBox
 var _bot_count: HSlider
 var _bot_count_label: Label
 var _bot_diff: OptionButton
-var _map_ids: Array = []
-var _class_ids: Array = []
 
 
 func _ready() -> void:
@@ -95,8 +93,8 @@ func _show_lobby() -> void:
 func _build_quick_play() -> void:
 	_quick_panel = UITheme.panel(Color(0.05, 0.06, 0.08, 0.95), 6)
 	_quick_panel.mouse_filter = Control.MOUSE_FILTER_STOP
-	_quick_panel.position = Vector2(600, 140)
-	_quick_panel.custom_minimum_size = Vector2(760, 0)
+	_quick_panel.position = Vector2(580, 60)
+	_quick_panel.custom_minimum_size = Vector2(820, 0)
 	_quick_panel.visible = false
 	add_child(_quick_panel)
 	var v := UITheme.vbox(12)
@@ -113,20 +111,8 @@ func _build_quick_play() -> void:
 	_mode_opt = UITheme.option(["Team Deathmatch (6 vs 6, 50 Kills)", "Free for All (8 Spieler, 25 Kills)"], 0, 420)
 	_mode_opt.item_selected.connect(func(_i: int) -> void: _refresh_quick_options())
 	_grid_row(grid, "Spielmodus", _mode_opt)
-	_map_ids = GameDirector.get_map_ids()
-	var map_names: Array = []
-	for id in _map_ids:
-		map_names.append(GameDirector.get_map_info(id)["name"])
-	_map_opt = UITheme.option(map_names, 0, 420)
-	_grid_row(grid, "Map", _map_opt)
 	_team_opt = UITheme.option(["Rot", "Blau"], 0, 420)
 	_grid_row(grid, "Team", _team_opt)
-	_class_ids = GameDirector.get_class_ids()
-	var class_names: Array = []
-	for id in _class_ids:
-		class_names.append(GameDirector.get_class_data(id).display_name)
-	_class_opt = UITheme.option(class_names, 0, 420)
-	_grid_row(grid, "Klasse", _class_opt)
 	_bots_check = CheckBox.new()
 	_bots_check.text = "Bots aktiv"
 	_bots_check.button_pressed = true
@@ -144,6 +130,16 @@ func _build_quick_play() -> void:
 	_bot_diff = UITheme.option(["Einfach", "Normal", "Schwer"], 1, 420)
 	_grid_row(grid, "Bot-Schwierigkeit", _bot_diff)
 
+	v.add_child(UITheme.label("Map", 20, UITheme.TEXT))
+	_map_picker = PreviewPicker.new()
+	_map_picker.selected_id = "harbor"
+	_map_picker.setup(GameDirector.map_picker_items(), Vector2(176, 99), 17)
+	v.add_child(_map_picker)
+	v.add_child(UITheme.label("Klasse", 20, UITheme.TEXT))
+	_class_picker = PreviewPicker.new()
+	_class_picker.selected_id = GameSettings.preferred_class_id if GameDirector.CLASSES.has(GameSettings.preferred_class_id) else "assault"
+	_class_picker.setup(GameDirector.class_picker_items(), Vector2(236, 133), 18)
+	v.add_child(_class_picker)
 	v.add_child(UITheme.spacer(10))
 	var buttons := UITheme.hbox(20)
 	var start := UITheme.button("Match starten", 24, 300)
@@ -181,9 +177,11 @@ func _show_quick_play() -> void:
 func _start_match() -> void:
 	var cfg := MatchConfig.new()
 	cfg.mode_id = MatchConfig.MODE_TDM if _mode_opt.selected == 0 else MatchConfig.MODE_FFA
-	cfg.map_id = _map_ids[_map_opt.selected]
+	cfg.map_id = _map_picker.selected_id
 	cfg.local_team = Teams.Team.RED if _team_opt.selected == 0 else Teams.Team.BLUE
-	cfg.local_class_id = _class_ids[_class_opt.selected]
+	cfg.local_class_id = _class_picker.selected_id
+	GameSettings.preferred_class_id = cfg.local_class_id
+	GameSettings.save()
 	cfg.bots_enabled = _bots_check.button_pressed
 	cfg.bot_count = int(_bot_count.value)
 	cfg.bot_difficulty = _bot_diff.selected
@@ -196,8 +194,8 @@ func _start_match() -> void:
 func _build_classes() -> void:
 	_classes_panel = UITheme.panel(Color(0.05, 0.06, 0.08, 0.95), 6)
 	_classes_panel.mouse_filter = Control.MOUSE_FILTER_STOP
-	_classes_panel.position = Vector2(600, 140)
-	_classes_panel.custom_minimum_size = Vector2(760, 0)
+	_classes_panel.position = Vector2(580, 60)
+	_classes_panel.custom_minimum_size = Vector2(820, 0)
 	_classes_panel.visible = false
 	add_child(_classes_panel)
 	var v := UITheme.vbox(14)
@@ -206,8 +204,16 @@ func _build_classes() -> void:
 	for id in GameDirector.get_class_ids():
 		var data := GameDirector.get_class_data(id)
 		var card := UITheme.panel(UITheme.BG_LIGHT, 4)
+		var row := UITheme.hbox(14)
+		card.add_child(row)
+		var preview := TextureRect.new()
+		preview.custom_minimum_size = Vector2(256, 144)
+		preview.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		preview.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+		preview.texture = GameDirector.get_class_preview(id)
+		row.add_child(preview)
 		var cv := UITheme.vbox(4)
-		card.add_child(cv)
+		row.add_child(cv)
 		var title := UITheme.hbox(10)
 		var swatch := ColorRect.new()
 		swatch.color = data.icon_color
@@ -218,9 +224,11 @@ func _build_classes() -> void:
 		cv.add_child(UITheme.label("Primär: %s   •   Sekundär: %s   •   Granaten: %d" % [data.primary.display_name, data.secondary.display_name, data.grenades], 16, UITheme.ACCENT_DIM))
 		var desc := UITheme.label(data.description, 16, UITheme.TEXT_DIM)
 		desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		desc.custom_minimum_size = Vector2(700, 0)
+		desc.custom_minimum_size = Vector2(500, 0)
 		cv.add_child(desc)
 		var stats := UITheme.label("Schaden %d–%d  •  %d Schuss/min  •  Magazin %d  •  Nachladen %.1fs" % [int(data.primary.min_damage), int(data.primary.damage), int(data.primary.rpm), data.primary.magazine_size, data.primary.reload_time if not data.primary.reload_single_shells else data.primary.shell_reload_time * data.primary.magazine_size], 14, UITheme.TEXT_DIM)
+		stats.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		stats.custom_minimum_size = Vector2(500, 0)
 		cv.add_child(stats)
 		v.add_child(card)
 	var back := UITheme.button("Zurück", 22, 200)

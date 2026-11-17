@@ -69,6 +69,37 @@ func get_map_ids() -> Array:
 	return MAPS.keys()
 
 
+## Preview image for menus (rendered by tools/shots/generate_previews.sh); null if missing.
+func get_map_preview(map_id: String) -> Texture2D:
+	return _preview("map_" + map_id)
+
+
+func get_class_preview(class_id: String) -> Texture2D:
+	return _preview("class_" + class_id)
+
+
+func _preview(name: String) -> Texture2D:
+	var path := "res://assets/ui/previews/%s.png" % name
+	if ResourceLoader.exists(path):
+		return load(path) as Texture2D
+	return null
+
+
+## Items for a PreviewPicker: maps (optionally only the rotation maps) or classes.
+func map_picker_items(rotation_only: bool = false) -> Array:
+	var out: Array = []
+	for id in (ROTATION_MAPS if rotation_only else get_map_ids()):
+		out.append({"id": id, "title": get_map_info(id)["name"], "texture": get_map_preview(id)})
+	return out
+
+
+func class_picker_items() -> Array:
+	var out: Array = []
+	for id in get_class_ids():
+		out.append({"id": id, "title": get_class_data(id).display_name, "texture": get_class_preview(id)})
+	return out
+
+
 func get_map_info(map_id: String) -> Dictionary:
 	return MAPS.get(map_id, MAPS["harbor"])
 

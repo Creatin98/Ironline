@@ -7,6 +7,9 @@ extends Node
 ##
 ## Targets: menu, menu_settings, menu_online, menu_quick, menu_classes,
 ##   fp_<class>_<hip|ads>   first-person view in the test arena (class: assault, smg, shotgun)
+##   game_pause | game_scoreboard | game_end   in-game UI states (test arena, a few bots)
+##   map_<id>      overview render of a map (preview image for menus)
+##   class_<id>    weapon render of a class (preview image for menus)
 ##   Optional: --nohud=1 hides the HUD.
 
 var target: String = "menu"
@@ -37,6 +40,10 @@ func _run() -> void:
 				menu._show_settings()
 			"menu_online":
 				menu._show_lobby()
+			"menu_lobby":
+				NetworkManager.host(7799)
+				NetworkManager.set_local_loadout(Teams.Team.RED, "shotgun")
+				menu._show_lobby()
 			"menu_quick":
 				menu._show_quick_play()
 			"menu_classes":
@@ -44,6 +51,12 @@ func _run() -> void:
 		node = menu
 	elif target.begins_with("fp_"):
 		await _first_person_view()
+	elif target.begins_with("game_"):
+		await _game_ui(target.substr(5))
+	elif target.begins_with("map_"):
+		await _map_preview(target.substr(4))
+	elif target.begins_with("class_"):
+		await _class_preview(target.substr(6))
 	for i in wait_frames:
 		await get_tree().process_frame
 	var img := get_viewport().get_texture().get_image()
@@ -84,3 +97,124 @@ func _first_person_view() -> void:
 		player.input.aim = true
 	for i in 60:
 		await get_tree().physics_frame
+
+
+# ----------------------------------------------------------------------------- previews
+
+func _map_preview(map_id: String) -> void:
+	var info := GameDirector.get_map_info(map_id)
+	var map: Node3D = (load(info["scene"]) as PackedScene).instantiate()
+	get_tree().root.add_child.call_deferred(map)
+	for i in 4:
+		await get_tree().process_frame
+	var box := AABB()
+	var first := true
+	for n in map.find_children("*", "MeshInstance3D", true, false):
+		var mi := n as MeshInstance3D
+		var a: AABB = mi.global_transform * mi.get_aabb()
+		if a.size.length() > 160.0 or not mi.visible:
+			continue
+		box = a if first else box.merge(a)
+		first = false
+	var c := box.get_center()
+	var radius := maxf(box.size.x, box.size.z)
+	var cam := Camera3D.new()
+	cam.fov = 42.0
+	cam.far = 800.0
+	get_tree().root.add_child(cam)
+	var dir := Vector3(0.0, 0.78, 0.62).normalized()
+	for arg in OS.get_cmdline_user_args():
+		if arg.begins_with("--dir="):
+			var p := arg.substr(6).split(",")
+			dir = Vector3(float(p[0]), float(p[1]), float(p[2])).normalized()
+	# preview only: calmer exposure so sunlit roofs do not burn out
+	for we in map.find_children("*", "WorldEnvironment", true, false):
+		var e: Environment = (we as WorldEnvironment).environment
+		if e:
+			e.tonemap_mode = Environment.TONE_MAPPER_FILMIC
+			e.tonemap_exposure = 0.55
+	for dl in map.find_children("*", "DirectionalLight3D", true, false):
+		(dl as DirectionalLight3D).light_energy *= 0.75
+	var fit := maxf(box.size.x / 1.7, box.size.z * 0.78 + 6.0)
+	var dist := fit * 0.5 / tan(deg_to_rad(cam.fov * 0.5)) * 1.12
+	cam.global_position = c + dir * dist
+	cam.look_at(c, Vector3.UP)
+	cam.current = true
+	print("MAP ", map_id, " aabb ", box, " dist ", dist)
+
+
+func _class_preview(class_id: String) -> void:
+	var data := GameDirector.get_class_data(class_id)
+	var root := Node3D.new()
+	get_tree().root.add_child.call_deferred(root)
+	await get_tree().process_frame
+	var env := Environment.new()
+	env.background_mode = Environment.BG_COLOR
+	env.background_color = Color(0.09, 0.10, 0.13)
+	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+	env.ambient_light_color = Color(0.55, 0.58, 0.65)
+	env.ambient_light_energy = 0.9
+	var we := WorldEnvironment.new()
+	we.environment = env
+	root.add_child(we)
+	var key := DirectionalLight3D.new()
+	key.rotation_degrees = Vector3(-35.0, 40.0, 0.0)
+	key.light_energy = 1.6
+	root.add_child(key)
+	var rim := DirectionalLight3D.new()
+	rim.rotation_degrees = Vector3(-20.0, -150.0, 0.0)
+	rim.light_energy = 0.9
+	rim.light_color = Color(1.0, 0.75, 0.45)
+	root.add_child(rim)
+	var primary: Node3D = data.primary.model_scene.instantiate()
+	root.add_child(primary)
+	_hide_hands(primary)
+	primary.position = Vector3(0.0, 0.05, 0.13)
+	var secondary: Node3D = data.secondary.model_scene.instantiate()
+	root.add_child(secondary)
+	_hide_hands(secondary)
+	secondary.scale = Vector3.ONE * 1.3
+	secondary.position = Vector3(0.0, -0.22, 0.0)
+	var cam := Camera3D.new()
+	cam.fov = 12.5
+	root.add_child(cam)
+	cam.position = Vector3(4.2, 0.0, 0.0)
+	cam.look_at(Vector3(0.0, 0.0, 0.0), Vector3.UP)
+	cam.current = true
+	if data.secondary.weapon_id == "pistol":
+		secondary.position = Vector3(0.0, -0.20, 0.28)
+
+
+func _hide_hands(model: Node3D) -> void:
+	for n in model.get_children():
+		if n.name.begins_with("Left") or n.name.begins_with("Right"):
+			(n as Node3D).visible = false
+
+
+func _game_ui(state: String) -> void:
+	var cfg := MatchConfig.new()
+	cfg.mode_id = MatchConfig.MODE_TDM
+	cfg.map_id = "frontier"
+	cfg.bots_enabled = true
+	cfg.bot_count = 5
+	cfg.time_limit = 0.0
+	MatchManager.prepare_match(cfg)
+	var game: Node = (load("res://scenes/game/game.tscn") as PackedScene).instantiate()
+	get_tree().root.add_child.call_deferred(game)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	MatchManager.warmup_left = 0.05
+	for i in 90:
+		await get_tree().physics_frame
+	var me := MatchManager.get_local_participant()
+	(me.node as Player).human_controller.deactivate()
+	match state:
+		"pause":
+			game._open_pause()
+		"scoreboard":
+			game.scoreboard.visible = true
+			game.scoreboard.rebuild()
+		"end":
+			MatchManager.end_match()
+	for i in 20:
+		await get_tree().process_frame

@@ -261,7 +261,7 @@ def shotgun():
     for i in range(5):
         s.box(f"PumpGroove{i}", (0, -0.0245, -0.060 + 0.030 * i), (0.050, 0.003, 0.008), "wood_dark", parent=pump)
     s.box("PumpRing", (0, 0.0, 0.092), (0.054, 0.044, 0.012), "steel", parent=pump)
-    s.box("Grip", (0, -0.030, 0.150), (0.036, 0.075, 0.050), "wood", rot=(18, 0, 0))
+    s.box("Grip", (0, -0.048, 0.135), (0.034, 0.072, 0.046), "wood", rot=(22, 0, 0))
     s.box("TriggerGuardBottom", (0, -0.034, 0.060), (0.008, 0.008, 0.075), "steel")
     s.box("TriggerGuardFront", (0, -0.018, 0.024), (0.008, 0.030, 0.008), "steel")
     s.box("Trigger", (0, -0.016, 0.056), (0.006, 0.022, 0.008), "steel_light", rot=(18, 0, 0))
