@@ -1,0 +1,117 @@
+[gd_scene load_steps=16 format=3]
+
+[sub_resource type="StandardMaterial3D" id="mat_metal"]
+albedo_color = Color(0.16, 0.17, 0.19, 1)
+metallic = 0.75
+roughness = 0.42
+
+[sub_resource type="StandardMaterial3D" id="mat_wood"]
+albedo_color = Color(0.47, 0.27, 0.13, 1)
+roughness = 0.65
+
+[sub_resource type="StandardMaterial3D" id="mat_polymer"]
+albedo_color = Color(0.09, 0.09, 0.1, 1)
+roughness = 0.8
+
+[sub_resource type="BoxMesh" id="receiver"]
+material = SubResource("mat_metal")
+size = Vector3(0.07, 0.08, 0.32)
+
+[sub_resource type="BoxMesh" id="dust_cover"]
+material = SubResource("mat_metal")
+size = Vector3(0.06, 0.02, 0.28)
+
+[sub_resource type="CylinderMesh" id="barrel"]
+material = SubResource("mat_metal")
+top_radius = 0.011
+bottom_radius = 0.011
+height = 0.4
+
+[sub_resource type="BoxMesh" id="gas_tube"]
+material = SubResource("mat_metal")
+size = Vector3(0.024, 0.024, 0.24)
+
+[sub_resource type="BoxMesh" id="handguard"]
+material = SubResource("mat_wood")
+size = Vector3(0.052, 0.06, 0.2)
+
+[sub_resource type="BoxMesh" id="magazine"]
+material = SubResource("mat_metal")
+size = Vector3(0.03, 0.19, 0.065)
+
+[sub_resource type="BoxMesh" id="grip"]
+material = SubResource("mat_polymer")
+size = Vector3(0.032, 0.1, 0.04)
+
+[sub_resource type="BoxMesh" id="stock"]
+material = SubResource("mat_wood")
+size = Vector3(0.04, 0.065, 0.3)
+
+[sub_resource type="BoxMesh" id="sight_rear"]
+material = SubResource("mat_metal")
+size = Vector3(0.024, 0.03, 0.02)
+
+[sub_resource type="BoxMesh" id="sight_front_base"]
+material = SubResource("mat_metal")
+size = Vector3(0.02, 0.04, 0.02)
+
+[sub_resource type="BoxMesh" id="sight_front_post"]
+material = SubResource("mat_metal")
+size = Vector3(0.004, 0.03, 0.004)
+
+[sub_resource type="BoxMesh" id="muzzle_brake"]
+material = SubResource("mat_metal")
+size = Vector3(0.022, 0.022, 0.05)
+
+[node name="AK47Model" type="Node3D"]
+
+[node name="Receiver" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.02, -0.16)
+mesh = SubResource("receiver")
+
+[node name="DustCover" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.07, -0.16)
+mesh = SubResource("dust_cover")
+
+[node name="Barrel" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, -4.37114e-08, 1, 0, -1, -4.37114e-08, 0, 0.04, -0.5)
+mesh = SubResource("barrel")
+
+[node name="GasTube" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.065, -0.44)
+mesh = SubResource("gas_tube")
+
+[node name="Handguard" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.02, -0.4)
+mesh = SubResource("handguard")
+
+[node name="Magazine" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 0.965926, 0.258819, 0, -0.258819, 0.965926, 0, -0.1, -0.2)
+mesh = SubResource("magazine")
+
+[node name="Grip" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 0.965926, -0.258819, 0, 0.258819, 0.965926, 0, -0.07, -0.02)
+mesh = SubResource("grip")
+
+[node name="Stock" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.0, 0.15)
+mesh = SubResource("stock")
+
+[node name="SightRear" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.09, -0.26)
+mesh = SubResource("sight_rear")
+
+[node name="SightFrontBase" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.075, -0.66)
+mesh = SubResource("sight_front_base")
+
+[node name="SightFrontPost" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.1, -0.66)
+mesh = SubResource("sight_front_post")
+
+[node name="MuzzleBrake" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.04, -0.71)
+mesh = SubResource("muzzle_brake")
+
+[node name="Muzzle" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.04, -0.74)

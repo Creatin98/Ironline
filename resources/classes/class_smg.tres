@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="ClassData" load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/weapons/class_data.gd" id="1_script"]
+[ext_resource type="Resource" path="res://resources/weapons/mp5.tres" id="2_primary"]
+[ext_resource type="Resource" path="res://resources/weapons/pistol.tres" id="3_secondary"]
+
+[resource]
+script = ExtResource("1_script")
+class_id = "smg"
+display_name = "SMG"
+description = "MP5. Hohe Feuerrate, wenig Rueckstoss, schnelle Bewegung. Dominant auf kurze bis mittlere Distanz."
+primary = ExtResource("2_primary")
+secondary = ExtResource("3_secondary")
+grenades = 2
+icon_color = Color(0.3, 0.75, 0.95, 1)

@@ -1,0 +1,111 @@
+[gd_scene load_steps=14 format=3]
+
+[sub_resource type="StandardMaterial3D" id="mat_metal"]
+albedo_color = Color(0.14, 0.15, 0.17, 1)
+metallic = 0.7
+roughness = 0.45
+
+[sub_resource type="StandardMaterial3D" id="mat_polymer"]
+albedo_color = Color(0.08, 0.08, 0.09, 1)
+roughness = 0.85
+
+[sub_resource type="BoxMesh" id="receiver"]
+material = SubResource("mat_metal")
+size = Vector3(0.06, 0.07, 0.3)
+
+[sub_resource type="CylinderMesh" id="barrel"]
+material = SubResource("mat_metal")
+top_radius = 0.01
+bottom_radius = 0.01
+height = 0.16
+
+[sub_resource type="BoxMesh" id="handguard"]
+material = SubResource("mat_polymer")
+size = Vector3(0.055, 0.065, 0.17)
+
+[sub_resource type="BoxMesh" id="magazine"]
+material = SubResource("mat_metal")
+size = Vector3(0.026, 0.21, 0.045)
+
+[sub_resource type="BoxMesh" id="grip"]
+material = SubResource("mat_polymer")
+size = Vector3(0.032, 0.1, 0.045)
+
+[sub_resource type="BoxMesh" id="stock_rail"]
+material = SubResource("mat_metal")
+size = Vector3(0.012, 0.012, 0.24)
+
+[sub_resource type="BoxMesh" id="stock_pad"]
+material = SubResource("mat_polymer")
+size = Vector3(0.045, 0.07, 0.03)
+
+[sub_resource type="CylinderMesh" id="sight_drum"]
+material = SubResource("mat_metal")
+top_radius = 0.016
+bottom_radius = 0.016
+height = 0.02
+
+[sub_resource type="BoxMesh" id="sight_front_hood"]
+material = SubResource("mat_metal")
+size = Vector3(0.028, 0.035, 0.015)
+
+[sub_resource type="BoxMesh" id="sight_front_post"]
+material = SubResource("mat_metal")
+size = Vector3(0.004, 0.025, 0.004)
+
+[sub_resource type="BoxMesh" id="cocking_tube"]
+material = SubResource("mat_metal")
+size = Vector3(0.03, 0.03, 0.2)
+
+[node name="MP5Model" type="Node3D"]
+
+[node name="Receiver" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.02, -0.14)
+mesh = SubResource("receiver")
+
+[node name="CockingTube" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.06, -0.33)
+mesh = SubResource("cocking_tube")
+
+[node name="Handguard" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.015, -0.35)
+mesh = SubResource("handguard")
+
+[node name="Barrel" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, -4.37114e-08, 1, 0, -1, -4.37114e-08, 0, 0.035, -0.5)
+mesh = SubResource("barrel")
+
+[node name="Magazine" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 0.984808, 0.173648, 0, -0.173648, 0.984808, 0, -0.11, -0.21)
+mesh = SubResource("magazine")
+
+[node name="Grip" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 0.965926, -0.258819, 0, 0.258819, 0.965926, 0, -0.07, -0.03)
+mesh = SubResource("grip")
+
+[node name="StockRailL" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.02, 0.03, 0.12)
+mesh = SubResource("stock_rail")
+
+[node name="StockRailR" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.02, 0.03, 0.12)
+mesh = SubResource("stock_rail")
+
+[node name="StockPad" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.02, 0.25)
+mesh = SubResource("stock_pad")
+
+[node name="SightRear" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, -4.37114e-08, 1, 0, -1, -4.37114e-08, 0, 0.085, -0.2)
+mesh = SubResource("sight_drum")
+
+[node name="SightFrontHood" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.09, -0.44)
+mesh = SubResource("sight_front_hood")
+
+[node name="SightFrontPost" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.09, -0.44)
+mesh = SubResource("sight_front_post")
+
+[node name="Muzzle" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.035, -0.59)

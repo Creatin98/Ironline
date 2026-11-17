@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="ClassData" load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/weapons/class_data.gd" id="1_script"]
+[ext_resource type="Resource" path="res://resources/weapons/ak47.tres" id="2_primary"]
+[ext_resource type="Resource" path="res://resources/weapons/pistol.tres" id="3_secondary"]
+
+[resource]
+script = ExtResource("1_script")
+class_id = "assault"
+display_name = "Assault"
+description = "AK-47. Vielseitiges Sturmgewehr mit gutem Schaden und spuerbarem Rueckstoss. Stark auf mittlere Distanz."
+primary = ExtResource("2_primary")
+secondary = ExtResource("3_secondary")
+grenades = 2
+icon_color = Color(0.92, 0.6, 0.2, 1)

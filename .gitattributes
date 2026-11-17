@@ -1,0 +1,7 @@
+# Godot files are written with LF; keep them that way on every platform.
+* text=auto eol=lf
+*.png binary
+*.wav binary
+*.ogg binary
+*.ttf binary
+*.exe binary

@@ -1,0 +1,50 @@
+[gd_resource type="Resource" script_class="WeaponData" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/weapons/weapon_data.gd" id="1_script"]
+[ext_resource type="PackedScene" path="res://scenes/weapons/models/shotgun_model.tscn" id="2_model"]
+
+[resource]
+script = ExtResource("1_script")
+weapon_id = "shotgun"
+display_name = "Pump-Action Shotgun"
+slot = 0
+model_scene = ExtResource("2_model")
+damage = 22.0
+min_damage = 4.0
+falloff_start = 7.0
+falloff_end = 18.0
+headshot_multiplier = 1.0
+pellets = 8
+max_range = 40.0
+rpm = 75.0
+automatic = false
+pump_action = true
+pump_time = 0.7
+magazine_size = 6
+reserve_ammo = 24
+reload_time = 0.6
+reload_single_shells = true
+shell_reload_time = 0.55
+draw_time = 0.5
+spread_hip = 4.5
+spread_ads = 3.2
+spread_moving_bonus = 0.6
+spread_per_shot = 0.0
+spread_max_bonus = 0.0
+spread_recovery = 8.0
+recoil_vertical = 3.5
+recoil_horizontal = 0.8
+recoil_kick_back = 0.12
+recoil_recovery = 7.0
+ads_fov = 64.0
+ads_time = 0.26
+ads_position = Vector3(0.0, -0.088, -0.3)
+hip_position = Vector3(0.24, -0.22, -0.5)
+move_speed_multiplier = 0.95
+ads_speed_multiplier = 0.65
+shot_sound = "shot_shotgun"
+shot_sound_far = "shot_shotgun_far"
+reload_sounds = Array[String](["shell_insert"])
+shot_volume_db = 1.5
+bot_effective_range = 12.0
+bot_burst_shots = 1

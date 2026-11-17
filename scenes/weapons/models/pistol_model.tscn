@@ -1,0 +1,83 @@
+[gd_scene load_steps=11 format=3]
+
+[sub_resource type="StandardMaterial3D" id="mat_metal"]
+albedo_color = Color(0.15, 0.16, 0.18, 1)
+metallic = 0.75
+roughness = 0.4
+
+[sub_resource type="StandardMaterial3D" id="mat_polymer"]
+albedo_color = Color(0.08, 0.08, 0.09, 1)
+roughness = 0.85
+
+[sub_resource type="BoxMesh" id="slide"]
+material = SubResource("mat_metal")
+size = Vector3(0.03, 0.035, 0.19)
+
+[sub_resource type="BoxMesh" id="frame"]
+material = SubResource("mat_polymer")
+size = Vector3(0.028, 0.03, 0.15)
+
+[sub_resource type="BoxMesh" id="grip"]
+material = SubResource("mat_polymer")
+size = Vector3(0.03, 0.1, 0.042)
+
+[sub_resource type="CylinderMesh" id="barrel"]
+material = SubResource("mat_metal")
+top_radius = 0.006
+bottom_radius = 0.006
+height = 0.03
+
+[sub_resource type="BoxMesh" id="trigger_guard"]
+material = SubResource("mat_polymer")
+size = Vector3(0.016, 0.01, 0.05)
+
+[sub_resource type="BoxMesh" id="sight_rear"]
+material = SubResource("mat_metal")
+size = Vector3(0.024, 0.012, 0.01)
+
+[sub_resource type="BoxMesh" id="sight_front"]
+material = SubResource("mat_metal")
+size = Vector3(0.004, 0.012, 0.008)
+
+[sub_resource type="BoxMesh" id="hammer"]
+material = SubResource("mat_metal")
+size = Vector3(0.008, 0.02, 0.01)
+
+[node name="PistolModel" type="Node3D"]
+
+[node name="Slide" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.045, -0.07)
+
+[node name="SlideMesh" type="MeshInstance3D" parent="Slide"]
+mesh = SubResource("slide")
+
+[node name="SightRear" type="MeshInstance3D" parent="Slide"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.0235, 0.085)
+mesh = SubResource("sight_rear")
+
+[node name="SightFront" type="MeshInstance3D" parent="Slide"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.0235, -0.085)
+mesh = SubResource("sight_front")
+
+[node name="Frame" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.012, -0.055)
+mesh = SubResource("frame")
+
+[node name="Grip" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 0.978148, -0.207912, 0, 0.207912, 0.978148, 0, -0.05, 0.005)
+mesh = SubResource("grip")
+
+[node name="Barrel" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, -4.37114e-08, 1, 0, -1, -4.37114e-08, 0, 0.045, -0.17)
+mesh = SubResource("barrel")
+
+[node name="TriggerGuard" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.01, -0.05)
+mesh = SubResource("trigger_guard")
+
+[node name="Hammer" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.04, 0.03)
+mesh = SubResource("hammer")
+
+[node name="Muzzle" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.045, -0.19)

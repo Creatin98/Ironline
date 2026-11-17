@@ -1,0 +1,47 @@
+[gd_resource type="Resource" script_class="WeaponData" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/weapons/weapon_data.gd" id="1_script"]
+[ext_resource type="PackedScene" path="res://scenes/weapons/models/pistol_model.tscn" id="2_model"]
+
+[resource]
+script = ExtResource("1_script")
+weapon_id = "pistol"
+display_name = "M9 Pistole"
+slot = 1
+model_scene = ExtResource("2_model")
+damage = 34.0
+min_damage = 20.0
+falloff_start = 12.0
+falloff_end = 30.0
+headshot_multiplier = 1.5
+pellets = 1
+max_range = 120.0
+rpm = 420.0
+automatic = false
+pump_action = false
+magazine_size = 12
+reserve_ammo = 48
+reload_time = 1.6
+draw_time = 0.25
+spread_hip = 1.6
+spread_ads = 0.3
+spread_moving_bonus = 1.0
+spread_per_shot = 0.5
+spread_max_bonus = 2.0
+spread_recovery = 8.0
+recoil_vertical = 1.6
+recoil_horizontal = 0.5
+recoil_kick_back = 0.05
+recoil_recovery = 12.0
+ads_fov = 65.0
+ads_time = 0.14
+ads_position = Vector3(0.0, -0.075, -0.24)
+hip_position = Vector3(0.2, -0.2, -0.38)
+move_speed_multiplier = 1.1
+ads_speed_multiplier = 0.85
+shot_sound = "shot_pistol"
+shot_sound_far = "shot_pistol_far"
+reload_sounds = Array[String](["reload_mag_out", "reload_mag_in"])
+shot_volume_db = -1.5
+bot_effective_range = 18.0
+bot_burst_shots = 3

@@ -1,0 +1,385 @@
+extends Node
+## Headless smoke test: loads every script, scene and resource in the project,
+## instantiates the core scenes, builds the test arena and runs a short
+## simulated match (spawn, shot, grenade, kill, respawn). Runs as a normal
+## scene so all autoloads are available.
+##
+##   godot --headless --path . tests/smoke_test.tscn
+##
+## Exit code 0 = ok, 1 = failures (details are printed).
+
+var _failures: Array[String] = []
+var _loaded := 0
+
+
+func _ready() -> void:
+	print("== Ironline Smoke Test ==")
+	_scan("res://")
+	_instantiate_core_scenes()
+	await _simulate_match()
+	await _check_maps()
+	await _simulate_bots()
+	AudioManager.stop_all()
+	await get_tree().process_frame
+	if _failures.is_empty():
+		print("OK: %d Ressourcen geladen, keine Fehler." % _loaded)
+		get_tree().quit(0)
+	else:
+		for f in _failures:
+			printerr("FEHLER: " + f)
+		printerr("%d Fehler." % _failures.size())
+		get_tree().quit(1)
+
+
+func _fail(msg: String) -> void:
+	_failures.append(msg)
+	print("  FEHLER: " + msg)
+
+
+func _scan(dir_path: String) -> void:
+	var dir := DirAccess.open(dir_path)
+	if dir == null:
+		_fail("Ordner nicht lesbar: " + dir_path)
+		return
+	dir.list_dir_begin()
+	var entry := dir.get_next()
+	while entry != "":
+		if entry.begins_with("."):
+			entry = dir.get_next()
+			continue
+		var full := dir_path.path_join(entry)
+		if dir.current_is_dir():
+			_scan(full)
+		else:
+			var ext := entry.get_extension()
+			if ext in ["gd", "tscn", "tres"] and not full.begins_with("res://tests/"):
+				_load(full)
+		entry = dir.get_next()
+	dir.list_dir_end()
+
+
+func _load(path: String) -> void:
+	var res := ResourceLoader.load(path)
+	if res == null:
+		_fail("Konnte nicht laden: " + path)
+		return
+	_loaded += 1
+
+
+func _instantiate_core_scenes() -> void:
+	for path in [
+		"res://scenes/player/player.tscn",
+		"res://scenes/weapons/grenade.tscn",
+		"res://scenes/effects/explosion.tscn",
+		"res://scenes/effects/bullet_impact.tscn",
+		"res://scenes/effects/muzzle_flash.tscn",
+		"res://scenes/weapons/models/ak47_model.tscn",
+		"res://scenes/weapons/models/mp5_model.tscn",
+		"res://scenes/weapons/models/shotgun_model.tscn",
+		"res://scenes/weapons/models/pistol_model.tscn",
+		"res://scenes/main_menu/main_menu.tscn",
+	]:
+		var scene: PackedScene = load(path)
+		if scene == null:
+			_fail("Szene fehlt: " + path)
+			continue
+		var inst := scene.instantiate()
+		if inst == null:
+			_fail("Szene nicht instanzierbar: " + path)
+		else:
+			inst.free()
+	for path in ["res://resources/classes/class_assault.tres", "res://resources/classes/class_smg.tres", "res://resources/classes/class_shotgun.tres"]:
+		var c: ClassData = load(path)
+		if c == null or c.primary == null or c.secondary == null:
+			_fail("Klassen-Ressource unvollstaendig: " + path)
+		elif c.primary.model_scene == null:
+			_fail("Waffenmodell fehlt fuer " + path)
+
+
+## Runs a Free-for-All with hard bots on Frontier at 4x speed and checks that the
+## bots move, shoot and score.
+func _simulate_bots() -> void:
+	var cfg := MatchConfig.new()
+	cfg.mode_id = MatchConfig.MODE_FFA
+	cfg.map_id = "frontier"
+	cfg.bots_enabled = true
+	cfg.bot_count = 7
+	cfg.bot_difficulty = MatchConfig.DIFFICULTY_HARD
+	cfg.time_limit = 0.0
+	MatchManager.prepare_match(cfg)
+	var game_scene: PackedScene = load("res://scenes/game/game.tscn")
+	var game := game_scene.instantiate()
+	add_child(game)
+	await get_tree().process_frame
+	# lambdas capture by value, so count inside a shared dictionary
+	var stats := {"shots": 0}
+	var counter := func(_id: int, _pos: Vector3) -> void: stats["shots"] += 1
+	GameEvents.shot_fired.connect(counter)
+	# local player stays passive in a corner
+	var me := MatchManager.get_local_participant()
+	(me.node as Player).human_controller.deactivate()
+	var start_positions: Dictionary = {}
+	for p in MatchManager.participants.values():
+		if p.is_bot:
+			start_positions[p.id] = (p.node as Node3D).global_position
+	Engine.time_scale = 4.0
+	var sim_seconds := 40.0
+	var elapsed := 0.0
+	while elapsed < sim_seconds and MatchManager.state != MatchManager.State.ENDED:
+		await get_tree().physics_frame
+		elapsed += 1.0 / 60.0
+	Engine.time_scale = 1.0
+	var moved_total := 0.0
+	var stuck_bots := 0
+	var bot_kills := 0
+	for p in MatchManager.participants.values():
+		if not p.is_bot:
+			continue
+		bot_kills += p.kills
+		var node := p.node as Node3D
+		var d: float = node.global_position.distance_to(start_positions[p.id]) if node else 0.0
+		moved_total += d
+		if d < 3.0 and p.deaths == 0:
+			stuck_bots += 1
+	GameEvents.shot_fired.disconnect(counter)
+	var shots: int = stats["shots"]
+	if shots == 0:
+		_fail("Bots haben nicht geschossen")
+	if stuck_bots > 1:
+		_fail("%d Bots haben sich nicht bewegt" % stuck_bots)
+	if bot_kills == 0:
+		_fail("Bots haben in %d s keinen Kill erzielt" % int(sim_seconds))
+	print("Bot-Simulation (%d s, Frontier, FFA, schwer): %d Schuesse, %d Bot-Kills, Bewegung gesamt %.0f m, %d stehende Bots" % [int(sim_seconds), shots, bot_kills, moved_total, stuck_bots])
+	game.free()
+	await get_tree().process_frame
+
+
+## Builds every registered map: spawn points, navigation mesh, lane points on the mesh.
+func _check_maps() -> void:
+	for map_id in GameDirector.get_map_ids():
+		var info := GameDirector.get_map_info(map_id)
+		var scene: PackedScene = load(info["scene"])
+		if scene == null:
+			_fail("Map-Szene fehlt: " + str(info["scene"]))
+			continue
+		var map: BlockMap = scene.instantiate()
+		add_child(map)
+		var nav_ok: bool = await map.wait_navigation_ready(120)
+		if not nav_ok:
+			_fail("%s: Navigation wurde nicht synchronisiert" % map_id)
+		var spawns := 0
+		var red := 0
+		var blue := 0
+		for sp in get_tree().get_nodes_in_group("spawn_points"):
+			spawns += 1
+			if sp.team == Teams.Team.RED:
+				red += 1
+			elif sp.team == Teams.Team.BLUE:
+				blue += 1
+		if red < 6 or blue < 6:
+			_fail("%s: zu wenige Team-Spawns (Rot %d, Blau %d)" % [map_id, red, blue])
+		# the kill zone must end well below every spawn point
+		var kill_zone := map.get_node("KillZone") as Area3D
+		var kill_top: float = kill_zone.global_position.y + 2.0
+		for sp in get_tree().get_nodes_in_group("spawn_points"):
+			if sp.global_position.y - 0.5 < kill_top:
+				_fail("%s: Kill-Zone (Oberkante %.1f) reicht bis an Spawnpunkt %s" % [map_id, kill_top, sp.global_position])
+				break
+		var polys := map.nav_region.navigation_mesh.get_polygon_count() if map.nav_region.navigation_mesh else 0
+		if polys == 0:
+			_fail("%s: Navigation-Mesh ist leer" % map_id)
+		var nav_map := map.get_world_3d().navigation_map
+		var off_mesh := 0
+		var lane_count := 0
+		for p in map.get_all_lane_points():
+			lane_count += 1
+			var closest := NavigationServer3D.map_get_closest_point(nav_map, p + Vector3(0, 0.5, 0))
+			if closest.distance_to(p + Vector3(0, 0.5, 0)) > 1.2:
+				off_mesh += 1
+				_fail("%s: Lane-Punkt %s liegt nicht auf dem Nav-Mesh (naechster %s)" % [map_id, p, closest])
+		for sp in get_tree().get_nodes_in_group("spawn_points"):
+			var sp_pos: Vector3 = sp.global_position
+			var closest2 := NavigationServer3D.map_get_closest_point(nav_map, sp_pos + Vector3(0, 0.5, 0))
+			if closest2.distance_to(sp_pos + Vector3(0, 0.5, 0)) > 1.2:
+				_fail("%s: Spawnpunkt %s liegt nicht auf dem Nav-Mesh" % [map_id, sp_pos])
+		# path check: first to last point of the mid lane must be connected
+		var lanes := map.get_lanes()
+		if lanes.has("mid") and lanes["mid"].size() >= 2:
+			var a: Vector3 = lanes["mid"][0]
+			var z: Vector3 = lanes["mid"][lanes["mid"].size() - 1]
+			var path := NavigationServer3D.map_get_path(nav_map, a + Vector3(0, 0.5, 0), z + Vector3(0, 0.5, 0), true)
+			if path.size() < 2 or path[path.size() - 1].distance_to(z) > 2.0:
+				_fail("%s: Kein Nav-Pfad von Nord nach Sued ueber die Mitte" % map_id)
+		print("%s: %d Spawns, %d Nav-Polygone, %d Lane-Punkte (%d daneben), %d Geometrieobjekte" % [map_id, spawns, polys, lane_count, off_mesh, map.geometry_root.get_child_count()])
+		map.free()
+		await get_tree().physics_frame
+
+
+## Runs the real game scene for a few seconds and performs scripted actions.
+func _simulate_match() -> void:
+	var cfg := MatchConfig.new()
+	cfg.mode_id = MatchConfig.MODE_TDM
+	cfg.map_id = "test_arena"
+	cfg.bots_enabled = true
+	cfg.bot_count = 5
+	cfg.time_limit = 60.0
+	MatchManager.prepare_match(cfg)
+	var game_scene: PackedScene = load("res://scenes/game/game.tscn")
+	if game_scene == null:
+		_fail("game.tscn fehlt")
+		return
+	var game := game_scene.instantiate()
+	add_child(game)
+	await get_tree().process_frame
+	var spawns := get_tree().get_nodes_in_group("spawn_points").size()
+	if spawns < 12:
+		_fail("Testarena hat zu wenige Spawnpunkte: %d" % spawns)
+	var geometry: Node = (game.map as BlockMap).geometry_root
+	print("Testarena: %d Spawnpunkte, %d Geometrieobjekte" % [spawns, geometry.get_child_count() if geometry else -1])
+	if MatchManager.participants.size() != 6:
+		_fail("Roster erwartet 6 Teilnehmer, hat %d" % MatchManager.participants.size())
+	# wait for warmup to end (3 s) -> RUNNING
+	var waited := 0.0
+	while MatchManager.state != MatchManager.State.RUNNING and waited < 6.0:
+		await get_tree().process_frame
+		waited += get_process_delta_time()
+	if MatchManager.state != MatchManager.State.RUNNING:
+		_fail("Match wurde nicht gestartet (state=%d)" % MatchManager.state)
+		game.queue_free()
+		return
+	var me := MatchManager.get_local_participant()
+	var local: Player = me.node as Player
+	if local == null or not local.alive:
+		_fail("Lokaler Spieler nicht gespawnt")
+		game.queue_free()
+		return
+	var alive_count := 0
+	for p in MatchManager.participants.values():
+		if p.alive and p.node != null:
+			alive_count += 1
+	if alive_count != 6:
+		_fail("Nicht alle Teilnehmer gespawnt: %d/6" % alive_count)
+	# headless there is no captured mouse, so the HumanController would wipe
+	# injected input every tick; drive the input state directly instead
+	local.human_controller.deactivate()
+	# --- movement: teleport to the open street first (a random spawn may face a wall)
+	local.global_position = Vector3(0.0, 0.1, -17.0)
+	local.rotation.y = PI
+	await get_tree().physics_frame
+	var start_pos := local.global_position
+	local.input.move = Vector2(0, 1)
+	for i in 30:
+		await get_tree().physics_frame
+	local.input.move = Vector2.ZERO
+	if local.global_position.distance_to(start_pos) < 0.5:
+		_fail("Spieler hat sich nicht bewegt")
+	# --- weapon: fire one shot, check ammo
+	var w := local.weapon_manager.get_current_weapon()
+	if w == null:
+		_fail("Keine Waffe")
+	else:
+		var mag_before := w.magazine
+		local.input.fire_held = true
+		local.input.fire_pressed = true
+		await get_tree().physics_frame
+		await get_tree().physics_frame
+		local.input.fire_held = false
+		if w.magazine >= mag_before:
+			_fail("Schuss hat keine Munition verbraucht (%d -> %d)" % [mag_before, w.magazine])
+		# reload
+		local.input.reload_pressed = true
+		await get_tree().physics_frame
+		if not w.is_reloading():
+			_fail("Nachladen wurde nicht gestartet")
+		# switch weapon
+		local.input.select_secondary = true
+		await get_tree().physics_frame
+		for i in 40:
+			await get_tree().physics_frame
+		if local.weapon_manager.current_index != 1:
+			_fail("Waffenwechsel fehlgeschlagen")
+	# --- grenade (count explosions via the event bus, the effect node is short-lived)
+	var explosion_stats := {"count": 0}
+	var explosion_counter := func(_pos: Vector3, _radius: float) -> void: explosion_stats["count"] += 1
+	GameEvents.explosion_at.connect(explosion_counter)
+	var grenades_before := local.weapon_manager.grenades
+	local.input.grenade_pressed = true
+	await get_tree().physics_frame
+	for i in 30:
+		await get_tree().physics_frame
+	if local.weapon_manager.grenades != grenades_before - 1:
+		_fail("Granate wurde nicht geworfen")
+	var grenade_nodes := 0
+	for n in get_tree().get_nodes_in_group("players"):
+		pass
+	for child in game.get_node("Projectiles").get_children():
+		if child is Grenade:
+			grenade_nodes += 1
+	if grenade_nodes != 1:
+		_fail("Granate nicht in der Szene (%d)" % grenade_nodes)
+	# --- damage & kill: shoot a bot directly through take_damage, expect kill + score
+	var bot: Participant = null
+	for p in MatchManager.participants.values():
+		if p.is_bot and me.is_enemy_of(p):
+			bot = p
+			break
+	if bot == null:
+		_fail("Kein gegnerischer Bot")
+	else:
+		var bot_node: Player = bot.node as Player
+		var max_hp := bot_node.health.max_health
+		var killed := bot_node.take_damage(max_hp * 0.6, me.id, "ak47", bot_node.get_center(), false, local.global_position)
+		if killed:
+			_fail("60 %% Schaden darf nicht toeten")
+		killed = bot_node.take_damage(max_hp * 0.6, me.id, "ak47", bot_node.get_center(), true, local.global_position)
+		if not killed:
+			_fail("120 %% Schaden muss toeten")
+		await get_tree().process_frame
+		if me.kills != 1 or bot.deaths != 1:
+			_fail("Kill nicht gewertet (kills=%d deaths=%d)" % [me.kills, bot.deaths])
+		if MatchManager.team_scores[me.team] != 1:
+			_fail("Teampunkte nicht erhoeht")
+		# friendly fire must be blocked
+		var mate: Participant = null
+		for p in MatchManager.participants.values():
+			if p.is_bot and not me.is_enemy_of(p):
+				mate = p
+				break
+		if mate:
+			var hp_before: float = (mate.node as Player).health.health
+			(mate.node as Player).take_damage(50.0, me.id, "ak47", Vector3.ZERO, false, Vector3.ZERO)
+			if (mate.node as Player).health.health != hp_before:
+				_fail("Friendly Fire wurde nicht blockiert")
+		# wait for respawn (1.5 s)
+		for i in 240:
+			await get_tree().physics_frame
+			if bot.alive:
+				break
+		if not bot.alive:
+			_fail("Bot ist nicht respawnt")
+		# the body must stay visible after the respawn even once the old death
+		# animation (4 s) would have hidden it
+		for i in 150:
+			await get_tree().physics_frame
+		if bot.alive and not (bot.node as Player).body.visible:
+			_fail("Koerper eines respawnten Spielers ist unsichtbar")
+	# --- grenade should have exploded by now (fuse 2.4 s)
+	await get_tree().create_timer(1.0).timeout
+	GameEvents.explosion_at.disconnect(explosion_counter)
+	if int(explosion_stats["count"]) < 1:
+		_fail("Explosion wurde nicht erzeugt")
+	# --- end match via kill limit
+	for i in 60:
+		MatchManager.report_kill(bot.id, me.id, "ak47", false)
+		if MatchManager.state == MatchManager.State.ENDED:
+			break
+	if MatchManager.state != MatchManager.State.ENDED:
+		_fail("Killlimit hat das Match nicht beendet")
+	if not MatchManager.local_player_won():
+		_fail("Lokaler Spieler sollte gewonnen haben")
+	await get_tree().process_frame
+	if not game.match_end.visible:
+		_fail("Endbildschirm nicht sichtbar")
+	print("Match-Simulation: Bewegung, Schuss, Nachladen, Wechsel, Granate, Kill, Respawn, Matchende OK")
+	game.free()
+	await get_tree().process_frame

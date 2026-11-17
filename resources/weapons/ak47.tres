@@ -1,0 +1,47 @@
+[gd_resource type="Resource" script_class="WeaponData" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/weapons/weapon_data.gd" id="1_script"]
+[ext_resource type="PackedScene" path="res://scenes/weapons/models/ak47_model.tscn" id="2_model"]
+
+[resource]
+script = ExtResource("1_script")
+weapon_id = "ak47"
+display_name = "AK-47"
+slot = 0
+model_scene = ExtResource("2_model")
+damage = 35.0
+min_damage = 25.0
+falloff_start = 22.0
+falloff_end = 48.0
+headshot_multiplier = 1.4
+pellets = 1
+max_range = 220.0
+rpm = 650.0
+automatic = true
+pump_action = false
+magazine_size = 30
+reserve_ammo = 90
+reload_time = 2.4
+draw_time = 0.45
+spread_hip = 2.4
+spread_ads = 0.2
+spread_moving_bonus = 1.6
+spread_per_shot = 0.4
+spread_max_bonus = 2.6
+spread_recovery = 6.0
+recoil_vertical = 1.35
+recoil_horizontal = 0.55
+recoil_kick_back = 0.07
+recoil_recovery = 9.0
+ads_fov = 58.0
+ads_time = 0.24
+ads_position = Vector3(0.0, -0.1, -0.3)
+hip_position = Vector3(0.24, -0.22, -0.48)
+move_speed_multiplier = 0.95
+ads_speed_multiplier = 0.6
+shot_sound = "shot_ak47"
+shot_sound_far = "shot_ak47_far"
+reload_sounds = Array[String](["reload_mag_out", "reload_mag_in", "reload_bolt"])
+shot_volume_db = 0.0
+bot_effective_range = 35.0
+bot_burst_shots = 5

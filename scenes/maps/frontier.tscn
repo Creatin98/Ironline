@@ -1,0 +1,56 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://scripts/maps/frontier.gd" id="1_script"]
+
+[sub_resource type="ProceduralSkyMaterial" id="sky_mat"]
+sky_top_color = Color(0.35, 0.5, 0.75, 1)
+sky_horizon_color = Color(0.9, 0.78, 0.6, 1)
+ground_bottom_color = Color(0.25, 0.2, 0.15, 1)
+ground_horizon_color = Color(0.7, 0.6, 0.45, 1)
+sun_angle_max = 30.0
+sun_curve = 0.2
+
+[sub_resource type="Sky" id="sky"]
+sky_material = SubResource("sky_mat")
+
+[sub_resource type="Environment" id="env"]
+background_mode = 2
+sky = SubResource("sky")
+ambient_light_source = 3
+ambient_light_sky_contribution = 0.85
+ambient_light_energy = 0.9
+tonemap_mode = 3
+tonemap_exposure = 1.0
+tonemap_white = 1.15
+ssao_enabled = true
+ssao_radius = 1.5
+ssao_intensity = 1.6
+glow_enabled = true
+glow_intensity = 0.3
+glow_bloom = 0.04
+glow_hdr_threshold = 1.2
+fog_enabled = true
+fog_light_color = Color(0.85, 0.75, 0.6, 1)
+fog_density = 0.004
+adjustment_enabled = true
+adjustment_contrast = 1.06
+adjustment_saturation = 1.0
+
+[node name="Frontier" type="Node3D"]
+script = ExtResource("1_script")
+map_display_name = "Frontier"
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("env")
+
+[node name="Sun" type="DirectionalLight3D" parent="."]
+transform = Transform3D(0.866025, -0.321394, 0.383022, 0, 0.766044, 0.642788, -0.5, -0.55667, 0.663414, 0, 20, 0)
+light_color = Color(1, 0.88, 0.72, 1)
+light_energy = 1.4
+shadow_enabled = true
+shadow_bias = 0.03
+directional_shadow_mode = 2
+directional_shadow_split_1 = 0.08
+directional_shadow_split_2 = 0.2
+directional_shadow_split_3 = 0.5
+directional_shadow_max_distance = 140.0
