@@ -98,10 +98,10 @@ Shotgun lädt einzelne Patronen und kann durch Schießen abgebrochen werden.
 
 | Waffe | Schaden | Falloff | RPM | Magazin | Besonderheit |
 |---|---|---|---|---|---|
-| AK-47 | 35 → 25 | 22–48 m | 650 | 30/90 | spürbarer Rückstoß |
-| MP5 | 26 → 18 | 14–32 m | 850 | 30/120 | schnell, wenig Rückstoß, +5 % Tempo |
+| AK-47 | 35 → 25 | 22–48 m | 650 | 30/90 | spürbarer Rückstoß, Kopfschuss ×1.85 |
+| MP5 | 26 → 18 | 14–32 m | 850 | 30/120 | schnell, wenig Rückstoß, +5 % Tempo, Kopfschuss ×1.7 |
 | Shotgun | 8 × 25 → 4.5 | 7–18 m | 75 | 6/24 | Pumpen 0.7 s, Einzelladen |
-| Pistole | 34 → 20 | 12–30 m | 420 | 12/48 | halbautomatisch, Kopfschuss ×1.5 |
+| Pistole | 34 → 20 | 12–30 m | 420 | 12/48 | halbautomatisch, Kopfschuss ×2.0 |
 
 Granate: RigidBody, Zünder 2.4 s nach Wurf, Radius 6.5 m, 135 → 15 Schaden (quadratischer Falloff),
 Sichtlinienprüfung gegen Weltgeometrie.
@@ -161,6 +161,17 @@ so berechnet, dass Kimme und Korn exakt mittig liegen und die Kimme `ADS_DIST` (
 U-Kimme mit Korn und Schutzohren (AK), Diopter-Ring mit Korn im Ring (MP5), Lauf-Rippe mit Perlkorn (Shotgun),
 Dreipunkt-Visier (Pistole). Wichtig für Änderungen: Teile, die zwischen Auge und Visier liegen, müssen unter der
 Visierlinie bleiben, sonst verdecken sie das Bild.
+
+## Treffer- und Kill-Feedback (Phase 8+)
+
+* **Hitmarker** (`HUD._draw_hitmarker`): weißes X bei Treffer, **rotes Doppelkreuz (X + Plus)** bei Kopfschuss, großes rotes X mit
+  Burst-Ring bei Kill, rotes Doppelkreuz mit Ring bei Kopfschuss-Kill. Pop-Animation (startet groß, setzt sich), Kill 0.5 s.
+* **Sounds** (`tools/generate_audio.py hits`): Treffer = trockener Tick + Thud, Kopfschuss = scharfer Knall + metallisches
+  Ping, Kill = Thunk + zwei aufsteigende Glockentöne, Kopfschuss-Kill = höher mit Schimmer. Die Kill-Töne werden mit jedem
+  Kill in Folge höher (bis +8 Stufen). Granaten-Kills bekommen den Kill-Ton über `participant_killed`.
+* **Gefühl:** Kamera-FOV-Punch (`PlayerCamera.kick_fov`), kurzes weißes Aufblitzen, Score-Popup mit Pop und Serie
+  („3 in Folge“), Kopfschuss-Popup in Rot.
+* Kopfschuss-Multiplikatoren: AK ×1.85, MP5 ×1.7, Pistole ×2.0 (Shotgun ×1.0: Streuschüsse haben keinen Kopfschuss-Bonus).
 
 ## Killcam und Last-Kill-Cam (Phase 8+)
 

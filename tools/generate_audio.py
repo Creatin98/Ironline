@@ -200,12 +200,7 @@ def make_movement():
 # ----------------------------------------------------------------------------- feedback
 
 def make_feedback():
-    hm = mix(env_exp(sine(2200, 0.08), 0.02), env_exp(sine(3300, 0.08), 0.012))
-    write_wav("hitmarker", hm, 0.6)
-    hs = mix(env_exp(sine(2600, 0.1), 0.03), env_exp(sine(3900, 0.1), 0.02), env_exp(sine(5200, 0.1), 0.01))
-    write_wav("hitmarker_headshot", hs, 0.7)
-    kill = concat(env_exp(sine(880, 0.08), 0.03), env_exp(sine(1320, 0.14), 0.05))
-    write_wav("kill_confirm", kill, 0.6)
+    make_hit_feedback()
     hurt = env_exp(lowpass(mix(noise(0.2), gain(sine(160, 0.2), 1.5)), 800), 0.06)
     write_wav("hurt", hurt, 0.6)
     death = env_exp(lowpass(mix(noise(0.6), gain(sweep(200, 60, 0.6), 1.5)), 600), 0.2)
@@ -231,6 +226,62 @@ def tone(freq, length, kind="sine"):
     return env_adsr(base, 0.01, 0.05, 0.7, 0.08)
 
 
+def make_hit_feedback():
+    """Hit / headshot / kill confirmation sounds. Own random generator so the other
+    sounds stay byte-identical when this is changed."""
+    local = random.Random(4711)
+
+    def nz(seconds):
+        return [local.uniform(-1, 1) for _ in range(int(seconds * SR))]
+
+    def ping(freq, length, decay):
+        return env_exp(sine(freq, length), decay)
+
+    # body hit: dry transient + short body tick + low thud (a satisfying "tck")
+    hit = mix(
+        gain(env_exp(highpass(nz(0.03), 2500), 0.004), 0.9),
+        gain(ping(1900, 0.09, 0.016), 0.75),
+        gain(ping(2850, 0.09, 0.010), 0.35),
+        gain(env_exp(sweep(260, 110, 0.07), 0.025), 0.8),
+    )
+    write_wav("hitmarker", hit, 0.8)
+
+    # headshot: sharper crack, metallic inharmonic ping and a snap sweep on top
+    head = mix(
+        gain(env_exp(highpass(nz(0.04), 3500), 0.006), 1.0),
+        gain(env_exp(sweep(6200, 2600, 0.05), 0.012), 0.6),
+        gain(ping(2950, 0.22, 0.05), 0.7),
+        gain(ping(4400, 0.22, 0.035), 0.5),
+        gain(ping(6150, 0.22, 0.02), 0.3),
+        gain(env_exp(sweep(300, 120, 0.09), 0.03), 0.9),
+    )
+    write_wav("hitmarker_headshot", head, 0.9)
+
+    # kill: heavy thunk + bright rising two-note chime + tiny click
+    thunk = mix(env_exp(sweep(190, 62, 0.16), 0.06), gain(env_exp(lowpass(nz(0.12), 900), 0.03), 0.5))
+    chime = mix(
+        delay(mix(ping(880, 0.3, 0.07), gain(ping(1760, 0.3, 0.05), 0.35)), 0.04),
+        delay(mix(ping(1320, 0.3, 0.09), gain(ping(2640, 0.3, 0.06), 0.3)), 0.11),
+    )
+    kill = mix(gain(thunk, 1.0), gain(chime, 0.75), gain(env_exp(highpass(nz(0.02), 3000), 0.004), 0.5))
+    write_wav("kill_confirm", kill, 0.85)
+
+    # headshot kill: same body, higher and brighter, three-note run with a glassy shimmer
+    shimmer = mix(ping(3520, 0.4, 0.12), ping(5280, 0.4, 0.09), ping(7040, 0.4, 0.05))
+    chime_h = mix(
+        delay(mix(ping(1047, 0.35, 0.07), gain(ping(2094, 0.35, 0.05), 0.35)), 0.03),
+        delay(mix(ping(1568, 0.35, 0.09), gain(ping(3136, 0.35, 0.06), 0.3)), 0.08),
+        delay(mix(ping(2093, 0.4, 0.12), gain(ping(4186, 0.4, 0.08), 0.3)), 0.13),
+    )
+    kill_h = mix(
+        gain(thunk, 1.0),
+        gain(chime_h, 0.8),
+        gain(delay(shimmer, 0.13), 0.25),
+        gain(env_exp(highpass(nz(0.03), 3500), 0.006), 0.7),
+    )
+    write_wav("kill_headshot", kill_h, 0.9)
+
+
 def make_ui():
     write_wav("ui_click", mix(env_exp(sine(1800, 0.05), 0.012), env_exp(highpass(noise(0.05), 2000), 0.006)), 0.5)
     write_wav("ui_hover", env_exp(sine(1400, 0.04), 0.01), 0.3)
@@ -245,6 +296,10 @@ def make_ui():
 
 if __name__ == "__main__":
     os.makedirs(OUT_DIR, exist_ok=True)
+    import sys
+    if "hits" in sys.argv[1:]:
+        make_hit_feedback() # only the hit/kill confirmation sounds
+        sys.exit(0)
     make_guns()
     make_mechanical()
     make_movement()

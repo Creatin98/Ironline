@@ -253,6 +253,19 @@ func _game_ui(state: String) -> void:
 			rec._apply(rec._cursor, false)
 			for i in 4:
 				await get_tree().process_frame
+	if state.begins_with("hit"):
+		# hit feedback close-up: hit | headshot | kill | headkill
+		var head := state in ["hithead", "hitheadkill"]
+		var kill := state in ["hitkill", "hitheadkill"]
+		game.hud.show_hitmarker(head, kill)
+		game.hud._hitmarker_time = game.hud._hitmarker_total * 0.7
+		if kill:
+			me.killstreak = 3
+			game.hud._on_scored(125 if head else 100, "Kopfschuss" if head else "Kill")
+			game.hud._popup_time = 1.4
+			game.hud._kill_flash.color.a = 0.0
+		get_tree().paused = true
+		game.hud.crosshair.queue_redraw()
 	match state:
 		"pause":
 			game._open_pause()

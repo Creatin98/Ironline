@@ -22,6 +22,7 @@ var _bob_offset: Vector3 = Vector3.ZERO
 var _land_dip: float = 0.0
 var _land_velocity: float = 0.0
 var _shake: float = 0.0
+var _fov_kick: float = 0.0
 var _ads_blend: float = 0.0
 var _base_eye_height: float = 1.62
 
@@ -57,6 +58,11 @@ func add_recoil(vertical_deg: float, horizontal_deg: float, recovery: float) -> 
 func add_shake(strength: float) -> void:
 	if GameSettings.screen_shake:
 		_shake = maxf(_shake, strength)
+
+
+## Short zoom-out punch (kill confirmation); decays by itself.
+func kick_fov(amount: float) -> void:
+	_fov_kick = maxf(_fov_kick, amount)
 
 
 func on_landed(fall_speed: float) -> void:
@@ -101,7 +107,8 @@ func update_camera(delta: float, horizontal_speed: float, on_floor: bool, eye_he
 	var ads_target := 1.0 if is_aiming else 0.0
 	_ads_blend = move_toward(_ads_blend, ads_target, delta / maxf(0.05, ads_time))
 	var base_fov := GameSettings.fov + (SPRINT_FOV_BONUS if sprinting else 0.0)
-	camera.fov = lerpf(base_fov, ads_fov, _ads_blend)
+	camera.fov = lerpf(base_fov, ads_fov, _ads_blend) - _fov_kick
+	_fov_kick = move_toward(_fov_kick, 0.0, delta * 38.0)
 
 
 func get_ads_blend() -> float:

@@ -31,10 +31,14 @@ var hint_label: Label
 var _player: Player
 var _health_ratio: float = 1.0
 var _hitmarker_time: float = 0.0
+var _hitmarker_total: float = 0.14
 var _hitmarker_kill: bool = false
+var _hitmarker_head: bool = false
+var _kill_flash: ColorRect
 var _spread_display: float = 0.0
 var _respawn_time_left: float = -1.0
 var _popup_time: float = 0.0
+var _popup_punch: float = 0.0
 var _killfeed_entries: Array = [] # [{node, time}]
 var _damage_dirs: Array = [] # [{dir: Vector2 (world x/z), time: float}]
 var _warmup: bool = false
@@ -71,6 +75,11 @@ func _build() -> void:
 	vignette.color = Color(0.6, 0.0, 0.0, 0.0)
 	vignette.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(vignette)
+	_kill_flash = ColorRect.new()
+	_kill_flash.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_kill_flash.color = Color(1.0, 0.95, 0.85, 0.0)
+	_kill_flash.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_kill_flash)
 	damage_flash = ColorRect.new()
 	damage_flash.set_anchors_preset(Control.PRESET_FULL_RECT)
 	damage_flash.color = Color(0.8, 0.05, 0.0, 0.0)
@@ -173,8 +182,8 @@ func _build() -> void:
 	add_child(sub_label)
 	score_popup = UITheme.label("", 22, UITheme.ACCENT, HORIZONTAL_ALIGNMENT_CENTER)
 	score_popup.set_anchors_preset(Control.PRESET_CENTER)
-	score_popup.position = Vector2(-150, 40)
-	score_popup.custom_minimum_size = Vector2(300, 30)
+	score_popup.position = Vector2(-250, 40)
+	score_popup.custom_minimum_size = Vector2(500, 30)
 	score_popup.modulate.a = 0.0
 	add_child(score_popup)
 
@@ -224,6 +233,7 @@ func _process(delta: float) -> void:
 	crosshair.queue_redraw()
 	# damage vignette decay
 	damage_flash.color.a = maxf(0.0, damage_flash.color.a - delta * 1.6)
+	_kill_flash.color.a = maxf(0.0, _kill_flash.color.a - delta * 1.1)
 	var target_vignette := 0.0
 	if _health_ratio < 0.6:
 		target_vignette = (0.6 - _health_ratio) / 0.6 * 0.55
@@ -237,6 +247,8 @@ func _process(delta: float) -> void:
 		_popup_time -= delta
 		score_popup.modulate.a = clampf(_popup_time / 0.5, 0.0, 1.0)
 		score_popup.position.y = 40 - (1.5 - _popup_time) * 12.0
+		var pop := lerpf(1.0, 1.0 + _popup_punch, clampf((_popup_time - 1.3) / 0.2, 0.0, 1.0))
+		score_popup.scale = Vector2(pop, pop)
 	# killfeed ageing
 	var now := Time.get_ticks_msec() / 1000.0
 	var i := 0
@@ -273,12 +285,42 @@ func _draw_crosshair() -> void:
 			crosshair.draw_circle(center, 1.5, col)
 	_draw_damage_indicators(center)
 	if _hitmarker_time > 0.0:
-		var a := clampf(_hitmarker_time / 0.12, 0.0, 1.0)
-		var col2 := Color(1, 0.25, 0.2, a) if _hitmarker_kill else Color(1, 1, 1, a)
-		var r1 := 5.0
-		var r2 := 13.0
-		for d in [Vector2(1, 1), Vector2(-1, 1), Vector2(1, -1), Vector2(-1, -1)]:
-			crosshair.draw_line(center + d * r1, center + d * r2, col2, 2.5)
+		_draw_hitmarker(center)
+
+
+## Hit feedback: white X (hit), red double cross (headshot), bigger with a burst ring on kills.
+func _draw_hitmarker(center: Vector2) -> void:
+	var life := clampf(_hitmarker_time / _hitmarker_total, 0.0, 1.0) # 1 -> 0
+	var alpha := clampf(life * 2.5, 0.0, 1.0)
+	var pop := 1.0 + (0.55 if _hitmarker_kill else 0.3) * pow(life, 3.0) # starts big, settles
+	var red := Color(1.0, 0.22, 0.16, alpha)
+	var white := Color(1.0, 1.0, 1.0, alpha)
+	var col := red if (_hitmarker_head or _hitmarker_kill) else white
+	var size := 1.0
+	if _hitmarker_kill:
+		size = 1.55
+	elif _hitmarker_head:
+		size = 1.2
+	var r1 := 6.0 * size * pop
+	var r2 := 16.0 * size * pop
+	var width := 4.0 if _hitmarker_kill else 3.0
+	var shadow := Color(0, 0, 0, alpha * 0.55)
+	var diagonals := [Vector2(1, 1), Vector2(-1, 1), Vector2(1, -1), Vector2(-1, -1)]
+	for d in diagonals:
+		var dn: Vector2 = d.normalized()
+		crosshair.draw_line(center + dn * r1 + Vector2(1, 1), center + dn * r2 + Vector2(1, 1), shadow, width + 1.0)
+		crosshair.draw_line(center + dn * r1, center + dn * r2, col, width)
+	if _hitmarker_head:
+		# second cross (+) on top of the X: the "double cross" of a headshot
+		var p1 := r1 * 1.25
+		var p2 := r2 * 1.35
+		for d in [Vector2(1, 0), Vector2(-1, 0), Vector2(0, 1), Vector2(0, -1)]:
+			crosshair.draw_line(center + d * p1 + Vector2(1, 1), center + d * p2 + Vector2(1, 1), shadow, width + 1.0)
+			crosshair.draw_line(center + d * p1, center + d * p2, col, width)
+	if _hitmarker_kill:
+		var ring_t := 1.0 - life
+		var ring_alpha := clampf(1.0 - ring_t * 1.4, 0.0, 1.0) * 0.8
+		crosshair.draw_arc(center, 10.0 + ring_t * 46.0, 0.0, TAU, 40, Color(1.0, 0.3, 0.2, ring_alpha), 3.0, true)
 
 
 ## Red arcs around the crosshair that point towards whoever hurt us.
@@ -413,13 +455,45 @@ func _on_health_changed(current: float, maximum: float) -> void:
 
 
 func _on_hit_enemy(headshot: bool, killed: bool) -> void:
-	_hitmarker_time = 0.14
+	show_hitmarker(headshot, killed)
+	var streak := 1
+	var me := MatchManager.get_local_participant()
+	if me != null:
+		streak = maxi(1, me.killstreak)
+	if killed:
+		# the thunk/chime gets higher with every kill in a row (max +8 steps)
+		var pitch := 1.0 + 0.045 * float(mini(streak - 1, 8))
+		AudioManager.play_2d("hitmarker_headshot" if headshot else "hitmarker", -9.0, 0.0)
+		var p := AudioManager.play_2d("kill_headshot" if headshot else "kill_confirm", -3.0, 0.0)
+		if p != null:
+			p.pitch_scale = pitch
+		_kill_flash.color.a = 0.16 if headshot else 0.1
+		if _player != null and is_instance_valid(_player):
+			_player.head.kick_fov(5.5 if headshot else 3.5)
+	else:
+		AudioManager.play_2d("hitmarker_headshot" if headshot else "hitmarker", -3.0 if headshot else -5.0, 0.03)
+		if headshot and _player != null and is_instance_valid(_player):
+			_player.head.kick_fov(1.5)
+
+
+func show_hitmarker(headshot: bool, killed: bool) -> void:
+	_hitmarker_head = headshot
 	_hitmarker_kill = killed
-	AudioManager.play_2d("hitmarker_headshot" if headshot else "hitmarker", -6.0, 0.02)
+	_hitmarker_total = 0.5 if killed else (0.22 if headshot else 0.14)
+	_hitmarker_time = _hitmarker_total
 
 
 func _on_scored(points: int, reason: String) -> void:
-	score_popup.text = "+%d  %s" % [points, reason]
+	var text := "+%d  %s" % [points, reason]
+	var me := MatchManager.get_local_participant()
+	if me != null and me.killstreak >= 2:
+		text += "   •   %d in Folge" % me.killstreak
+	score_popup.text = text
+	var head := reason == "Kopfschuss"
+	score_popup.add_theme_color_override("font_color", Color(1.0, 0.32, 0.22) if head else UITheme.ACCENT)
+	score_popup.add_theme_font_size_override("font_size", 30 if head else 24)
+	score_popup.pivot_offset = score_popup.size * 0.5
+	_popup_punch = 0.55 if head else 0.3
 	_popup_time = 1.5
 
 
@@ -467,5 +541,6 @@ func _on_participant_killed(victim_id: int, killer_id: int, weapon_id: String, h
 	while _killfeed_entries.size() > KILLFEED_MAX:
 		var old: Dictionary = _killfeed_entries.pop_front()
 		(old["node"] as Node).queue_free()
-	if killer_id == MatchManager.local_participant_id and victim_id != killer_id:
+	# weapon kills already played their confirmation via the hit feedback; grenades did not
+	if killer_id == MatchManager.local_participant_id and victim_id != killer_id and weapon_id == "grenade":
 		AudioManager.play_2d("kill_confirm", -4.0)
