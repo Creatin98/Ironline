@@ -53,6 +53,9 @@ func _run() -> void:
 				menu._show_settings()
 				if target.ends_with("sound"):
 					menu._settings._select_tab(1)
+					await get_tree().process_frame
+					await get_tree().process_frame
+					menu._settings._scroll.scroll_vertical = 100000 # bottom of the page: the ambience group
 				elif target.ends_with("game"):
 					menu._settings._select_tab(2)
 			"menu_online":

@@ -5,6 +5,8 @@ extends Node
 signal settings_changed
 
 const SAVE_PATH := "user://settings.cfg"
+## 2: ambience sounds became opt-in (silent by default); older files get that default where they still hold the old 100 %.
+const SETTINGS_VERSION := 2
 
 ## Tests switch this off so they never overwrite the player's real settings.
 var persist: bool = true
@@ -112,6 +114,10 @@ func load_settings(path: String = SAVE_PATH) -> void:
 		var id: String = e["id"]
 		var fallback: float = float(cfg.get_value("audio", legacy[id], volumes[id])) if legacy.has(id) else float(volumes[id])
 		volumes[id] = clampf(float(cfg.get_value("audio_volumes", id, fallback)), 0.0, 1.0)
+	if int(cfg.get_value("meta", "version", 1)) < 2:
+		for e in AudioCategories.ENTRIES:
+			if e["group"] == "Umgebung" and e["parent"] == "Ambience" and absf(float(volumes[e["id"]]) - 1.0) < 0.001:
+				volumes[e["id"]] = float(e["default"])
 	hud_scale = cfg.get_value("hud", "hud_scale", hud_scale)
 	hud_margin = cfg.get_value("hud", "hud_margin", hud_margin)
 	hud_offsets = cfg.get_value("hud", "hud_offsets", hud_offsets)
@@ -133,6 +139,7 @@ func load_settings(path: String = SAVE_PATH) -> void:
 ## `path`: tests write to a separate file; the normal save goes to SAVE_PATH (only if `persist`).
 func save(path: String = SAVE_PATH) -> void:
 	var cfg := ConfigFile.new()
+	cfg.set_value("meta", "version", SETTINGS_VERSION)
 	cfg.set_value("controls", "mouse_sensitivity", mouse_sensitivity)
 	cfg.set_value("controls", "invert_y", invert_y)
 	cfg.set_value("controls", "fov", fov)

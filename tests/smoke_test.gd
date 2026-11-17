@@ -279,7 +279,7 @@ func _check_settings_and_audio() -> void:
 	var weapons_db := AudioServer.get_bus_volume_db(AudioServer.get_bus_index("Weapons"))
 	if absf(weapons_db - linear_to_db(0.5)) > 0.1:
 		_fail("Waffen-Regler stellt den Bus nicht ein (%.1f dB)" % weapons_db)
-	for other in ["Grenades", "Reload", "Hitmarker", "Wind", "Master", "Music", "UI"]:
+	for other in ["Grenades", "Reload", "Hitmarker", "Master", "Music", "UI"]:
 		if absf(AudioServer.get_bus_volume_db(AudioServer.get_bus_index(other))) > 0.5 and other != "Music":
 			_fail("Waffen-Regler beeinflusst Bus %s" % other)
 	GameSettings.set_volume("kill", 0.0)
@@ -298,7 +298,7 @@ func _check_settings_and_audio() -> void:
 	# persistence: save, change in memory, load again
 	var path := "user://settings_test.cfg"
 	GameSettings.set_volume("weapons", 0.3)
-	GameSettings.set_volume("birds", 0.0)
+	GameSettings.set_volume("wind", 0.7)
 	GameSettings.window_mode = 2
 	GameSettings.fps_limit = 60
 	GameSettings.vsync = false
@@ -316,7 +316,7 @@ func _check_settings_and_audio() -> void:
 	GameSettings.show_minimap = true
 	GameSettings.ads_sensitivity = 1.0
 	GameSettings.load_settings(path)
-	if absf(GameSettings.get_volume("weapons") - 0.3) > 0.001 or GameSettings.get_volume("birds") != 0.0 or GameSettings.get_volume("master") != 1.0:
+	if absf(GameSettings.get_volume("weapons") - 0.3) > 0.001 or absf(GameSettings.get_volume("wind") - 0.7) > 0.001 or GameSettings.get_volume("master") != 1.0:
 		_fail("Lautstaerken wurden nicht gespeichert/geladen")
 	if GameSettings.window_mode != 2 or GameSettings.fps_limit != 60 or GameSettings.vsync or GameSettings.antialiasing != 1 \
 			or GameSettings.shadow_quality != 1 or GameSettings.show_minimap or absf(GameSettings.ads_sensitivity - 0.7) > 0.001:
@@ -332,6 +332,7 @@ func _check_settings_and_audio() -> void:
 	GameSettings.show_minimap = true
 	GameSettings.ads_sensitivity = 1.0
 	GameSettings.apply()
+	await _check_ambience_muted_by_default()
 	# the panel: presets fill the controls, manual changes switch to "benutzerdefiniert", Zurueck undoes live sound changes
 	var panel := SettingsPanel.new()
 	add_child(panel)
@@ -376,6 +377,70 @@ func _check_death_skull() -> void:
 		_fail("Totenkopf-Markierung fehlerhaft (nicht durch Waende sichtbar oder ohne Textur)")
 	holder.free()
 	print("Totenkopf-Markierung OK")
+
+
+## Ambience (wind, water, birds, planes, own breathing) is silent by default but fully adjustable;
+## old settings files get that default, deliberate values stay.
+func _check_ambience_muted_by_default() -> void:
+	var ids := ["birds", "wind", "water", "distant", "breath", "ambient_other"]
+	for id in ids:
+		var e := AudioCategories.get_entry(id)
+		if float(e["default"]) != 0.0 or GameSettings.get_volume(id) != 0.0:
+			_fail("Umgebungsgeraeusch %s ist nicht standardmaessig stumm" % id)
+		if not AudioServer.is_bus_mute(AudioServer.get_bus_index(String(e["bus"]))):
+			_fail("Bus %s ist nicht stumm geschaltet" % e["bus"])
+	if GameSettings.get_volume("ambience") != 1.0:
+		_fail("Umgebung allgemein soll auf 100 % stehen (nur die Einzelregler sind aus)")
+	# migration of an old file: the old default 100 % becomes the new default, a hand-lowered value stays
+	var old_path := "user://settings_old_test.cfg"
+	var old := ConfigFile.new()
+	old.set_value("audio_volumes", "wind", 1.0)
+	old.set_value("audio_volumes", "water", 0.35)
+	old.set_value("audio_volumes", "weapons", 0.4)
+	old.save(old_path)
+	GameSettings.load_settings(old_path)
+	if GameSettings.get_volume("wind") != 0.0 or absf(GameSettings.get_volume("water") - 0.35) > 0.001 or absf(GameSettings.get_volume("weapons") - 0.4) > 0.001:
+		_fail("Migration alter Einstellungen: Wind %.2f, Wasser %.2f, Waffen %.2f (erwartet 0 / 0.35 / 0.4)" % [GameSettings.get_volume("wind"), GameSettings.get_volume("water"), GameSettings.get_volume("weapons")])
+	GameSettings.volumes = AudioCategories.default_volumes()
+	var cur_path := "user://settings_new_test.cfg"
+	GameSettings.set_volume("wind", 1.0) # deliberately 100 % in a current file
+	GameSettings.save(cur_path)
+	GameSettings.volumes = AudioCategories.default_volumes()
+	GameSettings.load_settings(cur_path)
+	if absf(GameSettings.get_volume("wind") - 1.0) > 0.001:
+		_fail("Ein bewusst gesetzter Wert in einer aktuellen Datei wurde faelschlich zurueckgesetzt")
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(old_path))
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(cur_path))
+	GameSettings.volumes = AudioCategories.default_volumes()
+	GameSettings.apply()
+	# the ambience system: silent categories are paused, raising a slider (or the parent) wakes exactly those up
+	var amb := AmbienceSystem.new()
+	add_child(amb)
+	amb.setup("harbor")
+	await get_tree().process_frame
+	await get_tree().process_frame
+	if amb._players.size() < 2:
+		_fail("Harbor sollte Wind- und Wasser-Loop anlegen (%d)" % amb._players.size())
+	for p in amb._players:
+		if not p.stream_paused:
+			_fail("Ein Umgebungs-Loop laeuft obwohl alles stumm ist")
+	GameSettings.set_volume("wind", 0.5)
+	await get_tree().process_frame
+	for i in amb._players.size():
+		var cat: String = amb._player_categories[i]
+		if cat == "wind" and amb._players[i].stream_paused:
+			_fail("Wind laeuft nicht, obwohl der Regler hochgezogen wurde")
+		if cat == "water" and not amb._players[i].stream_paused:
+			_fail("Wasser laeuft, obwohl sein Regler auf 0 steht")
+	GameSettings.set_volume("ambience", 0.0)
+	await get_tree().process_frame
+	for p in amb._players:
+		if not p.stream_paused:
+			_fail("Umgebung allgemein auf 0 muss alle Umgebungs-Loops stoppen")
+	GameSettings.volumes = AudioCategories.default_volumes()
+	GameSettings.apply()
+	amb.free()
+	print("Umgebung: standardmaessig stumm, Migration alter Dateien, Regler wecken genau ihre Kategorie")
 
 
 ## Loading screen: shows for DURATION, then reports "finished" and removes itself.

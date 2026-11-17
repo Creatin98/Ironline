@@ -145,7 +145,7 @@ func _build_sound(page: VBoxContainer) -> void:
 			current_group = e["group"]
 			grid = _section(page, current_group)
 		_volume(grid, e)
-	var note := UITheme.label("Einige Umgebungsgeräusche folgen in späteren Versionen; ihre Regler sind schon vorbereitet.", 14, UITheme.TEXT_DIM)
+	var note := UITheme.label("Umgebungsgeräusche (Wind, Wasser, Vögel, Atmen …) sind standardmäßig stumm: Regler hochziehen, um sie zu hören. Weitere Geräusche folgen in späteren Versionen.", 14, UITheme.TEXT_DIM)
 	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	page.add_child(note)
 

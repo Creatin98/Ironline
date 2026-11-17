@@ -32,6 +32,7 @@ var _profile: Dictionary = {}
 var _bird_timer := 0.0
 var _plane_timer := 0.0
 var _players: Array[AudioStreamPlayer] = []
+var _player_categories: Array[String] = []
 
 
 func setup(map_id: String) -> void:
@@ -52,27 +53,38 @@ func setup(map_id: String) -> void:
 		add_child(p)
 		p.play()
 		_players.append(p)
+		_player_categories.append(AudioCategories.category_of(sound))
 	_bird_timer = randf_range(2.0, 6.0)
 	var pi: Vector2 = _profile["plane_interval"]
 	_plane_timer = randf_range(pi.x, pi.y) * 0.5 if pi.y > 0.0 else -1.0
 
 
+## True if this category can be heard at all (its volume and all parent volumes are above 0).
+func _audible(category_id: String) -> bool:
+	return AudioCategories.effective_volume(category_id, GameSettings.volumes) > 0.001
+
+
 func _process(delta: float) -> void:
 	if _profile.is_empty():
 		return
+	# a silent loop is paused instead of being mixed for nothing (it resumes when the slider goes up)
+	for i in _players.size():
+		_players[i].stream_paused = not _audible(_player_categories[i])
 	var birds: Array = _profile["birds"]
 	if not birds.is_empty():
 		_bird_timer -= delta
 		if _bird_timer <= 0.0:
 			var iv: Vector2 = _profile["bird_interval"]
 			_bird_timer = randf_range(iv.x, iv.y)
-			_play_bird(String(birds[randi() % birds.size()]))
+			if _audible("birds"):
+				_play_bird(String(birds[randi() % birds.size()]))
 	if _plane_timer >= 0.0:
 		_plane_timer -= delta
 		if _plane_timer <= 0.0:
 			var pi: Vector2 = _profile["plane_interval"]
 			_plane_timer = randf_range(pi.x, pi.y)
-			AudioManager.play_2d("amb_plane", -24.0, 0.04)
+			if _audible("distant"):
+				AudioManager.play_2d("amb_plane", -24.0, 0.04)
 
 
 func _play_bird(sound: String) -> void:

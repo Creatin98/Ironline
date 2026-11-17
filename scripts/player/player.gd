@@ -548,7 +548,8 @@ func _update_states(delta: float) -> void:
 	elif _sprint_time > 0.0:
 		if is_local and _sprint_time >= 2.5 and _breath_cooldown <= 0.0:
 			_breath_cooldown = 12.0
-			AudioManager.play_2d("breath_heavy", -12.0, 0.03)
+			if AudioCategories.effective_volume("breath", GameSettings.volumes) > 0.001:
+				AudioManager.play_2d("breath_heavy", -12.0, 0.03)
 		_sprint_time = 0.0
 	if wants_sprint:
 		weapon_manager.cancel_for_sprint() # sprint breaks off reload / grenade animations

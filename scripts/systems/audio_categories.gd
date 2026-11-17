@@ -3,7 +3,8 @@ extends RefCounted
 ## Single source of truth for all sound categories: audio buses, their hierarchy, labels for the
 ## settings menu, default volumes and which sound file belongs to which category.
 ##
-## A new category (e.g. a future ambience sound) only needs ONE entry in ENTRIES: the bus is created
+## The ambience categories below "Umgebung allgemein" are silent by default (opt-in: raise the
+## slider to hear them). A new category (e.g. a future ambience sound) only needs ONE entry in ENTRIES: the bus is created
 ## at startup, the slider appears in the sound settings, the value is saved automatically.
 ## Sounds are assigned to a category in EXACT_SOUNDS / SOUND_PREFIXES by their file name.
 
@@ -25,12 +26,12 @@ const ENTRIES: Array[Dictionary] = [
 	{"id": "kill", "bus": "Kill", "parent": "SFX", "label": "Kill-Sound", "group": "Trefferfeedback", "default": 1.0, "preview": "kill_confirm"},
 	{"id": "hit_other", "bus": "HitOther", "parent": "SFX", "label": "Einschläge, Treffer auf dich, Tod", "group": "Trefferfeedback", "default": 1.0, "preview": "bullet_impact"},
 	{"id": "ambience", "bus": "Ambience", "parent": "Master", "label": "Umgebung allgemein", "group": "Umgebung", "default": 1.0, "preview": ""},
-	{"id": "birds", "bus": "Birds", "parent": "Ambience", "label": "Vögel und Naturgeräusche", "group": "Umgebung", "default": 1.0, "preview": "amb_bird_1"},
-	{"id": "wind", "bus": "Wind", "parent": "Ambience", "label": "Wind", "group": "Umgebung", "default": 1.0, "preview": "amb_wind"},
-	{"id": "water", "bus": "Water", "parent": "Ambience", "label": "Wasser", "group": "Umgebung", "default": 1.0, "preview": "amb_water"},
-	{"id": "distant", "bus": "Distant", "parent": "Ambience", "label": "Flugzeuge und entfernte Geräusche", "group": "Umgebung", "default": 1.0, "preview": "amb_plane"},
-	{"id": "breath", "bus": "Breath", "parent": "Ambience", "label": "Eigene Atemgeräusche", "group": "Umgebung", "default": 1.0, "preview": "breath_heavy"},
-	{"id": "ambient_other", "bus": "AmbientOther", "parent": "Ambience", "label": "Weitere Umgebungsgeräusche", "group": "Umgebung", "default": 1.0, "preview": ""},
+	{"id": "birds", "bus": "Birds", "parent": "Ambience", "label": "Vögel und Naturgeräusche", "group": "Umgebung", "default": 0.0, "preview": "amb_bird_1"},
+	{"id": "wind", "bus": "Wind", "parent": "Ambience", "label": "Wind", "group": "Umgebung", "default": 0.0, "preview": "amb_wind"},
+	{"id": "water", "bus": "Water", "parent": "Ambience", "label": "Wasser", "group": "Umgebung", "default": 0.0, "preview": "amb_water"},
+	{"id": "distant", "bus": "Distant", "parent": "Ambience", "label": "Flugzeuge und entfernte Geräusche", "group": "Umgebung", "default": 0.0, "preview": "amb_plane"},
+	{"id": "breath", "bus": "Breath", "parent": "Ambience", "label": "Eigene Atemgeräusche", "group": "Umgebung", "default": 0.0, "preview": "breath_heavy"},
+	{"id": "ambient_other", "bus": "AmbientOther", "parent": "Ambience", "label": "Weitere Umgebungsgeräusche", "group": "Umgebung", "default": 0.0, "preview": ""},
 ]
 
 ## Exact file name -> category id.
@@ -58,6 +59,27 @@ static func get_entry(id: String) -> Dictionary:
 		if e["id"] == id:
 			return e
 	return {}
+
+
+static func entry_of_bus(bus_name: String) -> Dictionary:
+	for e in ENTRIES:
+		if e["bus"] == bus_name:
+			return e
+	return {}
+
+
+## What actually reaches the speakers: the category's volume times the volumes of all its parent buses
+## (e.g. wind x ambience x master). 0 = inaudible, so callers can skip playing a sound at all.
+static func effective_volume(id: String, volumes: Dictionary) -> float:
+	var v := 1.0
+	var e := get_entry(id)
+	var guard := 0
+	while not e.is_empty() and guard < 8:
+		v *= float(volumes.get(String(e["id"]), float(e["default"])))
+		var parent_bus := String(e["parent"])
+		e = entry_of_bus(parent_bus) if parent_bus != "" else {}
+		guard += 1
+	return v
 
 
 static func default_volumes() -> Dictionary:

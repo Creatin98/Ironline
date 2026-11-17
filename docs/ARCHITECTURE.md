@@ -327,3 +327,8 @@ Python-Skripten in `tools/` erzeugt – keine Fremdinhalte, alles reproduzierbar
   `grenade_lever` zu festen Zeitmarken (`WeaponManager.GRENADE_SOUNDS`, auch 3D für andere Spieler).
 * **Schrotflinte:** `WeaponData.impact_feel` (2.2): stärkerer Rückstoß, Kamerawackeln, FOV-Stoß, größeres Mündungsfeuer, wuchtigeres Pumpen und Nachladen
   (Kick pro Patrone). Fadenkreuz = kleiner Ring (Radius 11 + Streuung·3.6).
+
+* **Umgebungsgeräusche standardmäßig stumm:** Alle Einzelregler der Gruppe „Umgebung“ (Vögel, Wind, Wasser, Flugzeuge, Atmen, Sonstiges) stehen im Standard auf 0 %,
+  „Umgebung allgemein“ auf 100 %. Die Sounds und Regler bleiben erhalten. `AmbienceSystem` pausiert stumme Loops und spielt stumme Ereignisse gar nicht
+  (`AudioCategories.effective_volume` = Kategorie × Eltern-Busse), das Atmen nach dem Sprint ebenso. Alte `settings.cfg` (ohne `meta/version` 2) bekommen den neuen
+  Standard, wo noch der alte Wert 100 % steht; bewusst gesetzte Werte bleiben (`GameSettings.SETTINGS_VERSION`).
