@@ -18,6 +18,8 @@ var _music: HSlider
 var _sfx: HSlider
 var _hud: HSlider
 var _hud_val: Label
+var _margin: HSlider
+var _margin_val: Label
 var _bob: CheckBox
 var _sway: CheckBox
 var _shake: CheckBox
@@ -92,6 +94,10 @@ func _ready() -> void:
 	_hud_val = UITheme.label("", 18)
 	_hud.value_changed.connect(func(v2: float) -> void: _hud_val.text = "%d %%" % int(round(v2 * 100.0)))
 	_row(grid, "HUD-Skalierung", _hud, _hud_val)
+	_margin = UITheme.hslider(0, 120, 1, GameSettings.hud_margin, 300)
+	_margin_val = UITheme.label("", 18)
+	_margin.value_changed.connect(func(v2: float) -> void: _margin_val.text = "%d px" % int(v2))
+	_row(grid, "HUD-Abstand zum Rand", _margin, _margin_val)
 	_bob = _check("Aktiv")
 	_row(grid, "Kamera-Bobbing", _bob, null)
 	_sway = _check("Aktiv")
@@ -157,6 +163,8 @@ func _load_values() -> void:
 	_sfx.value = GameSettings.sfx_volume
 	_hud.value = GameSettings.hud_scale
 	_hud_val.text = "%d %%" % int(round(GameSettings.hud_scale * 100.0))
+	_margin.value = GameSettings.hud_margin
+	_margin_val.text = "%d px" % int(GameSettings.hud_margin)
 	_bob.button_pressed = GameSettings.camera_bob
 	_sway.button_pressed = GameSettings.weapon_sway
 	_shake.button_pressed = GameSettings.screen_shake
@@ -176,6 +184,7 @@ func _apply() -> void:
 	GameSettings.music_volume = _music.value
 	GameSettings.sfx_volume = _sfx.value
 	GameSettings.hud_scale = _hud.value
+	GameSettings.hud_margin = _margin.value
 	GameSettings.camera_bob = _bob.button_pressed
 	GameSettings.weapon_sway = _sway.button_pressed
 	GameSettings.screen_shake = _shake.button_pressed

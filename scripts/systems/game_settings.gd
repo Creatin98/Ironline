@@ -26,6 +26,8 @@ var sfx_volume: float = 1.0
 
 # HUD / Kamera
 var hud_scale: float = 1.0
+var hud_margin: float = 14.0 # distance of the HUD blocks to the screen edge (pixels, 1920x1080 reference)
+var hud_offsets: Dictionary = {} # element name -> Vector2 offset set in the HUD editor
 var camera_bob: bool = true
 var weapon_sway: bool = true
 var screen_shake: bool = true
@@ -66,6 +68,8 @@ func load_settings() -> void:
 	music_volume = cfg.get_value("audio", "music_volume", music_volume)
 	sfx_volume = cfg.get_value("audio", "sfx_volume", sfx_volume)
 	hud_scale = cfg.get_value("hud", "hud_scale", hud_scale)
+	hud_margin = cfg.get_value("hud", "hud_margin", hud_margin)
+	hud_offsets = cfg.get_value("hud", "hud_offsets", hud_offsets)
 	camera_bob = cfg.get_value("hud", "camera_bob", camera_bob)
 	weapon_sway = cfg.get_value("hud", "weapon_sway", weapon_sway)
 	screen_shake = cfg.get_value("hud", "screen_shake", screen_shake)
@@ -90,6 +94,8 @@ func save() -> void:
 	cfg.set_value("audio", "music_volume", music_volume)
 	cfg.set_value("audio", "sfx_volume", sfx_volume)
 	cfg.set_value("hud", "hud_scale", hud_scale)
+	cfg.set_value("hud", "hud_margin", hud_margin)
+	cfg.set_value("hud", "hud_offsets", hud_offsets)
 	cfg.set_value("hud", "camera_bob", camera_bob)
 	cfg.set_value("hud", "weapon_sway", weapon_sway)
 	cfg.set_value("hud", "screen_shake", screen_shake)

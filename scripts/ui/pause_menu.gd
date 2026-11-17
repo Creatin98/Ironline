@@ -6,6 +6,7 @@ extends Control
 signal resumed
 signal leave_requested
 signal class_selected(class_id: String)
+signal hud_edit_requested
 
 var settings_panel: SettingsPanel
 var main_box: VBoxContainer
@@ -37,6 +38,9 @@ func _ready() -> void:
 	class_picker.setup(GameDirector.class_picker_items(), Vector2(130, 73), 15)
 	class_picker.selected.connect(func(id: String) -> void: class_selected.emit(id))
 	main_box.add_child(class_picker)
+	var hud_edit := UITheme.button("HUD anpassen", 22, 440)
+	hud_edit.pressed.connect(func() -> void: hud_edit_requested.emit())
+	main_box.add_child(hud_edit)
 	var settings := UITheme.button("Einstellungen", 22, 440)
 	settings.pressed.connect(_open_settings)
 	main_box.add_child(settings)

@@ -278,6 +278,14 @@ func _game_ui(state: String) -> void:
 			lbl.get_tree().paused = false
 		get_tree().paused = true
 	match state:
+		"hud":
+			get_tree().paused = true
+		"hudedit":
+			GameSettings.hud_offsets = {"health": Vector2(60, -40), "ammo": Vector2(-90, 0)}
+			game._open_pause()
+			game.pause_menu.close()
+			game.hud.begin_edit()
+			get_tree().paused = true
 		"pause":
 			game._open_pause()
 		"scoreboard":

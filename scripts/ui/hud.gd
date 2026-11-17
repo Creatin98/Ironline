@@ -40,8 +40,13 @@ var _respawn_time_left: float = -1.0
 var _killfeed_entries: Array = [] # [{node, time}]
 var _damage_dirs: Array = [] # [{dir: Vector2 (world x/z), time: float}]
 var _warmup: bool = false
-var _hud_scale_nodes: Array = []
-var _hud_pivots: Dictionary = {} # Control -> pivot fraction (0..1, 0..1)
+## name -> {"node": Control, "corner": Vector2 (0/0.5/1 = left/centre/right, top/bottom)}
+var _blocks: Dictionary = {}
+var _editing: bool = false
+var _edit_overlay: Control
+var _drag_name: String = ""
+
+signal edit_finished
 
 
 func _ready() -> void:
@@ -62,6 +67,7 @@ func _ready() -> void:
 	GameEvents.time_changed.connect(_on_time_changed)
 	GameEvents.match_state_changed.connect(_on_match_state_changed)
 	GameSettings.settings_changed.connect(_apply_scale)
+	resized.connect(_apply_scale)
 	_refresh_score()
 	_apply_scale()
 
@@ -94,37 +100,30 @@ func _build() -> void:
 	# --- top left: score ---
 	var score_panel := UITheme.panel()
 	score_panel.set_anchors_preset(Control.PRESET_TOP_LEFT)
-	score_panel.position = Vector2(24, 24)
 	score_box = UITheme.vbox(4)
 	score_panel.add_child(score_box)
 	add_child(score_panel)
-	_hud_scale_nodes.append(score_panel)
+	_blocks["score"] = {"node": score_panel, "corner": Vector2(0, 0), "label": "Punkte"}
 
 	# --- top center: timer ---
 	timer_label = UITheme.label("", 30, UITheme.TEXT, HORIZONTAL_ALIGNMENT_CENTER)
-	timer_label.set_anchors_preset(Control.PRESET_CENTER_TOP)
-	timer_label.position = Vector2(-100, 20)
+	timer_label.set_anchors_preset(Control.PRESET_TOP_LEFT)
 	timer_label.custom_minimum_size = Vector2(200, 40)
 	add_child(timer_label)
+	_blocks["timer"] = {"node": timer_label, "corner": Vector2(0.5, 0), "label": "Zeit"}
 
 	# --- top right: killfeed ---
 	killfeed_box = UITheme.vbox(4)
-	killfeed_box.set_anchors_preset(Control.PRESET_TOP_RIGHT)
-	killfeed_box.grow_horizontal = Control.GROW_DIRECTION_BEGIN
-	killfeed_box.position = Vector2(-444, 24)
-	killfeed_box.custom_minimum_size = Vector2(420, 0)
+	killfeed_box.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	killfeed_box.custom_minimum_size = Vector2(420, 64)
 	killfeed_box.alignment = BoxContainer.ALIGNMENT_BEGIN
 	killfeed_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(killfeed_box)
-	_hud_scale_nodes.append(killfeed_box)
-	_hud_pivots[killfeed_box] = Vector2(1, 0)
+	_blocks["killfeed"] = {"node": killfeed_box, "corner": Vector2(1, 0), "label": "Killfeed"}
 
 	# --- bottom left: health ---
 	var health_panel := UITheme.panel()
-	health_panel.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
-	health_panel.grow_vertical = Control.GROW_DIRECTION_BEGIN
-	health_panel.position = Vector2(24, -96)
-	_hud_pivots[health_panel] = Vector2(0, 1)
+	health_panel.set_anchors_preset(Control.PRESET_TOP_LEFT)
 	var hv := UITheme.vbox(6)
 	health_panel.add_child(hv)
 	var hh := UITheme.hbox(10)
@@ -146,16 +145,12 @@ func _build() -> void:
 	health_bar_fill.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	bar_bg.add_child(health_bar_fill)
 	add_child(health_panel)
-	_hud_scale_nodes.append(health_panel)
+	_blocks["health"] = {"node": health_panel, "corner": Vector2(0, 1), "label": "Gesundheit"}
 
 	# --- bottom right: ammo ---
 	var ammo_panel := UITheme.panel()
-	ammo_panel.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
-	ammo_panel.grow_horizontal = Control.GROW_DIRECTION_BEGIN
-	ammo_panel.grow_vertical = Control.GROW_DIRECTION_BEGIN
-	ammo_panel.position = Vector2(-304, -120)
+	ammo_panel.set_anchors_preset(Control.PRESET_TOP_LEFT)
 	ammo_panel.custom_minimum_size = Vector2(280, 0)
-	_hud_pivots[ammo_panel] = Vector2(1, 1)
 	var av := UITheme.vbox(2)
 	ammo_panel.add_child(av)
 	weapon_label = UITheme.label("AK-47", 18, UITheme.ACCENT, HORIZONTAL_ALIGNMENT_RIGHT)
@@ -165,7 +160,7 @@ func _build() -> void:
 	grenade_label = UITheme.label("GRANATEN  2", 16, UITheme.TEXT_DIM, HORIZONTAL_ALIGNMENT_RIGHT)
 	av.add_child(grenade_label)
 	add_child(ammo_panel)
-	_hud_scale_nodes.append(ammo_panel)
+	_blocks["ammo"] = {"node": ammo_panel, "corner": Vector2(1, 1), "label": "Munition"}
 
 	# --- center messages ---
 	center_label = UITheme.label("", 44, UITheme.TEXT, HORIZONTAL_ALIGNMENT_CENTER)
@@ -202,18 +197,127 @@ func _build() -> void:
 
 
 func _apply_scale() -> void:
-	# pivots depend on the laid-out size, so apply one frame later
-	call_deferred("_apply_scale_deferred")
+	# sizes are known one frame later
+	call_deferred("_layout")
 
 
-func _apply_scale_deferred() -> void:
-	var s := clampf(GameSettings.hud_scale, 0.6, 1.6)
-	for n in _hud_scale_nodes:
-		var c := n as Control
-		var frac: Vector2 = _hud_pivots.get(c, Vector2.ZERO)
-		c.pivot_offset = Vector2(c.size.x * frac.x, c.size.y * frac.y)
-		c.scale = Vector2(s, s)
+## Places every HUD block in its screen corner (symmetric margins), scaled, plus the offset
+## the player set in the HUD editor.
+func _layout() -> void:
+	var k := clampf(GameSettings.hud_scale, 0.6, 1.6)
+	var m := GameSettings.hud_margin * k
+	var area := size
+	for block_name in _blocks:
+		var info: Dictionary = _blocks[block_name]
+		var c: Control = info["node"]
+		var corner: Vector2 = info["corner"]
+		c.pivot_offset = Vector2.ZERO
+		c.scale = Vector2(k, k)
+		var s := c.get_combined_minimum_size() * k
+		var pos := Vector2(m + corner.x * (area.x - s.x - 2.0 * m), m + corner.y * (area.y - s.y - 2.0 * m))
+		pos += _offset_of(block_name)
+		c.position = _clamp_to_screen(pos, s, area)
 	fps_label.visible = GameSettings.show_fps
+	if _edit_overlay != null:
+		_edit_overlay.queue_redraw()
+
+
+func _offset_of(block_name: String) -> Vector2:
+	var v: Variant = GameSettings.hud_offsets.get(block_name, Vector2.ZERO)
+	return v if v is Vector2 else Vector2.ZERO
+
+
+func _clamp_to_screen(pos: Vector2, s: Vector2, area: Vector2) -> Vector2:
+	return Vector2(clampf(pos.x, 0.0, maxf(0.0, area.x - s.x)), clampf(pos.y, 0.0, maxf(0.0, area.y - s.y)))
+
+
+# ----------------------------------------------------------------------------- HUD editor
+
+## Lets the player drag every block; "Fertig" saves, "Zurücksetzen" restores the corners.
+func begin_edit() -> void:
+	if _editing:
+		return
+	_editing = true
+	_edit_overlay = Control.new()
+	_edit_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_edit_overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+	_edit_overlay.draw.connect(_draw_edit_overlay)
+	_edit_overlay.gui_input.connect(_edit_input)
+	add_child(_edit_overlay)
+	var box := UITheme.vbox(10)
+	box.set_anchors_preset(Control.PRESET_CENTER)
+	box.position = Vector2(-260, -90)
+	_edit_overlay.add_child(box)
+	var title := UITheme.label("HUD anpassen", 34, UITheme.ACCENT, HORIZONTAL_ALIGNMENT_CENTER)
+	title.custom_minimum_size = Vector2(520, 0)
+	box.add_child(title)
+	var hint := UITheme.label("Elemente mit der Maus verschieben. Der Abstand zum Rand und die Größe stehen in den Einstellungen.", 18, UITheme.TEXT_DIM, HORIZONTAL_ALIGNMENT_CENTER)
+	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	hint.custom_minimum_size = Vector2(520, 0)
+	box.add_child(hint)
+	var row := UITheme.hbox(16)
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	var reset := UITheme.button("Zurücksetzen", 20, 220)
+	reset.pressed.connect(func() -> void:
+		GameSettings.hud_offsets = {}
+		_layout())
+	row.add_child(reset)
+	var done := UITheme.button("Fertig", 20, 220)
+	done.pressed.connect(end_edit)
+	row.add_child(done)
+	box.add_child(row)
+	_edit_overlay.queue_redraw()
+
+
+func is_editing() -> bool:
+	return _editing
+
+
+func end_edit() -> void:
+	if not _editing:
+		return
+	_editing = false
+	_drag_name = ""
+	if _edit_overlay != null:
+		_edit_overlay.queue_free()
+		_edit_overlay = null
+	GameSettings.save()
+	edit_finished.emit()
+
+
+func _block_rect(block_name: String) -> Rect2:
+	var c: Control = _blocks[block_name]["node"]
+	return Rect2(c.position, c.get_combined_minimum_size() * c.scale)
+
+
+func _draw_edit_overlay() -> void:
+	_edit_overlay.draw_rect(Rect2(Vector2.ZERO, size), Color(0, 0, 0, 0.35))
+	for block_name in _blocks:
+		var r := _block_rect(block_name)
+		var active: bool = block_name == _drag_name
+		_edit_overlay.draw_rect(r, Color(0.97, 0.63, 0.16, 0.2 if active else 0.08))
+		_edit_overlay.draw_rect(r, UITheme.ACCENT, false, 3.0 if active else 2.0)
+		var font := ThemeDB.fallback_font
+		_edit_overlay.draw_string(font, r.position + Vector2(6, -6), String(_blocks[block_name]["label"]), HORIZONTAL_ALIGNMENT_LEFT, -1, 16, UITheme.ACCENT)
+
+
+func _edit_input(event: InputEvent) -> void:
+	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
+		if event.pressed:
+			_drag_name = ""
+			var names := _blocks.keys()
+			names.reverse()
+			for block_name in names:
+				if _block_rect(block_name).has_point(event.position):
+					_drag_name = block_name
+					break
+		else:
+			_drag_name = ""
+		_edit_overlay.queue_redraw()
+	elif event is InputEventMouseMotion and _drag_name != "":
+		var current: Vector2 = _offset_of(_drag_name) + (event as InputEventMouseMotion).relative
+		GameSettings.hud_offsets[_drag_name] = current
+		_layout()
 
 
 # ----------------------------------------------------------------------------- per frame

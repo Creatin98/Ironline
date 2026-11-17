@@ -51,6 +51,10 @@ func _ready() -> void:
 	match_end.map_chosen.connect(_on_map_chosen)
 	match_end.leave_requested.connect(_leave_to_menu)
 	pause_menu.class_selected.connect(_on_class_selected)
+	pause_menu.hud_edit_requested.connect(func() -> void:
+		pause_menu.close()
+		hud.begin_edit())
+	hud.edit_finished.connect(func() -> void: pause_menu.open())
 	match_end.class_selected.connect(_on_class_selected)
 	pause_menu.resumed.connect(_close_pause)
 	pause_menu.leave_requested.connect(_leave_to_menu)
@@ -122,6 +126,10 @@ func _create_roster() -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if event.is_action_pressed("pause") and hud.is_editing():
+		hud.end_edit() # Esc leaves the HUD editor and returns to the pause menu
+		get_viewport().set_input_as_handled()
+		return
 	if event.is_action_pressed("jump") and not _paused:
 		if _replay_active:
 			recorder.skip()
