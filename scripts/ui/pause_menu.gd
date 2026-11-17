@@ -38,9 +38,6 @@ func _ready() -> void:
 	class_picker.setup(GameDirector.class_picker_items(), Vector2(130, 73), 15)
 	class_picker.selected.connect(func(id: String) -> void: class_selected.emit(id))
 	main_box.add_child(class_picker)
-	var hud_edit := UITheme.button("HUD anpassen", 22, 440)
-	hud_edit.pressed.connect(func() -> void: hud_edit_requested.emit())
-	main_box.add_child(hud_edit)
 	var settings := UITheme.button("Einstellungen", 22, 440)
 	settings.pressed.connect(_open_settings)
 	main_box.add_child(settings)
@@ -48,6 +45,10 @@ func _ready() -> void:
 	leave.pressed.connect(func() -> void: leave_requested.emit())
 	main_box.add_child(leave)
 	settings_panel = SettingsPanel.new()
+	settings_panel.in_game = true
+	settings_panel.hud_edit_requested.connect(func() -> void:
+		settings_panel.visible = false
+		hud_edit_requested.emit())
 	settings_panel.visible = false
 	settings_panel.closed.connect(func() -> void:
 		settings_panel.visible = false

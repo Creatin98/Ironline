@@ -26,11 +26,12 @@ const PISTOL := {
 	"grip": Vector3(-0.012, -0.112, 0.060),
 	"belt": Vector3(-0.150, -0.260, 0.100),
 }
+## Shotgun: the support hand leaves the forend, fetches a shell and loads it; the right hand stays on the grip.
 const SHOTGUN := {
-	"belt": Vector3(0.130, -0.210, 0.220),
-	"gate_low": Vector3(0.020, -0.115, 0.075),
-	"gate": Vector3(0.010, -0.070, 0.050),
-	"gate_push": Vector3(0.005, -0.052, 0.030),
+	"belt": Vector3(-0.190, -0.250, 0.080),
+	"gate_low": Vector3(-0.040, -0.120, 0.075),
+	"gate": Vector3(-0.012, -0.078, 0.050),
+	"gate_push": Vector3(-0.004, -0.056, 0.030),
 }
 
 var style: String = "rifle"
@@ -55,7 +56,7 @@ static func create(model: Node3D, reload_style: String) -> ReloadRig:
 	r._mag = model.get_node_or_null("Mag") as Node3D
 	r._left = model.get_node_or_null("LeftHand") as Node3D
 	r._right = model.get_node_or_null("RightHand") as Node3D
-	r._shell = model.get_node_or_null("RightHand/ShellProp") as Node3D
+	r._shell = model.get_node_or_null("LeftHand/ShellProp") as Node3D
 	r._handle = model.get_node_or_null("ChargingHandle") as Node3D
 	if r._handle == null:
 		r._handle = model.get_node_or_null("CockingHandle") as Node3D
@@ -258,16 +259,16 @@ func _pose_pistol(t: float) -> void:
 # ----------------------------------------------------------------------------- shotgun
 
 func _pose_shotgun(t: float, tilt_scale: float) -> void:
-	var rh0 := _rest_pos(_right)
+	var lh0 := _rest_pos(_left)
 	var belt: Vector3 = SHOTGUN["belt"]
 	var gate_low: Vector3 = SHOTGUN["gate_low"]
 	var gate: Vector3 = SHOTGUN["gate"]
 	var push: Vector3 = SHOTGUN["gate_push"]
-	var rh: Vector3 = _key([
-		[0.00, rh0], [0.27, belt], [0.31, belt], [0.55, gate_low], [0.70, gate], [0.77, push], [0.81, push], [1.00, rh0],
+	var lh: Vector3 = _key([
+		[0.00, lh0], [0.27, belt], [0.31, belt], [0.55, gate_low], [0.70, gate], [0.77, push], [0.81, push], [1.00, lh0],
 	], t)
-	if _right != null:
-		_right.position = rh
+	if _left != null:
+		_left.position = lh
 	if _shell != null:
 		_shell.visible = t > 0.28 and t < 0.77
 		var shell_tilt := float(_key([[0.28, 0.0], [0.55, 0.95], [0.70, 0.55], [0.77, 0.30]], t))

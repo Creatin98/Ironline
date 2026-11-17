@@ -187,8 +187,8 @@ Visierlinie bleiben, sonst verdecken sie das Bild.
   (`WeaponManager`, schwächer im ADS). **Rückstoß:** der Viewmodel-Kick wird im ADS auf 15 % gedämpft und begrenzt, der
   Kamera-Rückstoß ist auf 6° gedeckelt, das Visier bleibt im Bild.
 * **HUD:** `HUD._layout` setzt jeden Block (Punkte, Zeit, Killfeed, Gesundheit, Munition) in seine Ecke mit symmetrischem
-  Rand (`GameSettings.hud_margin`) und Skalierung; `hud_offsets` speichert die im **HUD-Editor** (Pausemenü →
-  „HUD anpassen“, Elemente ziehen, Esc/Fertig) gesetzten Verschiebungen. Gesundheit zeigt Prozent (100 % = voll).
+  Rand (`GameSettings.hud_margin`) und Skalierung; `hud_offsets` speichert die im **HUD-Editor** (Einstellungen →
+  „HUD anpassen …“ (im Spiel), Elemente ziehen, Esc/Fertig) gesetzten Verschiebungen. Gesundheit zeigt Prozent (100 % = voll).
 
 ## Punkte und Assists (Phase 8+)
 

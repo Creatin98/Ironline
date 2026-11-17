@@ -307,7 +307,9 @@ func _process(delta: float) -> void:
 		return
 	# blends
 	_ads_blend = player.head.get_ads_blend()
-	_sprint_blend = move_toward(_sprint_blend, 1.0 if player.is_sprinting else 0.0, delta * 6.0)
+	# same pace as the camera's sprint zoom (PlayerCamera.SPRINT_BLEND_SPEED), eased
+	_sprint_blend = move_toward(_sprint_blend, 1.0 if player.is_sprinting else 0.0, delta * PlayerCamera.SPRINT_BLEND_SPEED)
+	var sprint_s := _sprint_blend * _sprint_blend * (3.0 - 2.0 * _sprint_blend)
 	var lowered := _switch_state == SwitchState.LOWERING or (_switch_state == SwitchState.RAISING and _switch_timer > w.data.draw_time * 0.5) or _grenade_timer > 0.0
 	_lower_blend = move_toward(_lower_blend, 1.0 if lowered else 0.0, delta * 8.0)
 
@@ -326,8 +328,8 @@ func _process(delta: float) -> void:
 	var pos := w.data.hip_position.lerp(w.data.ads_position, _ads_blend)
 	var rot := Vector3.ZERO
 	# sprint pose
-	pos += Vector3(0.07, -0.1, 0.06) * _sprint_blend
-	rot += Vector3(-0.45, 0.55, 0.25) * _sprint_blend
+	pos += Vector3(0.07, -0.1, 0.06) * sprint_s
+	rot += Vector3(-0.45, 0.55, 0.25) * sprint_s
 	# lowered (switch / grenade)
 	pos += Vector3(0.05, -0.38, 0.05) * _lower_blend
 	rot += Vector3(-0.8, 0.0, 0.0) * _lower_blend
@@ -340,9 +342,12 @@ func _process(delta: float) -> void:
 	_walk_amp = lerpf(_walk_amp, speed_ratio if on_floor else 0.0, minf(1.0, delta * 7.0))
 	if GameSettings.weapon_sway and _walk_amp > 0.001:
 		var ph := player.head.get_bob_phase()
-		var amp := _walk_amp * (1.0 - 0.8 * _ads_blend) * (1.0 + 0.9 * _sprint_blend)
-		pos += Vector3(cos(ph * 0.5) * 0.013, -absf(sin(ph)) * 0.017, 0.0) * amp
-		rot += Vector3(sin(ph) * 0.014, cos(ph * 0.5) * 0.032, cos(ph * 0.5) * 0.04) * amp
+		var amp := _walk_amp * (1.0 - 0.8 * _ads_blend) * (1.0 + 0.7 * sprint_s)
+		# sin² instead of |sin|: no hard turn at the lowest point (that made the stock flutter);
+		# small rotations only, they are magnified at the far end of the weapon
+		var step := sin(ph)
+		pos += Vector3(cos(ph * 0.5) * 0.007, -step * step * 0.008, 0.0) * amp
+		rot += Vector3(step * 0.005, cos(ph * 0.5) * 0.010, cos(ph * 0.5) * 0.010) * amp
 	# weapon kick: strongly damped while aiming so the iron sight stays in view
 	var kick_scale := lerpf(1.0, 0.15, _ads_blend)
 	pos += Vector3(0.0, _kick * 0.25, _kick) * kick_scale

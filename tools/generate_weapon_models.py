@@ -24,6 +24,7 @@ MATERIALS = {
     "wood_dark": dict(color=(0.30, 0.15, 0.06), metallic=0.0, roughness=0.65),
     "polymer": dict(color=(0.11, 0.11, 0.12), metallic=0.0, roughness=0.85),
     "polymer_grey": dict(color=(0.22, 0.23, 0.25), metallic=0.0, roughness=0.8),
+    "glove_pad": dict(color=(0.20, 0.21, 0.23), metallic=0.0, roughness=0.8),
     "glove": dict(color=(0.13, 0.13, 0.14), metallic=0.0, roughness=0.9),
     "sleeve": dict(color=(0.17, 0.20, 0.14), metallic=0.0, roughness=0.95),
     "shell_red": dict(color=(0.72, 0.10, 0.08), metallic=0.0, roughness=0.55),
@@ -137,22 +138,50 @@ class Scene:
             f.write("\n".join(out))
 
 
-def hands(s, left, right, left_target, right_target, parent="."):
+def support_hand(s, group, half):
+    """Left/support hand wrapped around a handguard from below (group origin = palm centre, the
+    handguard bottom is 0.012 above it): palm, four fingers curling up the right side, thumb on the left."""
+    s.box("LeftPalm", (0.0, 0.0, 0.0), (0.056, 0.020, 0.082), "glove", parent=group)
+    s.box("LeftPalmPad", (0.0, -0.011, -0.010), (0.046, 0.006, 0.050), "glove_pad", parent=group)
+    for k, zc in enumerate((-0.030, -0.010, 0.010, 0.030)):
+        reach = 1.0 - 0.06 * abs(k - 1.5) # the outer fingers are a little shorter
+        s.box(f"LeftFinger{k}A", (half * 0.55 + 0.024, 0.0, zc), (0.038 * reach, 0.016, 0.017), "glove", parent=group)
+        s.box(f"LeftFinger{k}B", (half + 0.011, 0.016, zc), (0.016, 0.034 * reach, 0.017), "glove", parent=group)
+        s.box(f"LeftFinger{k}C", (half + 0.002, 0.034, zc), (0.020, 0.013, 0.016), "glove", parent=group)
+        s.box(f"LeftKnuckle{k}", (half + 0.020, 0.012, zc), (0.003, 0.012, 0.014), "glove_pad", parent=group)
+    s.box("LeftThumbBase", (-(half + 0.010), 0.014, 0.014), (0.016, 0.030, 0.020), "glove", parent=group)
+    s.box("LeftThumbTip", (-(half + 0.006), 0.030, -0.014), (0.015, 0.014, 0.040), "glove", parent=group)
+    s.box("LeftCuff", (-0.004, -0.004, 0.046), (0.062, 0.050, 0.026), "glove_pad", parent=group)
+
+
+def grip_hand(s, group, mirror=False):
+    """Hand on a pistol grip (group origin = grip centre): palm and back-strap pad behind/beside it, three
+    fingers wrapped round the front, index finger forward along the trigger guard, thumb on the opposite side."""
+    m = -1.0 if mirror else 1.0
+    side = "Left" if mirror else "Right"
+    s.box(f"{side}Palm", (m * 0.026, 0.0, 0.004), (0.020, 0.062, 0.044), "glove", parent=group)
+    s.box(f"{side}BackPad", (m * 0.004, -0.004, 0.026), (0.040, 0.050, 0.016), "glove_pad", parent=group)
+    for k, y in enumerate((0.014, -0.004, -0.022)):
+        s.box(f"{side}Finger{k}A", (m * 0.002, y, -0.026), (0.046, 0.014, 0.016), "glove", parent=group)
+        s.box(f"{side}Finger{k}B", (m * -0.026, y, -0.020), (0.014, 0.014, 0.022), "glove", parent=group)
+    s.box(f"{side}Index", (0.0, 0.032, -0.046), (0.014, 0.012, 0.046), "glove", parent=group)
+    s.box(f"{side}ThumbBase", (m * -0.020, 0.030, 0.018), (0.016, 0.020, 0.024), "glove", parent=group)
+    s.box(f"{side}ThumbTip", (m * -0.028, 0.034, -0.014), (0.014, 0.014, 0.042), "glove", parent=group)
+    s.box(f"{side}Cuff", (m * 0.010, -0.028, 0.044), (0.056, 0.048, 0.026), "glove_pad", parent=group)
+
+
+def hands(s, left, right, left_target, right_target, parent=".", half=0.025, bottom=0.0):
     """Gloved hands plus sleeves as two groups (LeftHand / RightHand) so reload animations can move them.
-    left/right = hand centres (the group origins), *_target = where the forearm comes from (model space)."""
+    left = (x, _, z) of the support hand (its height follows the handguard bottom `bottom`),
+    right = grip centre, *_target = where the forearm comes from (model space)."""
     rel = lambda p, c: (p[0] - c[0], p[1] - c[1], p[2] - c[2])
+    left = (left[0], bottom - 0.012, left[2])
     lg = s.group("LeftHand", left, parent)
-    # left hand: palm under the handguard, fingers around, thumb on the side
-    s.box("LeftPalm", (-0.004, -0.010, 0.0), (0.062, 0.040, 0.085), "glove", parent=lg)
-    s.box("LeftFingers", (0.034, 0.004, -0.004), (0.014, 0.046, 0.078), "glove", parent=lg)
-    s.box("LeftThumb", (-0.036, 0.022, -0.010), (0.014, 0.016, 0.058), "glove", parent=lg)
-    s.arm("LeftForearm", (-0.006, -0.018, 0.030), rel(left_target, left), 0.062, 0.056, "sleeve", parent=lg)
+    support_hand(s, lg, half)
+    s.arm("LeftForearm", (-0.006, -0.018, 0.040), rel(left_target, left), 0.062, 0.056, "sleeve", parent=lg)
     rg = s.group("RightHand", right, parent)
-    # right hand: around the grip, trigger finger forward
-    s.box("RightPalm", (0.0, 0.0, 0.0), (0.050, 0.060, 0.052), "glove", parent=rg)
-    s.box("RightFingers", (0.0, 0.004, -0.034), (0.040, 0.046, 0.016), "glove", parent=rg)
-    s.box("RightThumb", (0.028, 0.022, 0.004), (0.016, 0.016, 0.052), "glove", parent=rg)
-    s.arm("RightForearm", (0.004, -0.026, 0.030), rel(right_target, right), 0.060, 0.054, "sleeve", parent=rg)
+    grip_hand(s, rg)
+    s.arm("RightForearm", (0.004, -0.028, 0.044), rel(right_target, right), 0.060, 0.054, "sleeve", parent=rg)
 
 
 def mag_group(s, pivot):
@@ -210,7 +239,7 @@ def ak47():
     s.box("Stock", (0, -0.012, 0.290), (0.040, 0.082, 0.150), "wood")
     s.box("StockPad", (0, -0.014, 0.372), (0.042, 0.098, 0.014), "polymer")
     s.marker("Muzzle", (0, 0.038, -0.650))
-    hands(s, left=(0.0, -0.002, -0.335), right=(0.0, -0.078, 0.086), left_target=(-0.12, -0.55, 0.30), right_target=(0.14, -0.55, 0.38))
+    hands(s, left=(0.0, 0.0, -0.335), right=(0.0, -0.078, 0.086), left_target=(-0.12, -0.55, 0.30), right_target=(0.14, -0.55, 0.38), half=0.025, bottom=0.0)
     return s
 
 
@@ -252,7 +281,7 @@ def mp5():
     s.box("StockPad", (0, -0.004, 0.372), (0.044, 0.100, 0.016), "polymer")
     s.box("StockPadUpper", (0, 0.030, 0.366), (0.040, 0.022, 0.012), "polymer")
     s.marker("Muzzle", (0, 0.016, -0.480))
-    hands(s, left=(0.0, 0.004, -0.220), right=(0.0, -0.074, 0.112), left_target=(-0.12, -0.55, 0.30), right_target=(0.14, -0.55, 0.38))
+    hands(s, left=(0.0, 0.0, -0.220), right=(0.0, -0.074, 0.112), left_target=(-0.12, -0.55, 0.30), right_target=(0.14, -0.55, 0.38), half=0.028, bottom=-0.016)
     return s
 
 
@@ -286,9 +315,9 @@ def shotgun():
     s.box("Stock", (0, -0.020, 0.340), (0.042, 0.092, 0.150), "wood", rot=(-3, 0, 0))
     s.box("StockPad", (0, -0.026, 0.424), (0.044, 0.104, 0.014), "polymer")
     s.marker("Muzzle", (0, 0.040, -0.715))
-    hands(s, left=(0.0, 0.002, -0.360), right=(0.0, -0.032, 0.150), left_target=(-0.12, -0.55, 0.30), right_target=(0.14, -0.55, 0.40))
-    # a shell the right hand carries to the loading gate (hidden unless the reload animation shows it)
-    shell = s.group("ShellProp", (0.0, 0.0, -0.045), "RightHand")
+    hands(s, left=(0.0, 0.0, -0.360), right=(0.0, -0.045, 0.138), left_target=(-0.12, -0.55, 0.30), right_target=(0.14, -0.55, 0.40), half=0.029, bottom=-0.020)
+    # a shell the support hand carries to the loading gate (hidden unless the reload animation shows it)
+    shell = s.group("ShellProp", (0.020, 0.004, -0.044), "LeftHand")
     s.cyl("ShellBody", (0.0, 0.0, -0.012), 0.0105, 0.044, "shell_red", parent=shell)
     s.cyl("ShellBase", (0.0, 0.0, 0.016), 0.0112, 0.012, "brass", parent=shell)
     return s
@@ -326,19 +355,15 @@ def pistol():
     s.box("Trigger", (0, -0.004, -0.014), (0.006, 0.020, 0.007), "steel_light", rot=(16, 0, 0))
     s.box("Hammer", (0, 0.040, 0.064), (0.008, 0.012, 0.012), "steel")
     s.marker("Muzzle", (0, 0.032, -0.122))
-    # right hand on the grip, left hand cups it from below/left (both are groups for the reload animation)
+    # right hand on the grip, left hand supports from the other side (both are groups for the reload animation)
     rc = (0.002, -0.044, 0.056)
     rg = s.group("RightHand", rc)
-    s.box("RightPalm", (0.0, 0.0, 0.0), (0.046, 0.066, 0.052), "glove", parent=rg)
-    s.box("RightFingers", (-0.002, 0.008, -0.028), (0.040, 0.040, 0.016), "glove", parent=rg)
-    s.box("RightThumb", (0.026, 0.034, -0.016), (0.016, 0.016, 0.050), "glove", parent=rg)
-    s.arm("RightForearm", (0.004, -0.026, 0.018), (0.09 - rc[0], -0.55 - rc[1], 0.30 - rc[2]), 0.056, 0.050, "sleeve", parent=rg)
-    lc = (-0.032, -0.048, 0.044)
+    grip_hand(s, rg)
+    s.arm("RightForearm", (0.004, -0.028, 0.044), (0.09 - rc[0], -0.55 - rc[1], 0.30 - rc[2]), 0.056, 0.050, "sleeve", parent=rg)
+    lc = (-0.040, -0.052, 0.050)
     lg = s.group("LeftHand", lc)
-    s.box("LeftPalm", (0.0, 0.0, 0.0), (0.030, 0.062, 0.052), "glove", parent=lg)
-    s.box("LeftFingers", (0.032, -0.014, -0.024), (0.050, 0.020, 0.016), "glove", parent=lg)
-    s.box("LeftThumb", (-0.004, 0.030, -0.024), (0.014, 0.014, 0.052), "glove", parent=lg)
-    s.arm("LeftForearm", (-0.004, -0.022, 0.026), (-0.09 - lc[0], -0.55 - lc[1], 0.30 - lc[2]), 0.056, 0.050, "sleeve", parent=lg)
+    grip_hand(s, lg, mirror=True)
+    s.arm("LeftForearm", (-0.004, -0.026, 0.044), (-0.09 - lc[0], -0.55 - lc[1], 0.30 - lc[2]), 0.056, 0.050, "sleeve", parent=lg)
     return s
 
 

@@ -227,76 +227,142 @@ def tone(freq, length, kind="sine"):
 
 
 def make_hit_feedback():
-    """Hit / headshot / kill confirmation sounds: dry flesh thwack, metallic clatter and a
-    heavy low punch (no pure sine pings, that sounds electronic). Own random generator so the
-    other sounds stay byte-identical when this is changed."""
+    """Hit / headshot / kill confirmation in the style of modern shooters (CoD, Apex): short, dry,
+    punchy, built from filtered noise bursts and a low thump. No ringing partials (that sounds like
+    hitting a metal tank). Own random generator so the other sounds stay byte-identical."""
     local = random.Random(4711)
 
     def nz(seconds):
         return [local.uniform(-1, 1) for _ in range(int(seconds * SR))]
 
-    def modal(freqs, decays, gains, length, pitch=1.0):
-        """Struck metal: sum of exponentially decaying partials (inharmonic frequencies)."""
+    def band(seconds, lo, hi, decay):
+        """Noise burst limited to lo..hi Hz with an exponential decay (a 'tap' or 'crack')."""
+        return env_exp(lowpass(highpass(nz(seconds), lo), hi), decay)
+
+    def thump(length, f0, f1, decay):
+        return env_exp(sweep(f0, f1, length), decay)
+
+    def body(length, cutoff, decay):
+        return env_exp(lowpass(nz(length), cutoff), decay)
+
+    # body hit: a dry tap with a bit of flesh and a soft low thump
+    hit = mix(
+        gain(band(0.04, 1800, 5200, 0.009), 1.0),
+        gain(body(0.05, 1300, 0.016), 0.55),
+        gain(thump(0.06, 200, 95, 0.02), 0.7),
+    )
+    write_wav("hitmarker", soft_clip(hit, 1.3), 0.85)
+
+    # headshot hit: sharper and brighter crack + a quick second tap, firmer low end
+    head_a = mix(
+        gain(band(0.05, 3000, 9000, 0.008), 1.15),
+        gain(band(0.02, 6500, 12000, 0.0035), 0.6),
+        gain(body(0.06, 1500, 0.016), 0.5),
+        gain(thump(0.07, 170, 70, 0.026), 0.95),
+    )
+    head_b = gain(mix(
+        gain(band(0.04, 3500, 9000, 0.007), 1.0),
+        gain(thump(0.05, 150, 70, 0.02), 0.5),
+    ), 0.6)
+    head = mix(head_a, delay(head_b, 0.048))
+    write_wav("hitmarker_headshot", soft_clip(head, 1.3), 0.92)
+
+    # kill: heavy low thump + body + a hard crack and a short low pop
+    kill = mix(
+        gain(thump(0.20, 125, 42, 0.075), 1.35),
+        gain(body(0.12, 900, 0.045), 0.8),
+        gain(band(0.05, 2200, 6500, 0.011), 1.0),
+        gain(body(0.25, 450, 0.11), 0.35),
+    )
+    write_wav("kill_confirm", soft_clip(kill, 1.5), 0.95)
+
+    # headshot kill: three quick cracks of different colour (the "rattle"), bigger thump, bright snap on top
+    cracks = mix(
+        gain(band(0.05, 2600, 7500, 0.011), 1.0),
+        gain(delay(band(0.05, 3200, 9000, 0.010), 0.045), 0.9),
+        gain(delay(band(0.05, 4200, 11000, 0.009), 0.095), 0.8),
+    )
+    kill_h = mix(
+        gain(thump(0.26, 140, 38, 0.10), 1.5),
+        gain(body(0.14, 1000, 0.05), 0.85),
+        cracks,
+        gain(delay(band(0.03, 7000, 13000, 0.004), 0.0), 0.7),
+        gain(body(0.30, 500, 0.13), 0.4),
+    )
+    write_wav("kill_headshot", soft_clip(kill_h, 1.5), 0.97)
+
+
+def make_grenade_sounds():
+    """Frag grenade: pin, throw, bounce on concrete, and a heavy explosion built from layered
+    filtered noise (blast), sub bass, city echoes and scattering debris. No harsh clipping."""
+    local = random.Random(777)
+
+    def nz(seconds):
+        return [local.uniform(-1, 1) for _ in range(int(seconds * SR))]
+
+    def lp_noise(seconds, cutoff, decay, attack=0.002):
+        n = lowpass(nz(seconds), cutoff)
+        out = []
+        a = max(1, int(attack * SR))
+        for i, s in enumerate(n):
+            e = math.exp(-i / (decay * SR)) * min(1.0, (i + 1) / a)
+            out.append(s * e)
+        return out
+
+    def modal(freqs, decays, gains, length):
         out = [0.0] * int(length * SR)
         for f, d, g in zip(freqs, decays, gains):
-            part = env_exp(sine(f * pitch, length), d)
-            for k, s in enumerate(part):
+            for k, s in enumerate(env_exp(sine(f, length), d)):
                 out[k] += s * g
         return out
 
-    def tremolo(samples, rate, depth):
-        return [s * (1.0 - depth + depth * (0.5 + 0.5 * math.sin(2 * math.pi * rate * i / SR))) for i, s in enumerate(samples)]
+    # explosion
+    length = 3.0
+    crack = gain(env_exp(highpass(nz(0.06), 1500), 0.010), 0.9)
+    blast = gain(lp_noise(1.2, 1800, 0.20), 1.0)
+    thud = gain(lp_noise(1.6, 520, 0.38), 1.0)
+    sub = gain(mix(env_exp(sweep(88, 30, 0.9), 0.30), gain(env_exp(sweep(150, 55, 0.7), 0.22), 0.4)), 1.25)
+    # long, slowly decaying rumble that swells a little at the start
+    rumble_raw = lowpass(nz(length), 190)
+    rumble = []
+    for i, s in enumerate(rumble_raw):
+        tt = i / SR
+        e = min(1.0, tt / 0.06) * math.exp(-tt / 0.95)
+        rumble.append(s * e * (0.85 + 0.15 * math.sin(2 * math.pi * 5.5 * tt)))
+    rumble = gain(rumble, 1.3)
+    # echoes between the buildings
+    echoes = mix(delay(gain(lp_noise(0.8, 900, 0.16), 0.40), 0.12), delay(gain(lp_noise(0.8, 700, 0.18), 0.26), 0.27), delay(gain(lp_noise(0.8, 600, 0.2), 0.16), 0.46))
+    # debris tinkling and thudding down
+    debris = [0.0] * int(length * SR)
+    for k in range(26):
+        at = local.uniform(0.18, 1.7)
+        amp = local.uniform(0.04, 0.2) * (1.0 - at / 2.2)
+        piece = gain(env_exp(lowpass(highpass(nz(0.03), 900), 5000), local.uniform(0.004, 0.012)), amp)
+        start = int(at * SR)
+        for m, s in enumerate(piece):
+            if start + m < len(debris):
+                debris[start + m] += s
+    for k in range(5):
+        at = local.uniform(0.3, 1.4)
+        piece = gain(env_exp(sweep(local.uniform(110, 190), 55, 0.1), 0.03), local.uniform(0.12, 0.25))
+        start = int(at * SR)
+        for m, s in enumerate(piece):
+            if start + m < len(debris):
+                debris[start + m] += s
+    boom = mix(crack, blast, thud, sub, rumble, echoes, debris)
+    boom = highpass(boom, 22)
+    write_wav("explosion", soft_clip(boom, 1.15), 0.95)
 
-    def punch(length, f0, f1, decay, noise_gain=0.5):
-        body = env_exp(sweep(f0, f1, length), decay)
-        flesh = env_exp(lowpass(nz(length), 900), decay * 0.5)
-        return mix(body, gain(flesh, noise_gain))
-
-    def clang(pitch=1.0, length=0.5, strength=1.0):
-        partials = modal([610, 1030, 1670, 2480, 3560, 4900, 6400], [0.20, 0.16, 0.12, 0.09, 0.06, 0.04, 0.025],
-                         [0.9, 0.8, 0.7, 0.5, 0.4, 0.25, 0.15], length, pitch)
-        rattle = tremolo(partials, 41, 0.45) # the "scheppern"
-        crack = env_exp(highpass(nz(0.03), 2500), 0.006)
-        return gain(mix(rattle, gain(crack, 0.9)), strength)
-
-    # body hit: very short, dry and hard
-    hit = mix(
-        gain(env_exp(highpass(nz(0.02), 2200), 0.0035), 1.0),
-        gain(env_exp(lowpass(nz(0.06), 2200), 0.018), 0.9),
-        gain(env_exp(sweep(240, 85, 0.08), 0.024), 1.1),
-        gain(modal([3100, 4700], [0.012, 0.008], [1.0, 0.6], 0.05), 0.35),
+    # pin: short metal ping plus a light click
+    pin = mix(gain(env_exp(highpass(nz(0.03), 3000), 0.004), 0.7), gain(modal([2600, 3900], [0.05, 0.035], [0.5, 0.3], 0.18), 0.45))
+    write_wav("grenade_pin", pin, 0.55)
+    # bounce: a dull steel clunk on concrete
+    bounce = mix(
+        gain(modal([310, 640, 1080, 1700], [0.05, 0.04, 0.03, 0.02], [0.8, 0.6, 0.4, 0.25], 0.2), 0.7),
+        gain(env_exp(highpass(nz(0.03), 1200), 0.006), 0.6),
+        gain(env_exp(sweep(150, 70, 0.08), 0.03), 0.8),
     )
-    write_wav("hitmarker", soft_clip(hit, 1.6), 0.85)
-
-    # headshot hit: hard crack, a short clatter and a second quick tap
-    head_a = mix(
-        gain(env_exp(highpass(nz(0.03), 3200), 0.007), 1.3),
-        gain(modal([1450, 2330, 3410, 5100], [0.05, 0.04, 0.03, 0.02], [0.8, 0.6, 0.45, 0.3], 0.25), 0.9),
-        gain(env_exp(sweep(300, 100, 0.1), 0.03), 1.1),
-    )
-    head_b = gain(mix(
-        gain(env_exp(highpass(nz(0.03), 3200), 0.006), 1.0),
-        gain(modal([1740, 2790, 4090, 6120], [0.04, 0.03, 0.022, 0.015], [0.8, 0.6, 0.45, 0.3], 0.2), 0.9),
-    ), 0.75)
-    head = mix(head_a, delay(head_b, 0.055))
-    write_wav("hitmarker_headshot", soft_clip(head, 1.6), 0.92)
-
-    # kill: heavy punch + rattling metal crash
-    kill = mix(
-        gain(punch(0.22, 170, 42, 0.09), 1.3),
-        delay(clang(1.0, 0.55, 1.0), 0.012),
-    )
-    write_wav("kill_confirm", soft_clip(kill, 2.0), 0.95)
-
-    # headshot kill: three clatters in a rising run, harder punch, crack on top (rings out longer)
-    kill_h = mix(
-        gain(punch(0.26, 190, 38, 0.11, 0.7), 1.5),
-        delay(clang(1.0, 0.5, 1.0), 0.008),
-        delay(clang(1.22, 0.5, 0.9), 0.065),
-        delay(clang(1.5, 0.6, 0.85), 0.125),
-        gain(delay(env_exp(highpass(nz(0.05), 3800), 0.012), 0.125), 0.8),
-    )
-    write_wav("kill_headshot", soft_clip(kill_h, 2.2), 0.97)
+    write_wav("grenade_bounce", bounce, 0.7)
 
 
 def make_reload_sounds():
@@ -380,6 +446,9 @@ def make_ui():
 if __name__ == "__main__":
     os.makedirs(OUT_DIR, exist_ok=True)
     import sys
+    if "grenade" in sys.argv[1:]:
+        make_grenade_sounds()
+        sys.exit(0)
     if "reload" in sys.argv[1:]:
         make_reload_sounds()
         sys.exit(0)
@@ -389,6 +458,7 @@ if __name__ == "__main__":
     make_guns()
     make_mechanical()
     make_reload_sounds()
+    make_grenade_sounds()
     make_movement()
     make_feedback()
     make_ui()

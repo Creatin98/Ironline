@@ -4,9 +4,10 @@ extends Node3D
 ## The Camera3D child is only `current` for the local player.
 
 const PITCH_LIMIT := 1.5533 # 89 Grad in Radiant
-const BOB_FREQUENCY := 2.1
-const BOB_AMOUNT := 0.052
-const SPRINT_FOV_BONUS := 7.0
+const BOB_FREQUENCY := 2.5 # quicker steps ...
+const BOB_AMOUNT := 0.026 # ... but a much smaller sway
+const SPRINT_FOV_BONUS := 6.0
+const SPRINT_BLEND_SPEED := 3.2 # 0 -> 1 in about 0.3 s, same pace as the weapon lowering
 
 @onready var camera: Camera3D = $Camera3D
 
@@ -19,6 +20,7 @@ var recoil_recovery: float = 9.0
 
 var _bob_time: float = 0.0
 var _bob_roll: float = 0.0
+var _sprint_blend: float = 0.0
 var _bob_offset: Vector3 = Vector3.ZERO
 var _land_dip: float = 0.0
 var _land_velocity: float = 0.0
@@ -82,8 +84,8 @@ func update_camera(delta: float, horizontal_speed: float, on_floor: bool, eye_he
 		_bob_time += delta * BOB_FREQUENCY * (0.8 + speed_ratio * 1.6) * TAU
 		var ads_scale := 0.3 if is_aiming else 1.0
 		var amount := BOB_AMOUNT * speed_ratio * ads_scale
-		bob_target = Vector3(cos(_bob_time * 0.5) * amount * 1.1, sin(_bob_time) * amount, 0.0)
-		roll_target = cos(_bob_time * 0.5) * 0.016 * speed_ratio * ads_scale * (1.4 if sprinting else 1.0)
+		bob_target = Vector3(cos(_bob_time * 0.5) * amount * 0.7, sin(_bob_time) * amount, 0.0)
+		roll_target = cos(_bob_time * 0.5) * 0.006 * speed_ratio * ads_scale * (1.3 if sprinting else 1.0)
 	else:
 		_bob_time = fmod(_bob_time, TAU)
 	_bob_roll = lerpf(_bob_roll, roll_target, minf(1.0, delta * 9.0))
@@ -111,7 +113,10 @@ func update_camera(delta: float, horizontal_speed: float, on_floor: bool, eye_he
 	# --- FOV ---
 	var ads_target := 1.0 if is_aiming else 0.0
 	_ads_blend = move_toward(_ads_blend, ads_target, delta / maxf(0.05, ads_time))
-	var base_fov := GameSettings.fov + (SPRINT_FOV_BONUS if sprinting else 0.0)
+	# the sprint zoom eases in and out instead of snapping when sprinting starts/stops
+	_sprint_blend = move_toward(_sprint_blend, 1.0 if sprinting else 0.0, delta * SPRINT_BLEND_SPEED)
+	var sprint_ease := _sprint_blend * _sprint_blend * (3.0 - 2.0 * _sprint_blend)
+	var base_fov := GameSettings.fov + SPRINT_FOV_BONUS * sprint_ease
 	camera.fov = lerpf(base_fov, ads_fov, _ads_blend) - _fov_kick
 	_fov_kick = move_toward(_fov_kick, 0.0, delta * 38.0)
 

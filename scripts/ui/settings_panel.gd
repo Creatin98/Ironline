@@ -4,6 +4,10 @@ extends Control
 ## and saves persistently when "Übernehmen" is pressed.
 
 signal closed
+signal hud_edit_requested
+
+## Set by the pause menu: the HUD editor needs a running match.
+var in_game: bool = false
 
 var _sens: HSlider
 var _sens_val: Label
@@ -19,6 +23,7 @@ var _sfx: HSlider
 var _hud: HSlider
 var _hud_val: Label
 var _margin: HSlider
+var _hud_edit_btn: Button
 var _margin_val: Label
 var _bob: CheckBox
 var _sway: CheckBox
@@ -94,6 +99,9 @@ func _ready() -> void:
 	_hud_val = UITheme.label("", 18)
 	_hud.value_changed.connect(func(v2: float) -> void: _hud_val.text = "%d %%" % int(round(v2 * 100.0)))
 	_row(grid, "HUD-Skalierung", _hud, _hud_val)
+	_hud_edit_btn = UITheme.button("HUD anpassen …", 18, 300)
+	_hud_edit_btn.pressed.connect(func() -> void: hud_edit_requested.emit())
+	_row(grid, "HUD verschieben", _hud_edit_btn, null)
 	_margin = UITheme.hslider(0, 120, 1, GameSettings.hud_margin, 300)
 	_margin_val = UITheme.label("", 18)
 	_margin.value_changed.connect(func(v2: float) -> void: _margin_val.text = "%d px" % int(v2))
@@ -143,6 +151,8 @@ func _row(grid: GridContainer, title: String, control: Control, value_label: Lab
 
 
 func open() -> void:
+	_hud_edit_btn.disabled = not in_game
+	_hud_edit_btn.text = "HUD anpassen …" if in_game else "HUD anpassen (im Spiel)"
 	_load_values()
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT) # always cover the whole screen
 	visible = true

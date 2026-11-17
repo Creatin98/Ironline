@@ -402,6 +402,12 @@ func _reload_model_view() -> void:
 	var cam := Camera3D.new()
 	cam.fov = 15.0
 	root.add_child(cam)
-	cam.position = Vector3(-3.3, -0.10, -0.12)
-	cam.look_at(Vector3(0.0, -0.10, -0.12), Vector3.UP)
+	var zoom := "--zoom=1" in OS.get_cmdline_user_args()
+	if zoom:
+		cam.fov = 7.0
+		cam.position = Vector3(-3.3, -0.08, 0.05)
+		cam.look_at(Vector3(0.0, -0.08, 0.05), Vector3.UP)
+	else:
+		cam.position = Vector3(-3.3, -0.10, -0.12)
+		cam.look_at(Vector3(0.0, -0.10, -0.12), Vector3.UP)
 	cam.current = true
