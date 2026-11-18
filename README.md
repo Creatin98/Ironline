@@ -123,6 +123,10 @@ py -3 tools/generate_audio.py
 py -3 tools/generate_materials.py
 ```
 
+Texturen sind PBR-Sets (Albedo, `_n` Normal, `_r` Roughness; numpy + Pillow nötig). Nach dem Neuerzeugen
+`godot --headless --path . --import --quit` ausführen. Stimmung je Map (Himmel, Nebel, Sonne, Farbkorrektur)
+schreibt `py -3 tools/tune_atmosphere.py` in die Map-Szenen.
+
 ## Struktur
 
 Siehe [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) für die technischen Entscheidungen.

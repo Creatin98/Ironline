@@ -249,8 +249,21 @@ Zufall − Strafen (Gegner < 9 m, besetzt, kürzlich benutzt, Sichtlinie von Geg
 
 ## Assets
 
-Texturen (512², tileable Value-Noise), Sounds (synthetisierte WAVs) und Materialien werden von den
+Texturen (512², tileable, Albedo + Normal + Roughness), Sounds (synthetisierte WAVs) und Materialien werden von den
 Python-Skripten in `tools/` erzeugt – keine Fremdinhalte, alles reproduzierbar.
+
+## Optik (Visual Overhaul)
+- **Materialien**: `assets/materials/*.tres` nutzen Albedo-, Normal- und Roughness-Map (triplanar, Welt-UV).
+  Waffen (`weapon_metal/polymer/wood`) und Stoff (`cloth`) nutzen Objekt-Triplanar. Normal-Maps sind als Normal-Map importiert.
+- **MapDetail** (`scripts/maps/map_detail.gd`): rein visuelle Architektur ohne Collider/Navigation. `BlockMap` führt die
+  Visuals aller Blöcke pro Material zu einem Mesh zusammen (ein Draw Call je Material statt je Block) und ergänzt automatisch
+  Sockel, Dachkranz, Pilaster, Fallrohre, Klimageräte, Fenster-/Türrahmen (erkannt an Sturz + Brüstung). Je Map ergänzt
+  `build_detail(d)` Props (Laternen, Fässer, Paletten, Masten/Kabel, Markierungen, Lampen mit Fülllicht).
+- **Atmosphäre**: `tools/tune_atmosphere.py` schreibt Himmel, Ambient, Nebel (+ volumetrisch, nur Forward+), SSAO, Glow,
+  Farbkorrektur und Sonne je Map (Harbor kühl/dunstig, Frontier warm/staubig/kontrastreich, Suburb gedämpft/spätnachmittag).
+- **Soldat** (`humanoid_rig.gd`): Teile werden pro Pivot und Material zu einem Mesh vereint (`_part`/`_commit_parts`); Outline
+  per Normalen-Offset-Shader auf geglätteten Kopien. Ragdoll und Animation unverändert (Pivots bleiben).
+- Rot-Overlay (`DamageFx`), HUD, Gameplay, Waffenverhalten und Audio sind unverändert.
 
 ## Physik-Layer
 

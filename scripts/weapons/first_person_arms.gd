@@ -23,13 +23,32 @@ var _upper: Array[MeshInstance3D] = []
 var _fore: Array[MeshInstance3D] = []
 var _skin_mat: StandardMaterial3D
 var _shirt_mat: StandardMaterial3D
+var _cuff_mat: StandardMaterial3D
+var _sleeve: Array[MeshInstance3D] = []
+var _cuff: Array[MeshInstance3D] = []
+const SLEEVE_PART := 0.78 # share of the forearm covered by the shirt sleeve (the wrist stays bare)
 
 
 func _ready() -> void:
 	_skin_mat = _material(Color(0.88, 0.72, 0.58))
+	_skin_mat.roughness = 0.62
 	_shirt_mat = _material(Color(0.25, 0.29, 0.2))
-	var fore_mesh := limb(FORE, R_WRIST, R_ELBOW)
-	var upper_mesh := limb(UPPER, R_ELBOW, R_SHOULDER)
+	_cuff_mat = _material(Color(0.13, 0.13, 0.12))
+	var tex: Texture2D = load("res://assets/textures/cloth.png")
+	var nrm: Texture2D = load("res://assets/textures/cloth_n.png")
+	for m in [_shirt_mat, _cuff_mat]:
+		m.albedo_texture = tex
+		m.normal_enabled = true
+		m.normal_texture = nrm
+		m.normal_scale = 0.6
+		m.uv1_triplanar = true
+		m.uv1_scale = Vector3(8.0, 8.0, 8.0)
+	# proximal end first: shoulder / elbow are the thick ends
+	var fore_mesh := limb(FORE, R_ELBOW, R_WRIST)
+	var upper_mesh := limb(UPPER, R_SHOULDER, R_ELBOW)
+	var r_cut := lerpf(R_ELBOW, R_WRIST, SLEEVE_PART)
+	var sleeve_mesh := limb(FORE * SLEEVE_PART, R_ELBOW + 0.006, r_cut + 0.006)
+	var cuff_mesh := limb(0.03, r_cut + 0.010, r_cut + 0.010)
 	for side in 2:
 		var f := MeshInstance3D.new()
 		f.mesh = fore_mesh
@@ -37,6 +56,17 @@ func _ready() -> void:
 		f.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		add_child(f)
 		_fore.append(f)
+		var sl := MeshInstance3D.new()
+		sl.mesh = sleeve_mesh
+		sl.material_override = _shirt_mat
+		sl.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		f.add_child(sl) # same transform as the forearm (it is stretched with it)
+		var cf := MeshInstance3D.new()
+		cf.mesh = cuff_mesh
+		cf.material_override = _cuff_mat
+		cf.position = Vector3(0, 0, -FORE * SLEEVE_PART + 0.012)
+		cf.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		f.add_child(cf)
 		var u := MeshInstance3D.new()
 		u.mesh = upper_mesh
 		u.material_override = _shirt_mat

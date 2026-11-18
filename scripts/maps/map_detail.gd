@@ -11,6 +11,7 @@ var _map: BlockMap
 var _parts: Dictionary = {} # key -> {"mat": Material, "st": SurfaceTool}
 var _box_mesh := BoxMesh.new()
 var _cyl_mesh := CylinderMesh.new()
+var _cyl_hi := CylinderMesh.new() # map blocks: smoother than the small props
 var _lights: Array = []
 
 
@@ -22,6 +23,11 @@ func _init(map: BlockMap) -> void:
 	_cyl_mesh.height = 1.0
 	_cyl_mesh.radial_segments = 10
 	_cyl_mesh.rings = 1
+	_cyl_hi.top_radius = 0.5
+	_cyl_hi.bottom_radius = 0.5
+	_cyl_hi.height = 1.0
+	_cyl_hi.radial_segments = 24
+	_cyl_hi.rings = 1
 
 
 # ----------------------------------------------------------------------------- primitives
@@ -45,6 +51,23 @@ func _append(mesh: Mesh, xf: Transform3D, mat: String, tint) -> void:
 	(_parts[key]["st"] as SurfaceTool).append_from(mesh, 0, xf)
 
 
+## Visual of a map block (box or cylinder) merged into the per-material meshes. Replaces one MeshInstance3D per block.
+func add_block(b: Dictionary) -> void:
+	var size: Vector3 = b.get("size", Vector3.ONE)
+	var basis := Basis.IDENTITY
+	if b.has("basis"):
+		basis = b["basis"]
+	elif b.has("rot"):
+		var r: Vector3 = b["rot"]
+		basis = Basis.from_euler(Vector3(deg_to_rad(r.x), deg_to_rad(r.y), deg_to_rad(r.z)))
+	var mat: String = b.get("mat", "concrete")
+	var tint = b.get("tint", null)
+	if b.get("shape", "box") == "cylinder":
+		_append(_cyl_hi, Transform3D(basis.scaled_local(Vector3(size.x, size.y, size.x)), b["pos"]), mat, tint)
+	else:
+		_append(_box_mesh, Transform3D(basis.scaled_local(size), b["pos"]), mat, tint)
+
+
 ## Finishes all merged meshes and adds them below `parent`.
 func flush(parent: Node3D) -> void:
 	var root := Node3D.new()
@@ -58,8 +81,6 @@ func flush(parent: Node3D) -> void:
 		mi.name = "Detail_" + String(key).replace("#", "_")
 		mi.mesh = mesh
 		mi.gi_mode = GeometryInstance3D.GI_MODE_STATIC
-		mi.visibility_range_end = 90.0
-		mi.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_DISABLED
 		root.add_child(mi)
 	for l in _lights:
 		root.add_child(l)

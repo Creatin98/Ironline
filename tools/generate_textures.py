@@ -401,7 +401,43 @@ def cloth():
     save("cloth", base, thread * 0.5 + weave * 0.3 + rip * 0.3, 0.9 - 0.1 * weave, 3.0)
 
 
+def weapon_metal():
+    """Neutral brushed/worn metal for guns (multiplies the material colour); streaks run along X."""
+    rows = np.random.default_rng(171).random((SIZE, 1))
+    streak = np.clip(rows * 0.18 + fbm(3, 5, 0.5, seed=172) * 0.82, 0, 1)
+    sc = scratches(300, 173, 80)
+    stain = fbm(4, 3, 0.6, seed=174)
+    base = 0.72 + 0.2 * streak + 0.18 * sc - 0.2 * np.clip(stain - 0.5, 0, 1) * 2
+    save("weapon_metal", np.stack([base] * 3, -1), streak * 0.3 - sc * 0.12, 0.58 + 0.25 * np.clip(stain - 0.45, 0, 1) * 2 - 0.12 * sc, 1.2)
+
+
+def weapon_polymer():
+    """Fine stipple texture of moulded plastic."""
+    st = speckle(0.35, 181) * 0.5 + blur(speckle(0.4, 182)) * 0.7
+    wear = fbm(4, 4, 0.6, seed=183)
+    base = 0.86 + 0.08 * st + 0.08 * np.clip(wear - 0.55, 0, 1) * 3
+    save("weapon_polymer", np.stack([base] * 3, -1), st, 0.78 + 0.1 * st - 0.12 * np.clip(wear - 0.6, 0, 1) * 3, 4.0)
+
+
+def weapon_wood():
+    """Wood grain for stocks and handguards; grain runs along X."""
+    g1 = np.repeat(fbm(3, 36, 0.5, seed=191)[::8, :], 8, axis=0)
+    g2 = np.repeat(fbm(2, 90, 0.5, seed=192)[::4, :], 4, axis=0)
+    grain = g1 * 0.6 + g2 * 0.4
+    dings = (blur(speckle(0.002, 193), 1) > 0.05).astype(float)
+    base = 0.72 + 0.28 * grain - 0.25 * dings
+    save("weapon_wood", np.stack([base] * 3, -1), grain * 0.5 - dings * 0.6, 0.52 + 0.2 * grain, 4.0)
+
+
 if __name__ == "__main__":
+    import sys
+    if len(sys.argv) > 1:  # only the named textures, e.g. weapon_metal cloth
+        for n in sys.argv[1:]:
+            globals()[n]()
+        sys.exit(0)
     for fn in (asphalt, concrete, brick, plaster, metal_panel, wood_planks, roof_shingles, dirt, grass, crate, rubber, tiles, ship_hull, water):
         fn()
     cloth()
+    weapon_metal()
+    weapon_polymer()
+    weapon_wood()

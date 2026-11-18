@@ -202,6 +202,11 @@ func _map_view(map_id: String) -> void:
 	cam.global_position = pos
 	cam.look_at(look, Vector3.UP)
 	cam.current = true
+	for i in 3:
+		await get_tree().process_frame
+	print("RENDER draw calls ", RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_DRAW_CALLS_IN_FRAME),
+		" objects ", RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_OBJECTS_IN_FRAME),
+		" primitives ", RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_PRIMITIVES_IN_FRAME))
 
 
 ## Close-up of the third-person soldier (front, side and back) with outline.

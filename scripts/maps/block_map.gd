@@ -198,10 +198,11 @@ func _build_geometry() -> void:
 	geometry_root.name = "Geometry"
 	nav_region.add_child(geometry_root)
 	var blocks := get_blocks()
-	for b in blocks:
-		_add_block(b)
-	# visual-only detail (no colliders): automatic wall detail plus the map's own extras
+	# the visuals of all blocks are merged per material (one draw call per material instead of one per block)
 	var detail := MapDetail.new(self)
+	for b in blocks:
+		_add_block(b, detail)
+	# visual-only detail (no colliders): automatic wall detail plus the map's own extras
 	detail.build(blocks)
 	build_detail(detail)
 	detail.flush(geometry_root)
@@ -265,14 +266,12 @@ func get_all_lane_points() -> Array[Vector3]:
 	return out
 
 
-func _add_block(b: Dictionary) -> void:
+func _add_block(b: Dictionary, detail: MapDetail) -> void:
 	var pos: Vector3 = b.get("pos", Vector3.ZERO)
 	var size: Vector3 = b.get("size", Vector3.ONE)
 	var shape_kind: String = b.get("shape", "box")
 	var collide: bool = b.get("collide", true)
 	var is_visible: bool = b.get("visible", true)
-	var material := _get_material(b.get("mat", "concrete"), b.get("tint", null))
-
 	var body := StaticBody3D.new()
 	body.collision_layer = 1
 	body.collision_mask = 0
@@ -298,21 +297,7 @@ func _add_block(b: Dictionary) -> void:
 		body.add_child(col)
 
 	if is_visible:
-		var mi := MeshInstance3D.new()
-		if shape_kind == "cylinder":
-			var cm := CylinderMesh.new()
-			cm.top_radius = size.x * 0.5
-			cm.bottom_radius = size.x * 0.5
-			cm.height = size.y
-			cm.radial_segments = 24
-			mi.mesh = cm
-		else:
-			var bm := BoxMesh.new()
-			bm.size = size
-			mi.mesh = bm
-		mi.material_override = material
-		mi.gi_mode = GeometryInstance3D.GI_MODE_STATIC
-		body.add_child(mi)
+		detail.add_block(b)
 
 
 func _get_material(mat_name: String, tint) -> Material:

@@ -1,18 +1,44 @@
-[gd_scene load_steps=89 format=3]
+[gd_scene load_steps=95 format=3]
+
+[ext_resource type="Texture2D" path="res://assets/textures/weapon_metal.png" id="tex_1"]
+
+[ext_resource type="Texture2D" path="res://assets/textures/weapon_metal_n.png" id="tex_2"]
+
+[ext_resource type="Texture2D" path="res://assets/textures/weapon_metal_r.png" id="tex_3"]
+
+[ext_resource type="Texture2D" path="res://assets/textures/weapon_polymer.png" id="tex_4"]
+
+[ext_resource type="Texture2D" path="res://assets/textures/weapon_polymer_n.png" id="tex_5"]
+
+[ext_resource type="Texture2D" path="res://assets/textures/weapon_polymer_r.png" id="tex_6"]
 
 [sub_resource type="StandardMaterial3D" id="mat_gunmetal"]
-albedo_color = Color(0.240, 0.250, 0.280, 1)
-metallic = 0.35
-roughness = 0.50
+albedo_color = Color(0.300, 0.310, 0.340, 1)
+metallic = 0.30
+roughness = 1.00
+albedo_texture = ExtResource("tex_1")
+roughness_texture = ExtResource("tex_3")
+roughness_texture_channel = 0
+normal_enabled = true
+normal_texture = ExtResource("tex_2")
+uv1_scale = Vector3(14, 14, 14)
+uv1_triplanar = true
 
 [sub_resource type="BoxMesh" id="mesh_0"]
 material = SubResource("mat_gunmetal")
 size = Vector3(0.0300, 0.0340, 0.1700)
 
 [sub_resource type="StandardMaterial3D" id="mat_steel"]
-albedo_color = Color(0.130, 0.135, 0.150, 1)
+albedo_color = Color(0.170, 0.175, 0.190, 1)
 metallic = 0.30
-roughness = 0.55
+roughness = 1.00
+albedo_texture = ExtResource("tex_1")
+roughness_texture = ExtResource("tex_3")
+roughness_texture_channel = 0
+normal_enabled = true
+normal_texture = ExtResource("tex_2")
+uv1_scale = Vector3(14, 14, 14)
+uv1_triplanar = true
 
 [sub_resource type="BoxMesh" id="mesh_1"]
 material = SubResource("mat_steel")
@@ -70,17 +96,31 @@ material = SubResource("mat_sight_dot")
 size = Vector3(0.0030, 0.0030, 0.0010)
 
 [sub_resource type="StandardMaterial3D" id="mat_polymer_grey"]
-albedo_color = Color(0.220, 0.230, 0.250, 1)
-roughness = 0.80
+albedo_color = Color(0.240, 0.250, 0.270, 1)
+roughness = 1.00
+albedo_texture = ExtResource("tex_4")
+roughness_texture = ExtResource("tex_6")
+roughness_texture_channel = 0
+normal_enabled = true
+normal_texture = ExtResource("tex_5")
+uv1_scale = Vector3(16, 16, 16)
+uv1_triplanar = true
 
 [sub_resource type="BoxMesh" id="mesh_13"]
 material = SubResource("mat_polymer_grey")
 size = Vector3(0.0280, 0.0240, 0.1500)
 
 [sub_resource type="StandardMaterial3D" id="mat_steel_light"]
-albedo_color = Color(0.380, 0.390, 0.420, 1)
-metallic = 0.60
-roughness = 0.40
+albedo_color = Color(0.480, 0.490, 0.520, 1)
+metallic = 0.45
+roughness = 1.00
+albedo_texture = ExtResource("tex_1")
+roughness_texture = ExtResource("tex_3")
+roughness_texture_channel = 0
+normal_enabled = true
+normal_texture = ExtResource("tex_2")
+uv1_scale = Vector3(14, 14, 14)
+uv1_triplanar = true
 
 [sub_resource type="CylinderMesh" id="mesh_14"]
 material = SubResource("mat_steel_light")
@@ -91,8 +131,15 @@ radial_segments = 14
 rings = 1
 
 [sub_resource type="StandardMaterial3D" id="mat_polymer"]
-albedo_color = Color(0.110, 0.110, 0.120, 1)
-roughness = 0.85
+albedo_color = Color(0.120, 0.120, 0.130, 1)
+roughness = 1.00
+albedo_texture = ExtResource("tex_4")
+roughness_texture = ExtResource("tex_6")
+roughness_texture_channel = 0
+normal_enabled = true
+normal_texture = ExtResource("tex_5")
+uv1_scale = Vector3(16, 16, 16)
+uv1_triplanar = true
 
 [sub_resource type="BoxMesh" id="mesh_15"]
 material = SubResource("mat_polymer")

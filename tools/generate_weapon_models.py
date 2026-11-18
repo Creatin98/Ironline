@@ -17,13 +17,14 @@ MODEL_DIR = os.path.join(ROOT, "scenes", "weapons", "models")
 RES_DIR = os.path.join(ROOT, "resources", "weapons")
 
 MATERIALS = {
-    "gunmetal": dict(color=(0.24, 0.25, 0.28), metallic=0.35, roughness=0.5),
-    "steel": dict(color=(0.13, 0.135, 0.15), metallic=0.3, roughness=0.55),
-    "steel_light": dict(color=(0.38, 0.39, 0.42), metallic=0.6, roughness=0.4),
-    "wood": dict(color=(0.45, 0.24, 0.10), metallic=0.0, roughness=0.6),
-    "wood_dark": dict(color=(0.30, 0.15, 0.06), metallic=0.0, roughness=0.65),
-    "polymer": dict(color=(0.11, 0.11, 0.12), metallic=0.0, roughness=0.85),
-    "polymer_grey": dict(color=(0.22, 0.23, 0.25), metallic=0.0, roughness=0.8),
+    # tex = procedural detail maps (assets/textures/<tex>.png, _n, _r), object-space triplanar at `scale` tiles per metre
+    "gunmetal": dict(color=(0.30, 0.31, 0.34), metallic=0.3, roughness=1.0, tex="weapon_metal", scale=14),
+    "steel": dict(color=(0.17, 0.175, 0.19), metallic=0.3, roughness=1.0, tex="weapon_metal", scale=14),
+    "steel_light": dict(color=(0.48, 0.49, 0.52), metallic=0.45, roughness=1.0, tex="weapon_metal", scale=14),
+    "wood": dict(color=(0.46, 0.28, 0.14), metallic=0.0, roughness=1.0, tex="weapon_wood", scale=9),
+    "wood_dark": dict(color=(0.30, 0.18, 0.09), metallic=0.0, roughness=1.0, tex="weapon_wood", scale=9),
+    "polymer": dict(color=(0.12, 0.12, 0.13), metallic=0.0, roughness=1.0, tex="weapon_polymer", scale=16),
+    "polymer_grey": dict(color=(0.24, 0.25, 0.27), metallic=0.0, roughness=1.0, tex="weapon_polymer", scale=16),
     # bare hands: tinted per player at runtime (ReloadRig.apply_skin finds them by the material's resource_name)
     "skin": dict(color=(0.88, 0.72, 0.58), metallic=0.0, roughness=0.85, name="skin"),
     "skin_shade": dict(color=(0.77, 0.60, 0.47), metallic=0.0, roughness=0.9, name="skin_shade"),
@@ -45,6 +46,7 @@ class Scene:
         self.subs = []  # text blocks
         self.nodes = []  # text blocks
         self.mat_ids = {}
+        self.ext = {}  # texture path -> ext_resource id
         self.counter = 0
         self.names = {}
         self.boxes = []  # axis-aligned world-space boxes (name, pos, size, mat) for the z-fighting check
@@ -60,6 +62,17 @@ class Scene:
             if m.get("metallic"):
                 lines.append("metallic = %.2f" % m["metallic"])
             lines.append("roughness = %.2f" % m["roughness"])
+            if "tex" in m:
+                a = self._ext(m["tex"] + ".png")
+                n = self._ext(m["tex"] + "_n.png")
+                r = self._ext(m["tex"] + "_r.png")
+                lines.append(f'albedo_texture = ExtResource("{a}")')
+                lines.append(f'roughness_texture = ExtResource("{r}")')
+                lines.append("roughness_texture_channel = 0")
+                lines.append("normal_enabled = true")
+                lines.append(f'normal_texture = ExtResource("{n}")')
+                lines.append("uv1_scale = Vector3(%d, %d, %d)" % ((m["scale"],) * 3))
+                lines.append("uv1_triplanar = true")
             if "emission" in m:
                 lines.append("emission_enabled = true")
                 lines.append("emission = Color(%.3f, %.3f, %.3f, 1)" % m["emission"])
@@ -67,6 +80,11 @@ class Scene:
             self.subs.append("\n".join(lines))
             self.mat_ids[name] = mid
         return self.mat_ids[name]
+
+    def _ext(self, fname):
+        if fname not in self.ext:
+            self.ext[fname] = "tex_%d" % (len(self.ext) + 1)
+        return self.ext[fname]
 
     def _unique(self, name):
         n = self.names.get(name, 0)
@@ -173,8 +191,9 @@ class Scene:
         self._node(name, "Node3D", parent, pos)
 
     def write(self, path):
-        ids = len(self.subs) + 1
+        ids = len(self.subs) + len(self.ext) + 1
         out = [f"[gd_scene load_steps={ids} format=3]", ""]
+        out += [f'[ext_resource type="Texture2D" path="res://assets/textures/{f}" id="{i}"]\n' for f, i in self.ext.items()]
         out += [s + "\n" for s in self.subs]
         out += [n + "\n" for n in self.nodes]
         with open(path, "w", encoding="utf-8", newline="\n") as f:
@@ -310,6 +329,17 @@ def ak47():
     s.box("StockTang", (0, 0.056, 0.150), (0.030, 0.008, 0.090), "steel")
     s.box("Stock", (0, -0.012, 0.290), (0.040, 0.082, 0.150), "wood")
     s.box("StockPad", (0, -0.014, 0.372), (0.042, 0.098, 0.014), "polymer")
+    # fine detail: receiver rivets, cleaning rod, handguard grooves, grip ridges
+    for z in (-0.140, -0.095, 0.060, 0.100):
+        for sx in (-1, 1):
+            s.box(f"Rivet{sx}_{int(z * 1000)}", (sx * 0.0255, -0.012, z), (0.003, 0.006, 0.006), "steel_light")
+    s.cyl("CleaningRod", (0, -0.004, -0.350), 0.0042, 0.230, "steel_light")
+    for i in range(3):
+        for sx in (-1, 1):
+            s.box(f"HandguardGroove{sx}_{i}", (sx * 0.0255, 0.018, -0.275 - 0.040 * i), (0.002, 0.022, 0.012), "wood_dark")
+    for i in range(3):
+        for sx in (-1, 1):
+            s.box(f"GripRidge{sx}_{i}", (sx * 0.0165, -0.050 - 0.026 * i, 0.076 + 0.007 * i), (0.002, 0.010, 0.030), "polymer_grey", rot=(16, 0, 0))
     s.marker("Muzzle", (0, 0.038, -0.650))
     hands(s, left=(0.0, 0.0, -0.335), right=(0.0, -0.078, 0.086), left_target=(-0.12, -0.55, 0.30), right_target=(0.14, -0.55, 0.38), half=0.025, bottom=0.0)
     return s
