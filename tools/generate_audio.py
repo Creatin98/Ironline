@@ -684,20 +684,24 @@ def make_sniper_sounds():
     write_wav("shot_sniper_far", gain(lowpass(shot, 1400), 0.6), 0.65)
 
     # --- bolt: lift the handle and pull back (ratchet + scrape + stop), push forward and lock down
+    heavy = lambda f, l, st: mix(thunk(f, l, st), gain(modal([f * 6, f * 11], [0.05, 0.035], [0.5, 0.3], l), 0.35))
     write_wav("sniper_bolt_open", seq(
-        (0.0, mix(tick(0.9, 0.9, 0.05), thunk(180, 0.05, 0.6))),
-        (0.05, scrape(0.17, 700, 3200, 0.8)),
-        (0.07, tick(0.95, 0.7, 0.03)), (0.10, tick(1.0, 0.7, 0.03)), (0.125, tick(1.05, 0.7, 0.03)), (0.15, tick(1.1, 0.7, 0.03)),
-        (0.22, mix(thunk(110, 0.09, 1.1), tick(1.0, 1.0, 0.05))),
-        (0.225, gain(modal([1400, 2300], [0.04, 0.03], [0.6, 0.4], 0.14), 0.4)),
-    ), 0.9)
+        (0.0, mix(heavy(150, 0.09, 1.2), tick(0.85, 1.2, 0.05))), # handle unlocks: hard clack
+        (0.0, gain(modal([1100, 1900, 3000], [0.06, 0.05, 0.03], [0.6, 0.45, 0.3], 0.2), 0.5)),
+        (0.07, scrape(0.26, 600, 3000, 1.0)), # long heavy slide back
+        (0.09, tick(0.9, 1.0, 0.03)), (0.13, tick(0.95, 1.0, 0.03)), (0.17, tick(1.0, 1.0, 0.03)), (0.21, tick(1.05, 1.0, 0.03)), (0.25, tick(1.1, 1.0, 0.03)),
+        (0.34, mix(heavy(85, 0.14, 1.5), tick(0.8, 1.3, 0.06))), # bolt hits the rear stop
+        (0.345, gain(modal([1300, 2200, 3400], [0.08, 0.06, 0.04], [0.6, 0.45, 0.3], 0.25), 0.55)),
+        (0.45, gain(modal([4200, 6100], [0.06, 0.04], [0.5, 0.3], 0.2), 0.35)), # the brass rings out
+    ), 0.95)
     write_wav("sniper_bolt_close", seq(
-        (0.0, scrape(0.14, 800, 3600, 0.7)),
-        (0.02, tick(0.9, 0.6, 0.03)), (0.05, tick(1.0, 0.6, 0.03)), (0.08, tick(1.1, 0.6, 0.03)),
-        (0.13, mix(thunk(100, 0.1, 1.2), tick(0.8, 1.1, 0.06))),
-        (0.21, mix(tick(1.1, 0.9, 0.04), thunk(160, 0.05, 0.7))),
-        (0.215, gain(modal([1800, 2800], [0.03, 0.02], [0.6, 0.4], 0.12), 0.4)),
-    ), 0.9)
+        (0.0, scrape(0.22, 700, 3400, 1.0)), # forward
+        (0.02, tick(0.9, 0.9, 0.03)), (0.07, tick(1.0, 0.9, 0.03)), (0.12, tick(1.1, 0.9, 0.03)),
+        (0.22, mix(heavy(80, 0.15, 1.6), tick(0.75, 1.3, 0.06))), # slammed into the chamber
+        (0.225, gain(modal([1200, 2000, 3200], [0.07, 0.05, 0.03], [0.6, 0.45, 0.3], 0.25), 0.55)),
+        (0.33, mix(heavy(170, 0.07, 1.1), tick(1.15, 1.2, 0.04))), # handle locked down
+        (0.335, gain(modal([2000, 3000], [0.05, 0.03], [0.6, 0.4], 0.15), 0.5)),
+    ), 0.97)
 
     # --- scope: a soft optical swish and the click of the zoom ring
     def swish(length, rising):

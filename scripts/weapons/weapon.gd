@@ -85,6 +85,7 @@ func setup(new_data: WeaponData, new_player: Player, local: bool) -> void:
 			_bolt_hand = model.get_node_or_null("RightHand") as Node3D
 			if _bolt_node:
 				_bolt_rest = _bolt_node.position
+				_bolt_node.rotation = Vector3(0.0, 0.0, BOLT_REST)
 			if _bolt_hand:
 				_bolt_hand_rest = _bolt_hand.position
 		rig = ReloadRig.create(model, data.reload_style)
@@ -146,7 +147,7 @@ func cancel_actions() -> void:
 func _reset_bolt() -> void:
 	if _bolt_node:
 		_bolt_node.position = _bolt_rest
-		_bolt_node.rotation = Vector3.ZERO
+		_bolt_node.rotation = Vector3(0.0, 0.0, BOLT_REST)
 	if _bolt_hand and data.bolt_action:
 		_bolt_hand.position = _bolt_hand_rest
 
@@ -358,9 +359,10 @@ func try_fire(is_aiming: bool, move_ratio: float, in_air: bool, crouching: bool)
 
 ## Bolt cycle after a shot: the right hand takes the handle, lifts it, pulls the bolt back (the case flies out),
 ## pushes it forward, locks it down and returns to the grip; two sounds at the hard moments.
-const BOLT_LIFT := 1.25 # radians the handle is turned up
+const BOLT_REST := -0.55 # the handle hangs down to the right at rest (clearly visible)
+const BOLT_LIFT := 0.85 # radians it is turned up from there (stays clear of the scope)
 const BOLT_TRAVEL := 0.075 # metres the bolt slides back
-const BOLT_SOUNDS := [[0.20, "sniper_bolt_open"], [0.60, "sniper_bolt_close"]]
+const BOLT_SOUNDS := [[0.16, "sniper_bolt_open"], [0.56, "sniper_bolt_close"]]
 
 
 func _update_bolt(t: float) -> void:
@@ -368,10 +370,10 @@ func _update_bolt(t: float) -> void:
 	var back := ReloadRig._smooth(ReloadRig._seg(t, 0.32, 0.52)) - ReloadRig._smooth(ReloadRig._seg(t, 0.52, 0.72))
 	var hand_k := ReloadRig._smooth(ReloadRig._seg(t, 0.06, 0.20)) - ReloadRig._smooth(ReloadRig._seg(t, 0.88, 1.0))
 	if _bolt_node:
-		_bolt_node.rotation.z = BOLT_LIFT * lift
+		_bolt_node.rotation.z = BOLT_REST + BOLT_LIFT * lift
 		_bolt_node.position = _bolt_rest + Vector3(0.0, 0.0, BOLT_TRAVEL * back)
 	if _bolt_hand and _bolt_grip and model:
-		var grip_pos := model.to_local(_bolt_grip.global_position) + Vector3(-0.026, 0.0, 0.0)
+		var grip_pos := model.to_local(_bolt_grip.global_position) + Vector3(0.012, 0.0, 0.0) # the hand sits outside, the scope stays free
 		_bolt_hand.position = _bolt_hand_rest.lerp(grip_pos, hand_k)
 	# the whole weapon is tilted a little while the right hand leaves the grip
 	var s := sin(t * PI)

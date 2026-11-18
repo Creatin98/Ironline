@@ -142,11 +142,11 @@ size = Vector3(0.0220, 0.0220, 0.1300)
 
 [sub_resource type="BoxMesh" id="mesh_20"]
 material = SubResource("mat_steel_light")
-size = Vector3(0.0580, 0.0100, 0.0100)
+size = Vector3(0.1000, 0.0120, 0.0120)
 
 [sub_resource type="BoxMesh" id="mesh_21"]
 material = SubResource("mat_polymer_grey")
-size = Vector3(0.0220, 0.0220, 0.0220)
+size = Vector3(0.0280, 0.0280, 0.0280)
 
 [sub_resource type="BoxMesh" id="mesh_22"]
 material = SubResource("mat_steel")
@@ -536,15 +536,15 @@ position = Vector3(0.0000, 0.0140, 0.0700)
 mesh = SubResource("mesh_19")
 
 [node name="BoltRod" type="MeshInstance3D" parent="Bolt"]
-position = Vector3(0.0400, 0.0000, 0.0400)
+position = Vector3(0.0600, 0.0000, 0.0400)
 mesh = SubResource("mesh_20")
 
 [node name="BoltKnob" type="MeshInstance3D" parent="Bolt"]
-position = Vector3(0.0740, 0.0000, 0.0400)
+position = Vector3(0.1180, 0.0000, 0.0400)
 mesh = SubResource("mesh_21")
 
 [node name="BoltGrip" type="Node3D" parent="Bolt"]
-position = Vector3(0.0740, 0.0000, 0.0400)
+position = Vector3(0.1180, 0.0000, 0.0400)
 
 [node name="TriggerGuardBottom" type="MeshInstance3D" parent="."]
 position = Vector3(0.0000, -0.0400, 0.0600)

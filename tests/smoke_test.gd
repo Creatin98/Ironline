@@ -551,13 +551,13 @@ func _check_sniper() -> void:
 	var bolt := w.model.get_node_or_null("Bolt") as Node3D
 	for i in 45:
 		await get_tree().physics_frame
-		if bolt != null and absf(bolt.rotation.z) > 0.5 and hand != null and hand.position.distance_to(w._bolt_hand_rest) > 0.03:
+		if bolt != null and absf(bolt.rotation.z - Weapon.BOLT_REST) > 0.5 and hand != null and hand.position.distance_to(w._bolt_hand_rest) > 0.03:
 			bolt_moved = true
 	if not bolt_moved:
 		_fail("Sniper: Verschluss und rechte Hand bewegen sich beim Repetieren nicht")
 	for i in 60:
 		await get_tree().physics_frame
-	if w.state != Weapon.State.IDLE or not wm.can_aim() or bolt.rotation.z != 0.0 or hand.position.distance_to(w._bolt_hand_rest) > 0.001:
+	if w.state != Weapon.State.IDLE or not wm.can_aim() or absf(bolt.rotation.z - Weapon.BOLT_REST) > 0.001 or hand.position.distance_to(w._bolt_hand_rest) > 0.001:
 		_fail("Sniper: nach dem Repetieren nicht bereit / Teile nicht in Ruhelage")
 	# --- scope: opens while aiming, the surroundings are not zoomed, the viewmodel is hidden, zoom steps, slower mouse
 	local.input.aim = true

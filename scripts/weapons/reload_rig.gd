@@ -13,7 +13,7 @@ extends RefCounted
 const RIFLE := {
 	"grip": Vector3(-0.030, -0.120, -0.068),
 	"belt": Vector3(-0.200, -0.320, 0.000),
-	"handle_hand": Vector3(0.012, 0.072, -0.020),
+	"handle_hand": Vector3(-0.050, 0.062, -0.020),
 	"handle_pull": 0.055,
 }
 const SMG := {
