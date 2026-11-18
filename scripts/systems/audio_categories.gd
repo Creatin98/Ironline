@@ -41,7 +41,7 @@ const EXACT_SOUNDS := {
 	"jump": "movement", "land": "movement", "slide": "movement",
 	"hitmarker": "hitmarker", "hitmarker_headshot": "headshot",
 	"kill_confirm": "kill", "kill_headshot": "kill",
-	"bullet_impact": "hit_other", "ricochet": "hit_other", "hurt": "hit_other", "death": "hit_other",
+	"bullet_impact": "hit_other", "glass_hit": "hit_other", "glass_break": "hit_other", "glass_tinkle": "hit_other", "ricochet": "hit_other", "hurt": "hit_other", "death": "hit_other",
 	"explosion": "grenades", "flashbang_bang": "grenades", "flash_ring": "hit_other",
 	"sniper_bolt_open": "reload", "sniper_bolt_close": "reload", "sniper_scope_in": "handling", "sniper_scope_out": "handling", "sniper_scope_zoom": "handling",
 	"respawn": "ui", "round_start": "ui", "round_win": "ui", "round_lose": "ui",

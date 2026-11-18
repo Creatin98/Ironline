@@ -89,7 +89,14 @@ func get_blocks() -> Array:
 	b.append(box(Vector3(9.95, ROOF_Y + 0.5, -3.5), Vector3(0.1, 1.0, 19.6), "metal_panel", C_DARK))
 	# bridge cabin on the sun deck (blocks the long sightline)
 	b.append_array(room_walls(Vector3(0, ROOF_Y, 0), Vector3(6, 2.4, 5), 0.25, "ship_hull", C_HULL,
-		[{"side": "w", "offset": 0.0, "width": 1.6}, {"side": "e", "offset": 0.0, "width": 1.6}]))
+		[{"side": "w", "offset": 0.0, "width": 1.6}, {"side": "e", "offset": 0.0, "width": 1.6},
+				{"side": "n", "offset": -1.2, "width": 1.6}, {"side": "n", "offset": 1.2, "width": 1.6},
+				{"side": "s", "offset": -1.2, "width": 1.6}, {"side": "s", "offset": 1.2, "width": 1.6}]))
+	# bridge windows (glass): sill below, header above each opening
+	for wz in [-2.5, 2.5]:
+		for wx in [-1.2, 1.2]:
+			b.append(header(Vector3(wx, 0, wz), 1.6, ROOF_Y, ROOF_Y + 0.9, 0.25, true, "ship_hull", C_HULL))
+			b.append(header(Vector3(wx, 0, wz), 1.6, ROOF_Y + 2.0, ROOF_Y + 2.4, 0.25, true, "ship_hull", C_HULL))
 	b.append(box(Vector3(0, ROOF_Y + 2.5, 0), Vector3(6.4, 0.2, 5.4), "ship_hull", C_HULL))
 	b.append(header(Vector3(-3, ROOF_Y, 0), 1.6, ROOF_Y + 2.1, ROOF_Y + 2.4, 0.25, false, "ship_hull", C_HULL))
 	b.append(header(Vector3(3, ROOF_Y, 0), 1.6, ROOF_Y + 2.1, ROOF_Y + 2.4, 0.25, false, "ship_hull", C_HULL))

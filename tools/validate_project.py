@@ -23,7 +23,7 @@ Node Node2D Node3D Control CanvasLayer CanvasItem Label Label3D Button CheckBox 
 RichTextLabel ColorRect PanelContainer VBoxContainer HBoxContainer GridContainer BoxContainer Container
 StyleBoxFlat StyleBox Theme Font Resource RefCounted Object PackedScene SceneTree SceneTreeTimer Tween
 CharacterBody3D RigidBody3D StaticBody3D Area3D CollisionShape3D CapsuleShape3D BoxShape3D SphereShape3D
-CylinderShape3D Shape3D MeshInstance3D BoxMesh CapsuleMesh SphereMesh CylinderMesh QuadMesh Mesh ArrayMesh PlaneMesh SurfaceTool OmniLight3D MultiMesh MultiMeshInstance3D ShaderMaterial Shader
+CylinderShape3D Shape3D MeshInstance3D BoxMesh CapsuleMesh SphereMesh CylinderMesh QuadMesh Mesh ArrayMesh PlaneMesh SurfaceTool OmniLight3D MultiMesh MultiMeshInstance3D ShaderMaterial Shader CPUParticles3D QuadMesh
 Camera3D Marker3D OmniLight3D DirectionalLight3D WorldEnvironment Environment Sky ProceduralSkyMaterial
 StandardMaterial3D BaseMaterial3D Material GeometryInstance3D CPUParticles3D GPUParticles3D Gradient
 AudioStreamPlayer AudioStreamPlayer3D AudioStream AudioStreamWAV AudioServer AudioBusLayout

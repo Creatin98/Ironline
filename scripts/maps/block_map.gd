@@ -206,6 +206,11 @@ func _build_geometry() -> void:
 	detail.build(blocks)
 	build_detail(detail)
 	detail.flush(geometry_root)
+	# breakable glass in every window opening (state is decided by the host, see GlassField)
+	var glass := GlassField.new()
+	glass.name = "Glass"
+	add_child(glass)
+	glass.setup(detail.windows)
 
 
 func _bake_navigation() -> void:

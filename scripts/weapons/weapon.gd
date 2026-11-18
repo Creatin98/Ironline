@@ -301,6 +301,9 @@ func try_fire(is_aiming: bool, move_ratio: float, in_air: bool, crouching: bool)
 	for i in data.pellets:
 		var dir := _random_cone_direction(forward, spread)
 		var result := _hit_scan(origin, dir)
+		# window glass on the bullet's way (host only): the pane is damaged, the bullet flies on
+		var glass_end: Vector3 = result["position"] if not result.is_empty() else origin + dir * data.max_range
+		GlassField.on_shot(player.get_tree(), player.get_world_3d().direct_space_state, origin, glass_end, data.damage_at_distance(origin.distance_to(glass_end)))
 		if result.is_empty():
 			continue
 		var collider: Object = result["collider"]

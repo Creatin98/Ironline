@@ -41,6 +41,7 @@ func _ready() -> void:
 	await _simulate_steps()
 	await _simulate_slide()
 	await _check_maps()
+	await _check_glass()
 	await _simulate_bots()
 	await _simulate_bots("mesa")
 	AudioManager.stop_all()
@@ -2056,4 +2057,89 @@ func _simulate_match() -> void:
 		_fail("Endbildschirm nicht sichtbar")
 	print("Match-Simulation: Bewegung, Schuss, Nachladen, Wechsel, Granate, Kill, Respawn, Matchende OK")
 	game.free()
+	await get_tree().process_frame
+
+
+## Window glass: several hits crack and then break a pane, a broken pane leaves no collision, the sniper breaks one at once,
+## a distant explosion touches nothing, a near one breaks the pane, the number of live fragment groups stays limited,
+## and the state of damaged windows can be handed to a late joiner.
+func _check_glass() -> void:
+	var map: Node3D = (load(GameDirector.get_map_info("mesa")["scene"]) as PackedScene).instantiate()
+	add_child(map)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	var field := GlassField.find(get_tree())
+	if field == null or field.windows.size() < 10:
+		_fail("Glasfelder fehlen (Mesa hat %d)" % (field.windows.size() if field else 0))
+		map.free()
+		return
+	var space := map.get_world_3d().direct_space_state
+	var w: GlassWindow = field.windows[0]
+	var n := w.global_transform.basis.z
+	var from := w.global_position + n * 3.0
+	var to := w.global_position - n * 3.0
+	var q := PhysicsRayQueryParameters3D.create(from, to, GlassField.LAYER)
+	if space.intersect_ray(q).is_empty():
+		_fail("Intaktes Glas hat keine Kollision (Treffer-Strahl findet es nicht)")
+	field.shot(space, from, to, 20.0)
+	if w.broken or w.hits.size() != 1:
+		_fail("Erster Treffer muss Risse erzeugen, nicht brechen (broken %s, hits %d)" % [str(w.broken), w.hits.size()])
+	var shots := 1
+	while not w.broken and shots < 12:
+		field.shot(space, from, to, 20.0)
+		shots += 1
+	if not w.broken or shots < 3:
+		_fail("Scheibe sollte nach mehreren Treffern brechen (Schuesse %d, gebrochen %s)" % [shots, str(w.broken)])
+	await get_tree().process_frame
+	if not space.intersect_ray(PhysicsRayQueryParameters3D.create(from, to, GlassField.LAYER)).is_empty():
+		_fail("Zerbrochenes Glas laesst eine Kollision zurueck")
+	# the sniper: one shot
+	var w2: GlassWindow = field.windows[1]
+	var n2 := w2.global_transform.basis.z
+	field.shot(space, w2.global_position + n2 * 3.0, w2.global_position - n2 * 3.0, 290.0)
+	if not w2.broken:
+		_fail("Ein Scharfschuetzentreffer muss die Scheibe zerbrechen")
+	# explosions: far away nothing happens, right in front of a pane it breaks
+	var w3: GlassWindow = field.windows[3]
+	var far_center := w3.global_position + Vector3(0, 0, 60.0)
+	field.blast(space, far_center, Grenade.RADIUS)
+	for pane in field.windows:
+		if pane != w and pane != w2 and (pane.broken or not pane.hits.is_empty()):
+			_fail("Eine ferne Explosion hat Fenster beschaedigt")
+			break
+	field.blast(space, w3.global_position + w3.global_transform.basis.z * 1.0, Grenade.RADIUS)
+	if not w3.broken:
+		_fail("Eine Explosion direkt vor dem Fenster muss es zerbrechen")
+	# many breaks: the live fragment groups stay limited
+	for pane in field.windows:
+		if not pane.broken:
+			var pn := pane.global_transform.basis.z
+			field.shot(space, pane.global_position + pn * 3.0, pane.global_position - pn * 3.0, 290.0)
+	await get_tree().process_frame
+	if GlassShards._active.size() > GlassShards.MAX_ACTIVE:
+		_fail("Zu viele Scherbengruppen gleichzeitig (%d)" % GlassShards._active.size())
+	# hand the state over
+	var state := field.export_state()
+	var map2: Node3D = (load(GameDirector.get_map_info("mesa")["scene"]) as PackedScene).instantiate()
+	add_child(map2)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	var field2: GlassField = null
+	for f in get_tree().get_nodes_in_group("glass_field"):
+		if f != field:
+			field2 = f as GlassField
+	if field2 == null:
+		_fail("Zweites Glasfeld nicht gefunden")
+	else:
+		field2.import_state(state)
+		var broken_a := 0
+		var broken_b := 0
+		for i in field.windows.size():
+			broken_a += 1 if field.windows[i].broken else 0
+			broken_b += 1 if field2.windows[i].broken else 0
+		if broken_a != broken_b or broken_a == 0:
+			_fail("Glas-Zustand wurde nicht uebernommen (%d gegen %d)" % [broken_a, broken_b])
+	print("Fensterglas: %d Scheiben, Treffer/Bruch, Kollision, Explosion, Zustandsuebergabe OK" % field.windows.size())
+	map.free()
+	map2.free()
 	await get_tree().process_frame

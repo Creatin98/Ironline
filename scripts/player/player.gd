@@ -125,7 +125,7 @@ var replay_mode: bool = false
 func _ready() -> void:
 	add_to_group("players")
 	collision_layer = 2
-	collision_mask = 1 | 2
+	collision_mask = 1 | 2 | GlassField.LAYER
 	# each player needs its own capsule so crouching one does not shrink all
 	collision_shape.shape = collision_shape.shape.duplicate()
 	_set_height(STAND_HEIGHT)
@@ -307,7 +307,7 @@ func respawn_at(spawn_transform: Transform3D) -> void:
 	controls_enabled = true
 	_set_height(STAND_HEIGHT)
 	collision_layer = 2
-	collision_mask = 1 | 2
+	collision_mask = 1 | 2 | GlassField.LAYER
 	_kill_death_tween()
 	head.fall = 0.0
 	body.visible = true

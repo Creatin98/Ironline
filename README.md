@@ -18,6 +18,8 @@ vier Klassen, drei Drei-Wege-Maps, Team Deathmatch und Free for All, Bots und On
 | 8+ | Neue Waffenmodelle mit sauberem Ironsight, Vorschaubilder für Maps/Klassen, Killcam, Last-Kill-Cam | fertig |
 | 9 | Windows-Build, Tests | offen |
 
+**Fensterglas:** Alle Fenster der Maps sind zerstörbar (Risse, Bruch, Scherben; Explosionen in der Nähe sprengen sie). Siehe docs/ARCHITECTURE.md.
+
 ## Starten
 
 1. [Godot 4.4 oder neuer](https://godotengine.org/download) installieren (Standard-Build, kein .NET nötig).

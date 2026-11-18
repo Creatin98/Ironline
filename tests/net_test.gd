@@ -246,6 +246,21 @@ func _run_host() -> void:
 		_log("Granate explodiert")
 	await get_tree().create_timer(2.0).timeout
 
+	# 5b) window glass: the host breaks one pane with a sniper shot, cracks a second one and blows out a third
+	var field := GlassField.find(get_tree())
+	if field == null or field.windows.size() < 3:
+		_fail("Kein Glasfeld mit mindestens 3 Fenstern")
+	else:
+		var space := host_player.get_world_3d().direct_space_state
+		var w0: GlassWindow = field.windows[0]
+		var w1: GlassWindow = field.windows[1]
+		var w2: GlassWindow = field.windows[2]
+		field.shot(space, w0.global_position + w0.global_transform.basis.z * 3.0, w0.global_position - w0.global_transform.basis.z * 3.0, 290.0)
+		field.shot(space, w1.global_position + w1.global_transform.basis.z * 3.0, w1.global_position - w1.global_transform.basis.z * 3.0, 20.0)
+		field.blast(space, w2.global_position + w2.global_transform.basis.z * 1.0, Grenade.RADIUS)
+		_log("Host: Fenster 0 zerschossen, Fenster 1 angerissen, Fenster 2 gesprengt")
+		await get_tree().create_timer(2.0).timeout
+
 	# 6) match end -> map vote -> next round on the voted map
 	MatchManager.end_match()
 	if not await _wait(func() -> bool: return int(_stats["votes"]) >= 1, 5.0):
@@ -490,6 +505,15 @@ func _run_client() -> void:
 		_fail("Granatenexplosion nicht empfangen")
 	else:
 		_log("Granatenexplosion empfangen")
+
+	# 5b) window glass state of the host arrives (break, crack, blast)
+	var gfield := GlassField.find(get_tree())
+	if gfield == null or gfield.windows.size() < 3:
+		_fail("Client hat kein Glasfeld")
+	elif not await _wait(func() -> bool: return gfield.windows[0].broken and gfield.windows[2].broken and gfield.windows[1].hits.size() == 1 and not gfield.windows[1].broken, 12.0):
+		_fail("Glaszustand des Hosts kam nicht an (0 gebrochen %s, 2 gebrochen %s, Risse an 1: %d)" % [str(gfield.windows[0].broken), str(gfield.windows[2].broken), gfield.windows[1].hits.size()])
+	else:
+		_log("Zerbrochene und angerissene Fenster des Hosts sichtbar")
 
 	# 6) match end -> vote, then the next round starts on the voted map
 	if not await _wait(func() -> bool: return int(_stats["votes"]) >= 1, 15.0):

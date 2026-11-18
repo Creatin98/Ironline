@@ -591,6 +591,53 @@ def make_reload_sounds():
     write_wav("shell_insert", seq((0.0, ratsch_in), (0.145, ratsch_latch)), 0.85)
 
 
+def make_glass_sounds():
+    """Window glass: a sharp crack when it is hit, a crash with a bright shower of shards when it breaks,
+    and a soft tinkle of fragments landing. Own random generator: the other sounds stay identical."""
+    local = random.Random(777)
+
+    def nz(seconds):
+        return [local.uniform(-1, 1) for _ in range(int(seconds * SR))]
+
+    # crack: a very short bright tick with a thin ring of the pane
+    n = 0.35
+    tick = env_exp(highpass(nz(n), 3000), 0.012)
+    ring = [0.0] * int(n * SR)
+    for f, d, g in ((4300, 0.07, 0.35), (6100, 0.05, 0.25), (2700, 0.09, 0.2)):
+        for k, v in enumerate(env_exp(sine(f, n), d)):
+            ring[k] += v * g
+    write_wav("glass_hit", soft_clip(mix(gain(tick, 1.0), ring, gain(env_exp(sine(180, n), 0.02), 0.25)), 1.6), 0.8)
+
+    # break: crash (noise burst) + a thump of the pane + many tiny falling tones
+    n = 1.6
+    crash = env_exp(highpass(nz(n), 1800), 0.16)
+    body = env_exp(lowpass(nz(n), 900), 0.05)
+    thud = env_exp(sweep(260, 80, n), 0.05)
+    shower = [0.0] * int(n * SR)
+    for _ in range(70):
+        start = int(local.uniform(0.02, 1.1) * SR)
+        f = local.uniform(2500, 9000)
+        dur = local.uniform(0.02, 0.07)
+        amp = local.uniform(0.05, 0.25) * (1.0 - start / (1.3 * SR))
+        for k, v in enumerate(env_exp(sine(f, dur), dur * 0.35)):
+            if start + k < len(shower):
+                shower[start + k] += v * amp
+    write_wav("glass_break", soft_clip(mix(gain(crash, 0.9), gain(body, 0.6), gain(thud, 0.5), shower), 2.0), 0.92)
+
+    # tinkle: scattered light ticks (fragments landing)
+    n = 1.2
+    tk = [0.0] * int(n * SR)
+    for i in range(26):
+        start = int((0.03 * i + local.uniform(0, 0.06) + 0.02 * (i * i % 5)) * SR)
+        f = local.uniform(3000, 8500)
+        dur = local.uniform(0.015, 0.05)
+        amp = local.uniform(0.1, 0.35) * (1.0 - i / 32.0)
+        for k, v in enumerate(env_exp(sine(f, dur), dur * 0.3)):
+            if start + k < len(tk):
+                tk[start + k] += v * amp
+    write_wav("glass_tinkle", tk, 0.6)
+
+
 def make_flash_sounds():
     """Flashbang: a hard, bright crack with a deep thump and a metallic ring-out, and the tinnitus that follows it
     (a long fine whistle, its volume is driven by the game). Own random generator: the other sounds stay identical."""
@@ -751,6 +798,9 @@ if __name__ == "__main__":
     if "hits" in sys.argv[1:]:
         make_hit_feedback() # only the hit/kill confirmation sounds
         sys.exit(0)
+    if "glass" in sys.argv[1:]:
+        make_glass_sounds()
+        sys.exit(0)
     if "flash" in sys.argv[1:]:
         make_flash_sounds()
         sys.exit(0)
@@ -769,3 +819,4 @@ if __name__ == "__main__":
     make_ui()
     make_flash_sounds()
     make_sniper_sounds()
+    make_glass_sounds()

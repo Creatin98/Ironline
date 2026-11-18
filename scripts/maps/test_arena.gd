@@ -27,14 +27,18 @@ func get_blocks() -> Array:
 	# ---------------------------------------------------------------- west building row (brick)
 	# north-west block with a cut-through to the left lane and the street
 	b.append_array(room_walls(Vector3(-9, 0, -8), Vector3(6, 3.6, 7), 0.3, "brick", null,
-		[{"side": "e", "offset": 0.0, "width": 1.6}, {"side": "w", "offset": 1.0, "width": 1.6}, {"side": "s", "offset": -1.0, "width": 1.6}]))
+		[{"side": "e", "offset": 0.0, "width": 1.6}, {"side": "w", "offset": 1.0, "width": 1.6}, {"side": "s", "offset": -1.0, "width": 1.6},
+				{"side": "n", "offset": 0.0, "width": 1.6}]))
+	b.append_array(window(Vector3(-9, 0, -11.5), 1.6, 1.0, 2.1, 3.6, 0.3, true, "brick"))
 	b.append(header(Vector3(-6, 0, -8), 1.6, 2.2, 3.6, 0.3, false, "brick"))
 	b.append(header(Vector3(-12, 0, -7), 1.6, 2.2, 3.6, 0.3, false, "brick"))
 	b.append(header(Vector3(-10, 0, -4.5), 1.6, 2.2, 3.6, 0.3, true, "brick"))
 	b.append(box(Vector3(-9, 3.75, -8), Vector3(6.3, 0.3, 7.3), "roof_shingles"))
 	# south-west block
 	b.append_array(room_walls(Vector3(-9, 0, 8), Vector3(6, 3.6, 7), 0.3, "brick", null,
-		[{"side": "e", "offset": 0.0, "width": 1.6}, {"side": "w", "offset": -1.0, "width": 1.6}, {"side": "n", "offset": 1.0, "width": 1.6}]))
+		[{"side": "e", "offset": 0.0, "width": 1.6}, {"side": "w", "offset": -1.0, "width": 1.6}, {"side": "n", "offset": 1.0, "width": 1.6},
+				{"side": "s", "offset": 0.0, "width": 1.6}]))
+	b.append_array(window(Vector3(-9, 0, 11.5), 1.6, 1.0, 2.1, 3.6, 0.3, true, "brick"))
 	b.append(header(Vector3(-6, 0, 8), 1.6, 2.2, 3.6, 0.3, false, "brick"))
 	b.append(header(Vector3(-12, 0, 7), 1.6, 2.2, 3.6, 0.3, false, "brick"))
 	b.append(header(Vector3(-8, 0, 4.5), 1.6, 2.2, 3.6, 0.3, true, "brick"))
@@ -44,13 +48,17 @@ func get_blocks() -> Array:
 
 	# ---------------------------------------------------------------- east building row (plaster)
 	b.append_array(room_walls(Vector3(9, 0, -8), Vector3(6, 3.6, 7), 0.3, "plaster", C_WARM,
-		[{"side": "w", "offset": 0.0, "width": 1.6}, {"side": "e", "offset": -1.0, "width": 1.6}, {"side": "s", "offset": 1.0, "width": 1.6}]))
+		[{"side": "w", "offset": 0.0, "width": 1.6}, {"side": "e", "offset": -1.0, "width": 1.6}, {"side": "s", "offset": 1.0, "width": 1.6},
+				{"side": "n", "offset": 0.0, "width": 1.6}]))
+	b.append_array(window(Vector3(9, 0, -11.5), 1.6, 1.0, 2.1, 3.6, 0.3, true, "plaster", C_WARM))
 	b.append(header(Vector3(6, 0, -8), 1.6, 2.2, 3.6, 0.3, false, "plaster", C_WARM))
 	b.append(header(Vector3(12, 0, -9), 1.6, 2.2, 3.6, 0.3, false, "plaster", C_WARM))
 	b.append(header(Vector3(10, 0, -4.5), 1.6, 2.2, 3.6, 0.3, true, "plaster", C_WARM))
 	b.append(box(Vector3(9, 3.75, -8), Vector3(6.3, 0.3, 7.3), "concrete", C_DARK))
 	b.append_array(room_walls(Vector3(9, 0, 8), Vector3(6, 3.6, 7), 0.3, "plaster", C_COOL,
-		[{"side": "w", "offset": 0.0, "width": 1.6}, {"side": "e", "offset": 1.0, "width": 1.6}, {"side": "n", "offset": -1.0, "width": 1.6}]))
+		[{"side": "w", "offset": 0.0, "width": 1.6}, {"side": "e", "offset": 1.0, "width": 1.6}, {"side": "n", "offset": -1.0, "width": 1.6},
+				{"side": "s", "offset": 0.0, "width": 1.6}]))
+	b.append_array(window(Vector3(9, 0, 11.5), 1.6, 1.0, 2.1, 3.6, 0.3, true, "plaster", C_COOL))
 	b.append(header(Vector3(6, 0, 8), 1.6, 2.2, 3.6, 0.3, false, "plaster", C_COOL))
 	b.append(header(Vector3(12, 0, 9), 1.6, 2.2, 3.6, 0.3, false, "plaster", C_COOL))
 	b.append(header(Vector3(8, 0, 4.5), 1.6, 2.2, 3.6, 0.3, true, "plaster", C_COOL))

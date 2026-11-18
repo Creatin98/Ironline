@@ -13,7 +13,7 @@ extends Node
 
 enum Mode { OFFLINE, HOST, CLIENT }
 
-const PROTOCOL_VERSION := 9
+const PROTOCOL_VERSION := 10
 const DEFAULT_PORT := 7777
 const MAX_PEERS := 12
 const SNAPSHOT_EVERY_TICKS := 3 # 20 Hz at 60 physics ticks
@@ -471,6 +471,9 @@ func _rpc_client_loaded() -> void:
 			if p.alive and p.node != null and is_instance_valid(p.node):
 				var pl := p.node as Player
 				_rpc_spawn.rpc_id(id, p.id, pl.global_position, pl.rotation.y, p.class_id)
+		var glass := GlassField.find(get_tree())
+		if glass != null:
+			_rpc_glass_state.rpc_id(id, glass.export_state()) # panes that are already damaged or gone
 
 
 ## Host: complete roster/score/timer state to everybody (right before the warmup).
@@ -817,6 +820,47 @@ func _rpc_grenade_explode(gid: int, center: Vector3, kind: int) -> void:
 		grenade.explode_visual_at(center)
 	elif game != null:
 		game.play_explosion_at(center, kind)
+
+
+# ----------------------------------------------------------------------------- window glass
+
+## Host: a pane was hit (kind 0: a = point, b = direction, f = damage fraction) or broke (kind 1: f = power).
+func broadcast_glass(kind: int, id: int, a: Vector3, b: Vector3, f: float) -> void:
+	if mode == Mode.HOST and in_match and multiplayer.get_peers().size() > 0:
+		_rpc_glass.rpc(kind, id, a, b, f)
+
+
+@rpc("authority", "call_remote", "reliable")
+func _rpc_glass(kind: int, id: int, a: Vector3, b: Vector3, f: float) -> void:
+	if mode != Mode.CLIENT:
+		return
+	var field := GlassField.find(get_tree())
+	if field != null:
+		field.net_event(kind, id, a, b, f)
+
+
+## Host: an explosion hit these panes (fracs >= 1 = broken).
+func broadcast_glass_blast(center: Vector3, ids: PackedInt32Array, fracs: PackedFloat32Array) -> void:
+	if mode == Mode.HOST and in_match and multiplayer.get_peers().size() > 0:
+		_rpc_glass_blast.rpc(center, ids, fracs)
+
+
+@rpc("authority", "call_remote", "reliable")
+func _rpc_glass_blast(center: Vector3, ids: PackedInt32Array, fracs: PackedFloat32Array) -> void:
+	if mode != Mode.CLIENT:
+		return
+	var field := GlassField.find(get_tree())
+	if field != null:
+		field.net_blast(center, ids, fracs)
+
+
+@rpc("authority", "call_remote", "reliable")
+func _rpc_glass_state(state: Array) -> void:
+	if mode != Mode.CLIENT:
+		return
+	var field := GlassField.find(get_tree())
+	if field != null:
+		field.import_state(state)
 
 
 # ----------------------------------------------------------------------------- respawn skip

@@ -84,6 +84,8 @@ func _run() -> void:
 		await _game_ui(target.substr(5))
 	elif target.begins_with("map_"):
 		await _map_preview(target.substr(4))
+	elif target.begins_with("glass"):
+		await _glass_view()
 	elif target.begins_with("rig"):
 		await _rig_view()
 	elif target.begins_with("view_"):
@@ -207,6 +209,59 @@ func _map_view(map_id: String) -> void:
 	print("RENDER draw calls ", RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_DRAW_CALLS_IN_FRAME),
 		" objects ", RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_OBJECTS_IN_FRAME),
 		" primitives ", RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_PRIMITIVES_IN_FRAME))
+
+
+## Window glass: --stage=0 intact, 1 one hit, 2 three hits, 3 broken (--map=<id>, --win=<index>).
+func _glass_view() -> void:
+	var stage := 0
+	var map_id := "frontier"
+	var win_index := 0
+	for arg in OS.get_cmdline_user_args():
+		if arg.begins_with("--stage="):
+			stage = int(arg.substr(8))
+		elif arg.begins_with("--map="):
+			map_id = arg.substr(6)
+		elif arg.begins_with("--win="):
+			win_index = int(arg.substr(6))
+	var info := GameDirector.get_map_info(map_id)
+	var map: Node3D = (load(info["scene"]) as PackedScene).instantiate()
+	get_tree().root.add_child.call_deferred(map)
+	for i in 4:
+		await get_tree().process_frame
+	var field := GlassField.find(get_tree())
+	print("GLASS windows ", field.windows.size())
+	for ww in field.windows:
+		print("  win ", ww.id, " pos ", ww.position, " size ", ww.pane_size)
+	var w: GlassWindow = field.windows[win_index]
+	var normal := w.global_transform.basis.z
+	var eye := w.global_position + normal * 2.6
+	var cam := Camera3D.new()
+	cam.fov = 60.0
+	get_tree().root.add_child(cam)
+	cam.global_position = eye
+	cam.look_at(w.global_position, Vector3.UP)
+	cam.current = true
+	var space := w.get_world_3d().direct_space_state
+	var offsets := [Vector2(0.15, 0.1), Vector2(-0.3, -0.15), Vector2(0.35, -0.2), Vector2(-0.1, 0.25), Vector2(0.0, 0.0)]
+	var hit_counts: Array[int] = [0, 1, 2, 40, 0]
+	var hits: int = hit_counts[stage]
+	if stage == 4: # debug: one strong impact in the middle of the pane
+		w.apply_hit(w.global_position, -normal, 0.9, true)
+	for i in hits:
+		var o: Vector2 = offsets[i % offsets.size()]
+		var target_point := w.to_global(Vector3(o.x * w.pane_size.x, o.y * w.pane_size.y, 0))
+		field.shot(space, eye, target_point, 27.0)
+		await get_tree().process_frame
+		if w.broken:
+			break
+	print("GLASS broken ", w.broken, " hits ", w.hits.size(), " health ", snappedf(w.health, 0.1))
+	if stage == 3:
+		for i in 2:
+			await get_tree().process_frame
+		print("GLASS shard groups ", GlassShards._active.size())
+		if GlassShards._active.size() > 0:
+			var sh: GlassShards = GlassShards._active[0]
+			print("GLASS shard0 ", sh._pos[0], " window ", w.global_position, " count ", sh._pos.size())
 
 
 ## Close-up of the third-person soldier (front, side and back) with outline.

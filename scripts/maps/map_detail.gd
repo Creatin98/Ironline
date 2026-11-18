@@ -13,6 +13,8 @@ var _box_mesh := BoxMesh.new()
 var _cyl_mesh := CylinderMesh.new()
 var _cyl_hi := CylinderMesh.new() # map blocks: smoother than the small props
 var _lights: Array = []
+## Glass panes found at window openings (for GlassField): {center, size, axis_x}
+var windows: Array = []
 
 
 func _init(map: BlockMap) -> void:
@@ -97,8 +99,8 @@ func build(blocks: Array) -> void:
 			continue
 		var p: Vector3 = b["pos"]
 		var s: Vector3 = b["size"]
-		if s.y <= 1.4 and p.y + s.y * 0.5 > 0.35:
-			sills.append(b)
+		if p.y + s.y * 0.5 > 0.35:
+			sills.append(b) # any wall piece: the sill of an upper window may be a tall block from the ground up
 	for b in blocks:
 		if b.get("kind", "") == "car":
 			_detail_car(b)
@@ -201,6 +203,9 @@ func _frame_opening(b: Dictionary, sills: Array, along_x: bool, length: float, t
 		if absf(sp.x - p.x) < 0.06 and absf(sp.z - p.z) < 0.06 and st < bottom - 0.4 and st > sill_top - 0.001 and (st > 0.35):
 			sill_top = st
 			is_window = true
+	if is_window and bottom - sill_top > 2.2:
+		is_window = false # too tall for a window: a door above a lower floor piece
+		sill_top = 0.0
 	if not is_window and bottom > 3.0:
 		return # upper-floor door without a sill: no frame (the ground is far below)
 	var h := bottom - sill_top
@@ -223,6 +228,9 @@ func _frame_opening(b: Dictionary, sills: Array, along_x: bool, length: float, t
 		# protruding sill ledge plus a mullion and a transom, so the opening reads as a real window
 		var ledge := Vector3(length + 0.16, 0.07, thick + 0.28) if along_x else Vector3(thick + 0.28, 0.07, length + 0.16)
 		add_box(Vector3(p.x, sill_top + 0.03, p.z), ledge, "concrete", _trim_tint(industrial))
+		var pane_h := h - fw - 0.035
+		if length - 2.0 * fw >= 0.7 and pane_h >= 0.6:
+			windows.append({"center": Vector3(p.x, sill_top + 0.035 + pane_h * 0.5, p.z), "size": Vector2(length - 2.0 * fw, pane_h), "axis_x": along_x})
 		var mid_c := Vector3(p.x, sill_top + h * 0.5, p.z)
 		if length >= 1.5:
 			add_box(mid_c, Vector3(0.05, h, 0.08) if along_x else Vector3(0.08, h, 0.05), frame_mat, frame_tint)

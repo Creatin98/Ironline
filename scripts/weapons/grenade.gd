@@ -135,6 +135,7 @@ func explode() -> void:
 	if not visual_only and MatchManager.is_authority():
 		NetworkManager.broadcast_grenade_explosion(net_id, center, kind)
 		_apply_damage(center)
+		GlassField.on_explosion(get_tree(), get_world_3d().direct_space_state, center, RADIUS)
 	queue_free()
 
 

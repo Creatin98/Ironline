@@ -260,6 +260,23 @@ Zufall − Strafen (Gegner < 9 m, besetzt, kürzlich benutzt, Sichtlinie von Geg
 Texturen (512², tileable, Albedo + Normal + Roughness), Sounds (synthetisierte WAVs) und Materialien werden von den
 Python-Skripten in `tools/` erzeugt – keine Fremdinhalte, alles reproduzierbar.
 
+## Fensterglas (zerstörbar)
+- **Erkennung**: `MapDetail` findet Fensteröffnungen (Sturz + Brüstung, auch im Obergeschoss) und liefert pro Fenster Mitte, Größe,
+  Achse. `BlockMap` baut daraus ein `GlassField` mit je einem `GlassWindow` (id = Reihenfolge, auf allen Maschinen gleich).
+  Türen bleiben offen. Harbor hat dafür 4 Brückenfenster, die Testarena 4 Fenster bekommen.
+- **Glas**: dünne Box mit `window_glass.gdshader` (klar, Fresnel-Reflexion, Schleier/Schmutz, Glanzband). Einschläge (bis 8) zeichnet
+  der Shader prozedural als Verbundglas: Krater, Radialrisse mit Gabelungen, Ringrisse, Frostfleck; mehr Schaden = größere Risse.
+  Jede Scheibe hat 55–90 Lebenspunkte (Variation); Gewehr ≈ 3 Treffer, Schrot/Scharfschütze deutlich weniger.
+- **Kollision**: intaktes Glas liegt auf Physik-Layer 32 (hält Spieler auf, Kugeln und Bot-Sicht ignorieren es: ein Schuss geht durch und
+  beschädigt jede Scheibe auf seinem Weg). Zerbrochen: Körper entfernt, nur kleine Randsplitter (rein visuell) bleiben im Rahmen.
+- **Bruch**: `GlassShards` = 16–38 Dreiecke in EINEM MultiMesh, per Skript bewegt (kein Physik-Körper), fallen auf den Boden unter dem
+  Fenster, einmal abprallen, nach 8 s verschwinden; max. 8 Gruppen gleichzeitig. Dazu Funkenpartikel und Sounds (`glass_*`).
+- **Explosionen**: `GlassField.on_explosion` (Host, aus `Grenade.explode`): Reichweite 1,1 × Radius, Wirkung fällt mit der Entfernung
+  ab, Wände dazwischen schwächen sie auf 30 %; nahe Scheiben brechen, weitere reißen nur an.
+- **Multiplayer**: Der Host entscheidet (`MatchManager.is_authority()`), Clients zeigen nur. Events: `_rpc_glass` (Treffer/Bruch),
+  `_rpc_glass_blast` (alle von einer Druckwelle betroffenen Scheiben in einem Paket), `_rpc_glass_state` für späte Lader.
+  Splitter werden nie übertragen, jede Maschine simuliert sie lokal. `PROTOCOL_VERSION` = 10.
+
 ## Optik (Visual Overhaul)
 - **Materialien**: `assets/materials/*.tres` nutzen Albedo-, Normal- und Roughness-Map (triplanar, Welt-UV).
   Waffen (`weapon_metal/polymer/wood`) und Stoff (`cloth`) nutzen Objekt-Triplanar. Normal-Maps sind als Normal-Map importiert.
