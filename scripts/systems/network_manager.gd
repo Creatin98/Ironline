@@ -13,7 +13,7 @@ extends Node
 
 enum Mode { OFFLINE, HOST, CLIENT }
 
-const PROTOCOL_VERSION := 7
+const PROTOCOL_VERSION := 8
 const DEFAULT_PORT := 7777
 const MAX_PEERS := 12
 const SNAPSHOT_EVERY_TICKS := 3 # 20 Hz at 60 physics ticks
@@ -396,7 +396,7 @@ func _rpc_update_loadout(info: Dictionary) -> void:
 # ----------------------------------------------------------------------------- match start / load
 
 ## Host only: starts the match for everybody (also used for "next round").
-func host_start_match(cfg: MatchConfig) -> void:
+func host_start_match(cfg: MatchConfig, countdown: bool = false) -> void:
 	if mode != Mode.HOST:
 		return
 	lobby_config = cfg.duplicate_config()
@@ -405,15 +405,15 @@ func host_start_match(cfg: MatchConfig) -> void:
 	multiplayer.multiplayer_peer.refuse_new_connections = true
 	_loaded_peers = {}
 	_waiting_for_load = true
-	_load_timer = LOAD_TIMEOUT
+	_load_timer = LOAD_TIMEOUT + (MatchCountdown.COUNT * MatchCountdown.SECOND + 2.0 if countdown else 0.0) # the countdown runs before the load
 	_grenades = {}
 	if multiplayer.get_peers().size() > 0:
-		_rpc_begin_match.rpc(lobby_config.to_dict())
-	GameDirector.start_match(lobby_config)
+		_rpc_begin_match.rpc(lobby_config.to_dict(), countdown)
+	GameDirector.start_match(lobby_config, countdown)
 
 
 @rpc("authority", "call_remote", "reliable")
-func _rpc_begin_match(config: Dictionary) -> void:
+func _rpc_begin_match(config: Dictionary, countdown: bool) -> void:
 	if mode != Mode.CLIENT:
 		return
 	in_match = true
@@ -421,7 +421,7 @@ func _rpc_begin_match(config: Dictionary) -> void:
 	var cfg := MatchConfig.new()
 	cfg.apply_dict(config)
 	lobby_config = cfg
-	GameDirector.start_match(cfg)
+	GameDirector.start_match(cfg, countdown)
 
 
 ## Called by the Game scene once it is ready (host and clients).

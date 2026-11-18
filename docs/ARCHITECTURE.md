@@ -373,3 +373,6 @@ Python-Skripten in `tools/` erzeugt – keine Fremdinhalte, alles reproduzierbar
   Scope: `ScopeOverlay` (CanvasLayer 1) mit zweiter Kamera in einem `SubViewport` (gleiche Welt, `scope_fov`, ohne Viewmodel-Layer `1<<19`) + `assets/shaders/scope_view.gdshader` (Linse mit Absehen/Mil-Dots,
   außen die ungezoomte, stark weichgezeichnete Hauptansicht); Hauptkamera zoomt nicht (`WeaponData.effective_ads_fov`), Mausrad = Zoomstufe (`Weapon.zoom_step`), Maus-Empfindlichkeit skaliert mit dem Zoom.
   Killcam: `ReplayRecorder.killer_scope_fov()` → dieselbe Scope-Ansicht aus Sicht des Schützen. Bots wählen die Klasse nicht.
+* **Match-Start-Countdown:** `MatchCountdown` (CanvasLayer 101): Menü/Lobby-Start (`GameDirector.start_match(cfg, true)`, online `host_start_match(cfg, true)` + RPC-Flag, Protokoll 8) zeigt 3-2-1 mit Kartenkarte,
+  Flash/Glanz, dann wächst die Karte auf Vollbild und geht nahtlos in den Ladescreen über. Rundenneustart nach Voting nutzt ihn nicht.
+* **Leben 250** (Anzeige in Prozent bleibt 100), Regeneration 112/s; Sniper 290, Granate max. 290 (One-Hit bleibt). Schrotflinte: 8×70, Abfall 14–28 m, Visier 1.8° (≈95 % One-Hit auf Oberkörper/Kopf bis ~12 m).

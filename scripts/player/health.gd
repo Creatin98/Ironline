@@ -6,11 +6,11 @@ signal health_changed(current: float, maximum: float)
 signal damaged(amount: float, attacker_id: int)
 signal died(attacker_id: int, weapon_id: String, headshot: bool)
 
-@export var max_health: float = 200.0
+@export var max_health: float = 250.0
 @export var regen_delay: float = 4.0
-@export var regen_rate: float = 90.0
+@export var regen_rate: float = 112.0
 
-var health: float = 200.0
+var health: float = 250.0
 var alive: bool = true
 var _time_since_damage: float = 999.0
 var last_attacker_id: int = 0

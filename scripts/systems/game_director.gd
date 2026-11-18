@@ -116,10 +116,17 @@ func is_loading() -> bool:
 	return loading_screen != null and is_instance_valid(loading_screen)
 
 
-func start_match(config: MatchConfig) -> void:
+## countdown: from the menu / lobby a 3-2-1 with the map card runs first (MatchCountdown); the round restart after a
+## map vote has its own animation already and starts without it.
+func start_match(config: MatchConfig, countdown: bool = false) -> void:
 	pending_config = config.duplicate_config()
 	MatchManager.prepare_match(pending_config)
 	get_tree().paused = false
+	var cd: MatchCountdown = null
+	if countdown and not is_loading() and not _skip_loading_screen:
+		cd = MatchCountdown.new()
+		get_tree().root.add_child(cd)
+		await cd.run(pending_config.map_id)
 	if not is_loading() and not _skip_loading_screen:
 		loading_screen = LoadingScreen.new()
 		get_tree().root.add_child.call_deferred(loading_screen)
@@ -127,6 +134,8 @@ func start_match(config: MatchConfig) -> void:
 		loading_screen.begin(pending_config.map_id)
 		loading_screen.finished.connect(func() -> void: loading_finished.emit())
 		await get_tree().process_frame # let the loading screen appear before the (short) scene load
+	if cd != null:
+		cd.queue_free() # the loading screen shows the same picture underneath
 	get_tree().change_scene_to_file(GAME_SCENE)
 
 

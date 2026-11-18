@@ -129,6 +129,7 @@ func _apply_hand_skin() -> void:
 func reset_for_spawn() -> void:
 	grenades = max_grenades
 	flashbangs = max_flashbangs
+	cancel_grenade(false)
 	for w in weapons:
 		w.fill_ammo()
 		w.holster()
@@ -142,6 +143,7 @@ func reset_for_spawn() -> void:
 
 
 func on_owner_died() -> void:
+	cancel_grenade(false) # a pulled grenade must not stay in the view (respawn)
 	_stop_tp_reload()
 	for w in weapons:
 		w.cancel_actions()

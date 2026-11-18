@@ -187,7 +187,7 @@ func _start_match() -> void:
 	cfg.bot_count = int(_bot_count.value)
 	cfg.bot_difficulty = _bot_diff.selected
 	cfg.time_limit = 600.0
-	GameDirector.start_match(cfg)
+	GameDirector.start_match(cfg, true)
 
 
 # ----------------------------------------------------------------------------- classes

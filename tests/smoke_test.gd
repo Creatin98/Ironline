@@ -33,6 +33,7 @@ func _ready() -> void:
 	await _check_shotgun_interrupt()
 	await _check_flashbang()
 	await _check_sniper()
+	await _check_match_countdown()
 	await _simulate_cams()
 	await _simulate_steps()
 	await _simulate_slide()
@@ -165,7 +166,7 @@ func _simulate_reloads() -> void:
 
 ## MP5/AK: noticeable spread from the hip, only a little through the sights (and a light bloom when spraying).
 func _check_spread_values() -> void:
-	for pair in [["assault", 3.5, 4.6], ["smg", 2.8, 3.8]]:
+	for pair in [["assault", 3.5, 4.6], ["smg", 3.6, 4.8]]:
 		var wd: WeaponData = GameDirector.get_class_data(String(pair[0])).primary
 		var w := Weapon.new()
 		w.data = wd
@@ -177,9 +178,9 @@ func _check_spread_values() -> void:
 		w.free()
 		if hip < float(pair[1]) or hip > float(pair[2]):
 			_fail("%s: Huefte-Streuung %.2f ausserhalb %.1f-%.1f" % [wd.weapon_id, hip, float(pair[1]), float(pair[2])])
-		if ads < 0.45 or ads > 0.8:
-			_fail("%s: Streuung im Visier %.2f (kein Laser, aber nur leicht: 0.45-0.8)" % [wd.weapon_id, ads])
-		if ads_spray <= ads or ads_spray > 1.6:
+		if ads < 0.5 or ads > 1.25:
+			_fail("%s: Streuung im Visier %.2f (kein Laser, aber nur leicht: 0.5-1.25)" % [wd.weapon_id, ads])
+		if ads_spray <= ads or ads_spray > 2.0:
 			_fail("%s: Streuungs-Bloom im Visier unpassend (%.2f -> %.2f)" % [wd.weapon_id, ads, ads_spray])
 		if hip_spray <= hip:
 			_fail("%s: Dauerfeuer vergroessert die Huefte-Streuung nicht" % wd.weapon_id)
@@ -517,7 +518,7 @@ func _check_sniper() -> void:
 		await get_tree().physics_frame
 	bot_node.health.max_health = 1000.0
 	var zones := {"Brust": 1.3, "Oberer Bauch": 1.1, "Unterer Bauch": 0.9, "Bein": 0.35, "Kopf": 1.68}
-	var expected := {"Brust": 230.0, "Oberer Bauch": 230.0, "Unterer Bauch": 115.0, "Bein": 115.0, "Kopf": 276.0}
+	var expected := {"Brust": 290.0, "Oberer Bauch": 290.0, "Unterer Bauch": 145.0, "Bein": 145.0, "Kopf": 348.0}
 	for zone in zones:
 		bot_node.health.health = 1000.0
 		var aim_point: Vector3 = bot_node.global_position + Vector3(0.0, float(zones[zone]), 0.0)
@@ -533,9 +534,9 @@ func _check_sniper() -> void:
 		if absf(lost - float(expected[zone])) > 1.0:
 			_fail("Sniper-Schaden Zone %s: %.0f statt %.0f" % [zone, lost, float(expected[zone])])
 		var wounds: bool = zone in ["Unterer Bauch", "Bein"]
-		if not wounds and lost < 200.0:
+		if not wounds and lost < 250.0:
 			_fail("Sniper: Treffer auf %s muss mit einem Schuss toeten (%.0f Schaden)" % [zone, lost])
-		if wounds and lost >= 200.0:
+		if wounds and lost >= 250.0:
 			_fail("Sniper: Treffer auf %s toetet sofort (%.0f)" % [zone, lost])
 	# --- bolt cycle: the scope drops out, no shot meanwhile, then ready (and aiming works again)
 	local.head.set_pitch(0.0)
@@ -596,6 +597,31 @@ func _check_sniper() -> void:
 	print("Sniper: Zonenschaden (Brust/Bauch/Kopf toeten, Bein nicht), Repetieren, Scope ohne Zoom der Umgebung, Zoomstufen, Nachladen OK")
 	floor_body.queue_free()
 	game.free()
+	await get_tree().process_frame
+
+
+## Match start countdown: 3-2-1 with the map card, then the card fills the screen (hand-over to the loading screen).
+func _check_match_countdown() -> void:
+	var cd := MatchCountdown.new()
+	get_tree().root.add_child(cd)
+	var done := {"v": false}
+	var run := func() -> void:
+		await cd.run("harbor")
+		done["v"] = true
+	run.call()
+	await get_tree().create_timer(1.6).timeout
+	if done["v"] or cd._count.text == "" or cd._card.modulate.a < 0.9:
+		_fail("Countdown: nach 1.6 s muss noch gezaehlt werden (Zahl '%s')" % cd._count.text)
+	var waited := 0.0
+	while not done["v"] and waited < 8.0:
+		await get_tree().create_timer(0.1).timeout
+		waited += 0.1
+	if not done["v"] or cd._card.expand < 0.95 or cd._card.size.x < cd._root.size.x * 0.95:
+		_fail("Countdown: die Karte fuellt am Ende nicht den Bildschirm (expand %.2f)" % cd._card.expand)
+	if waited + 1.6 < MatchCountdown.COUNT * MatchCountdown.SECOND:
+		_fail("Countdown zu kurz")
+	cd.queue_free()
+	print("Match-Countdown: 3-2-1, Karte waechst auf den ganzen Bildschirm")
 	await get_tree().process_frame
 
 

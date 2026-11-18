@@ -7,7 +7,7 @@ extends RigidBody3D
 const EXPLOSION_SCENE := preload("res://scenes/effects/explosion.tscn")
 const FUSE_TIME := 2.4
 const RADIUS := 6.5
-const MAX_DAMAGE := 230.0 # a direct hit kills at full health (200)
+const MAX_DAMAGE := 290.0 # a direct hit kills at full health (250)
 const MIN_DAMAGE := 25.0
 const BOUNCE_SOUND_COOLDOWN := 0.25
 const KIND_FRAG := 0

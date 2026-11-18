@@ -323,7 +323,7 @@ func _on_start_pressed() -> void:
 	if not NetworkManager.is_host():
 		return
 	_on_settings_changed()
-	NetworkManager.host_start_match(NetworkManager.lobby_config)
+	NetworkManager.host_start_match(NetworkManager.lobby_config, true)
 
 
 func _on_leave_pressed() -> void:
