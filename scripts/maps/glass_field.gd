@@ -11,6 +11,9 @@ const BLAST_STRENGTH := 320.0
 const MAX_PANE_DAMAGE := 120.0 # one pellet / bullet never counts for more (the sniper still breaks a pane at once)
 
 var windows: Array[GlassWindow] = []
+## True while a killcam / last kill cam shows the world as it was: the panes' pictures follow the replay,
+## the logical state (and all collision) keeps following the real match.
+var replaying: bool = false
 
 
 func _ready() -> void:
@@ -65,11 +68,12 @@ func shot(space: PhysicsDirectSpaceState3D, from: Vector3, to: Vector3, damage: 
 			continue
 		var amount := minf(damage, MAX_PANE_DAMAGE)
 		var point: Vector3 = r["position"]
-		if win.damage_by(amount, point, dir):
+		if win.damage_by(amount):
 			var power := clampf(amount / 70.0, 0.4, 1.5)
 			win.break_glass(point, dir, power)
 			NetworkManager.broadcast_glass(1, win.id, point, dir, power)
 		else:
+			win.apply_hit(point, dir, win.damage_fraction())
 			NetworkManager.broadcast_glass(0, win.id, point, dir, win.damage_fraction())
 
 
@@ -131,11 +135,12 @@ func blast(space: PhysicsDirectSpaceState3D, center: Vector3, radius: float) -> 
 		var away := (wc - center).normalized()
 		var point := _project_on_pane(w, center)
 		ids.append(w.id)
-		if w.damage_by(power, point, away):
+		if w.damage_by(power):
 			var strength := clampf(power / 90.0, 0.5, 1.6)
 			w.break_glass(point, away, strength)
 			fracs.append(1.0 + strength)
 		else:
+			w.apply_hit(point, away, w.damage_fraction())
 			fracs.append(w.damage_fraction())
 	if not ids.is_empty():
 		NetworkManager.broadcast_glass_blast(center, ids, fracs)
@@ -176,6 +181,32 @@ func net_blast(center: Vector3, ids: PackedInt32Array, fracs: PackedFloat32Array
 			_later(delay, func() -> void: w.break_glass(point, away, f - 1.0))
 		else:
 			_later(delay, func() -> void: w.apply_hit(point, away, f))
+
+
+# ----------------------------------------------------------------------------- replay (killcam)
+
+## The pictures of all panes go back to time `t0`; live events keep changing only the logical state meanwhile.
+func replay_begin(t0: float) -> void:
+	replaying = true
+	GlassShards.clear_all()
+	for w in windows:
+		w.vis_at(t0)
+
+
+## The replay moved from `prev` to `t`: show what happened to the panes in between (with sounds and shards).
+func replay_step(prev: float, t: float) -> void:
+	if replaying:
+		for w in windows:
+			w.vis_step(prev, t)
+
+
+func replay_end() -> void:
+	if not replaying:
+		return
+	replaying = false
+	GlassShards.clear_all()
+	for w in windows:
+		w.vis_at(INF)
 
 
 func _later(delay: float, fn: Callable) -> void:

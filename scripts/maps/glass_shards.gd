@@ -90,6 +90,13 @@ static func spawn(parent: Node, window: GlassWindow, point: Vector3, dir: Vector
 	p.finished.connect(p.queue_free)
 
 
+static func clear_all() -> void:
+	for old in _active:
+		if is_instance_valid(old):
+			(old as Node).queue_free()
+	_active.clear()
+
+
 func _start(window: GlassWindow, point: Vector3, dir: Vector3, power: float) -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 7919 * (window.id + 3) + int(power * 100.0)

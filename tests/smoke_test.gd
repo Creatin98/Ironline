@@ -2116,6 +2116,42 @@ func _check_glass() -> void:
 	GlassField.on_grenade_move(get_tree(), space, w5.global_position + n5 * 1.0, w5.global_position - n5 * 1.0)
 	if not w5.broken:
 		_fail("Eine Granate muss intaktes Glas komplett zerschlagen")
+	# killcam: the windows are shown as they were at that time and the real state is restored afterwards
+	var pristine: Array[GlassWindow] = []
+	for pane in field.windows:
+		if not pane.broken and pane.hits.is_empty():
+			pristine.append(pane)
+	var w6: GlassWindow = pristine[0]
+	var n6 := w6.global_transform.basis.z
+	var t_start := GlassWindow.now()
+	await get_tree().create_timer(0.05).timeout
+	field.shot(space, w6.global_position + n6 * 3.0, w6.global_position - n6 * 3.0, 20.0)
+	await get_tree().create_timer(0.05).timeout
+	var t_hit := GlassWindow.now()
+	await get_tree().create_timer(0.03).timeout
+	field.shot(space, w6.global_position + n6 * 3.0, w6.global_position - n6 * 3.0, 290.0)
+	await get_tree().create_timer(0.05).timeout
+	var t_end := GlassWindow.now()
+	field.replay_begin(t_start)
+	if not w6._pane.visible or w6._stubs != null and w6._stubs.visible or int(w6._mat.get_shader_parameter("hit_count")) != 0:
+		_fail("Killcam: die Scheibe muss zu Beginn heil und ohne Risse gezeigt werden")
+	field.replay_step(t_start, t_hit)
+	if int(w6._mat.get_shader_parameter("hit_count")) != 1 or not w6._pane.visible:
+		_fail("Killcam: der erste Treffer muss als Riss erscheinen, die Scheibe noch heil")
+	field.replay_step(t_hit, t_end)
+	if w6._pane.visible or w6._stubs == null or not w6._stubs.visible:
+		_fail("Killcam: der zerstoerende Treffer muss die Scheibe zerbrechen")
+	field.replay_end()
+	if w6._pane.visible or not w6.broken:
+		_fail("Nach der Killcam muss die echte (zerbrochene) Scheibe wieder gezeigt werden")
+	var w7: GlassWindow = pristine[1]
+	field.replay_begin(GlassWindow.now() - 100.0)
+	field.shot(space, w7.global_position + w7.global_transform.basis.z * 3.0, w7.global_position - w7.global_transform.basis.z * 3.0, 290.0)
+	if not w7.broken or not w7._pane.visible:
+		_fail("Waehrend der Killcam bricht die echte Scheibe, die Anzeige bleibt im Replay-Zustand")
+	field.replay_end()
+	if w7._pane.visible:
+		_fail("Nach der Killcam muss die inzwischen zerbrochene Scheibe zerbrochen sein")
 	# many breaks: the live fragment groups stay limited
 	for pane in field.windows:
 		if not pane.broken:

@@ -178,6 +178,9 @@ func _begin(final_kill: Dictionary, camera: Camera3D, ghosts: bool, parent: Node
 		return false
 	camera.current = true
 	playing = true
+	var glass := GlassField.find(get_tree())
+	if glass != null:
+		glass.replay_begin(_cursor) # the windows are shown as they were at the start of the replay
 	_apply(_cursor, true)
 	return true
 
@@ -232,6 +235,9 @@ func killer_scope_fov() -> float:
 
 func _clear_targets() -> void:
 	killer_aim = 0.0
+	var glass := GlassField.find(get_tree())
+	if glass != null:
+		glass.replay_end() # back to the real state of the windows
 	if not ghost_mode:
 		for id in _targets:
 			var rn: Player = _targets[id]
@@ -349,6 +355,10 @@ func _apply(t: float, first: bool) -> void:
 				if int(id) == _killer_id and st.size() > 8 and int(st[8]) != 0:
 					var code := int(st[8])
 					killer_hit.emit(code & HitFeedback.HEAD != 0, code & HitFeedback.KILL != 0)
+	if not first:
+		var gf := GlassField.find(get_tree())
+		if gf != null:
+			gf.replay_step(_prev_cursor, t) # windows cracked or shot out in this stretch
 	_prev_cursor = t
 	# the recording may end right at the kill: make sure the victim goes down on screen
 	if t >= float(kill["t"]) and not _victim_dead_shown:

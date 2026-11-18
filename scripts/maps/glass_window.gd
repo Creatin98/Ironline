@@ -15,7 +15,14 @@ var pane_size: Vector2 = Vector2(1.2, 1.2)
 var max_health: float = 70.0
 var health: float = 70.0
 var broken: bool = false
-var hits: Array[Vector4] = []
+var hits: Array[Vector4] = [] # logical crack records (newest MAX_HITS)
+var break_time: float = INF # when the pane broke (clock of ReplayRecorder), -1 = before this machine knew
+var _hist: Array = [] # every impact: {t, x, y, seed, frac, point, dir}
+var _break_point: Vector3 = Vector3.ZERO
+var _break_dir: Vector3 = Vector3.FORWARD
+var _break_power: float = 0.5
+var _stubs: MeshInstance3D
+var _field: GlassField
 var _hit_counter: int = 0
 var _variant: float = 0.0
 var _pane: MeshInstance3D
@@ -40,6 +47,7 @@ func setup(window_id: int, def: Dictionary) -> void:
 	_mat.set_shader_parameter("variant", _variant)
 	_mat.set_shader_parameter("tint", Vector3(0.46 + 0.08 * _variant, 0.68 + 0.04 * rng.randf(), 0.72 - 0.04 * _variant))
 	_push_shader()
+	_field = get_parent() as GlassField
 	_pane = MeshInstance3D.new()
 	var bm := BoxMesh.new()
 	bm.size = Vector3(pane_size.x, pane_size.y, PANE_THICK)
@@ -64,48 +72,107 @@ func damage_fraction() -> float:
 	return clampf(1.0 - health / max_health, 0.0, 1.0)
 
 
-## Host: applies damage. Returns true when the pane gives way (the caller then calls break_glass and tells everybody).
-func damage_by(amount: float, point: Vector3, dir: Vector3) -> bool:
+static func now() -> float:
+	return Time.get_ticks_msec() / 1000.0 # the clock of the ReplayRecorder
+
+
+## Host: applies damage to the logical state. Returns true when the pane gives way (the caller then calls break_glass
+## and tells everybody); otherwise the caller shows the hit with apply_hit.
+func damage_by(amount: float) -> bool:
 	if broken:
 		return false
 	health -= amount
-	if health <= 0.0:
-		return true
-	apply_hit(point, dir, damage_fraction())
-	return false
+	return health <= 0.0
 
 
 ## Everybody: a crack pattern at `point` (world); `frac` = overall damage of the pane after this hit (0..1).
-func apply_hit(point: Vector3, dir: Vector3, frac: float, silent: bool = false) -> void:
+## The logical state always changes; the picture only when no replay (killcam) is being shown.
+func apply_hit(point: Vector3, dir: Vector3, frac: float, silent: bool = false, at_time: float = -2.0) -> void:
 	if broken or not is_inside_tree():
 		return
-	var local := to_local(point)
+	var t := now() if at_time < -1.5 else at_time
 	var seed_v := float((id * 31 + _hit_counter * 7) % 997) / 997.0 * 20.0 + 1.0
 	_hit_counter += 1
-	if hits.size() >= MAX_HITS:
-		hits.remove_at(0)
-	hits.append(Vector4(clampf(local.x, -pane_size.x * 0.5, pane_size.x * 0.5), clampf(local.y, -pane_size.y * 0.5, pane_size.y * 0.5), seed_v, 0.3))
-	_restrength(frac)
+	var local := to_local(point)
+	_hist.append({"t": t, "x": clampf(local.x, -pane_size.x * 0.5, pane_size.x * 0.5), "y": clampf(local.y, -pane_size.y * 0.5, pane_size.y * 0.5),
+		"seed": seed_v, "frac": frac, "point": point, "dir": dir})
+	_sync_logic()
+	if _field != null and _field.replaying:
+		return
+	vis_at(INF)
 	if not silent:
-		AudioManager.play_3d("glass_hit", point, -3.0, 0.08, 55.0)
-		_chips(point, dir)
+		_hit_effects(point, dir)
 
 
-## The cracks of the older impacts spread with the total damage.
-func _restrength(frac: float) -> void:
-	var n := hits.size()
+func _hit_effects(point: Vector3, dir: Vector3) -> void:
+	AudioManager.play_3d("glass_hit", point, -3.0, 0.08, 55.0)
+	_chips(point, dir)
+
+
+## The logical list of crack records (at most MAX_HITS, the newest ones) after the latest hit.
+func _sync_logic() -> void:
+	hits = _visible_hits(INF)
+
+
+## The crack records (with strengths) that exist at time `t`.
+func _visible_hits(t: float) -> Array[Vector4]:
+	var list: Array = []
+	for h in _hist:
+		if float(h["t"]) <= t:
+			list.append(h)
+	if list.size() > MAX_HITS:
+		list = list.slice(list.size() - MAX_HITS)
+	var out: Array[Vector4] = []
+	var n := list.size()
+	if n == 0:
+		return out
+	var frac: float = list[n - 1]["frac"]
 	for i in n:
-		var h := hits[i]
-		h.w = clampf(0.25 + frac * 0.85 - 0.06 * float(n - 1 - i), 0.25, 1.0)
-		hits[i] = h
+		var h: Dictionary = list[i]
+		out.append(Vector4(h["x"], h["y"], h["seed"], clampf(0.25 + frac * 0.85 - 0.06 * float(n - 1 - i), 0.25, 1.0)))
+	return out
+
+
+## Picture of the pane as it was at time `t` (INF = now): cracks and broken or whole. Never touches the collision.
+func vis_at(t: float) -> void:
+	var list := _visible_hits(t)
+	var frac := 0.0
+	for h in _hist:
+		if float(h["t"]) <= t:
+			frac = float(h["frac"])
+	for i in MAX_HITS:
+		_mat.set_shader_parameter("h%d" % i, list[i] if i < list.size() else Vector4.ZERO)
+	_mat.set_shader_parameter("hit_count", list.size())
 	_mat.set_shader_parameter("damage", frac)
-	_push_shader()
+	var gone := is_finite(break_time) and break_time <= t
+	if _pane != null:
+		_pane.visible = not gone
+	if gone and _stubs == null:
+		_stubs = _add_stubs()
+	if _stubs != null:
+		_stubs.visible = gone
+
+
+## Replay: shows everything that happened to the pane in (prev, t] with its effects (cracks, sounds, shards).
+func vis_step(prev: float, t: float) -> void:
+	if not is_inside_tree():
+		return
+	for h in _hist:
+		var ht: float = h["t"]
+		if ht > prev and ht <= t:
+			vis_at(ht)
+			_hit_effects(h["point"], h["dir"])
+	if is_finite(break_time) and break_time > prev and break_time <= t:
+		vis_at(t)
+		_break_effects(_break_point, _break_dir, _break_power)
+	else:
+		vis_at(t)
 
 
 func _push_shader() -> void:
 	for i in MAX_HITS:
-		_mat.set_shader_parameter("h%d" % i, hits[i] if i < hits.size() else Vector4.ZERO)
-	_mat.set_shader_parameter("hit_count", hits.size())
+		_mat.set_shader_parameter("h%d" % i, Vector4.ZERO)
+	_mat.set_shader_parameter("hit_count", 0)
 
 
 func _chips(point: Vector3, dir: Vector3) -> void:
@@ -132,27 +199,34 @@ func _effects_parent() -> Node:
 
 
 ## Everybody: the pane breaks. `dir` = direction of the shot or of the pressure wave, `power` ~ 0.4 (rifle) .. 1.5 (blast next to it).
-func break_glass(point: Vector3, dir: Vector3, power: float, silent: bool = false) -> void:
+func break_glass(point: Vector3, dir: Vector3, power: float, silent: bool = false, at_time: float = -2.0) -> void:
 	if broken:
 		return
 	broken = true
 	health = 0.0
-	if _pane != null:
-		_pane.visible = false
+	break_time = now() if at_time < -1.5 else at_time
+	_break_point = point
+	_break_dir = dir
+	_break_power = power
 	if _body != null:
 		_body.collision_layer = 0
 		_body.queue_free() # no invisible collision, no hit surface
 		_body = null
-	_add_stubs()
-	if silent or not is_inside_tree():
+	if not is_inside_tree() or (_field != null and _field.replaying):
 		return
+	vis_at(INF)
+	if not silent:
+		_break_effects(point, dir, power)
+
+
+func _break_effects(point: Vector3, dir: Vector3, power: float) -> void:
 	GlassShards.spawn(_effects_parent(), self, point, dir, power)
 	AudioManager.play_3d("glass_break", point, 2.0, 0.07, 85.0)
 	get_tree().create_timer(0.35).timeout.connect(func() -> void: AudioManager.play_3d("glass_tinkle", point, -4.0, 0.08, 40.0))
 
 
 ## Jagged remains of the pane in the frame (a few thin triangles along the edges).
-func _add_stubs() -> void:
+func _add_stubs() -> MeshInstance3D:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 5531 * (id + 1)
 	var st := SurfaceTool.new()
@@ -197,6 +271,7 @@ func _add_stubs() -> void:
 	mi.material_override = _stub_material
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(mi)
+	return mi
 
 
 ## For players who join later: [broken, health fraction, flat hit list].
@@ -209,12 +284,13 @@ func export_state() -> Array:
 
 func import_state(state: Array) -> void:
 	_hit_counter = int(state[3])
-	hits.clear()
+	_hist.clear()
 	var flat: PackedFloat32Array = state[2]
 	for i in range(0, flat.size(), 4):
-		hits.append(Vector4(flat[i], flat[i + 1], flat[i + 2], flat[i + 3]))
+		_hist.append({"t": -1.0, "x": flat[i], "y": flat[i + 1], "seed": flat[i + 2], "frac": float(state[1]), "point": global_position, "dir": Vector3.FORWARD})
 	health = max_health * (1.0 - float(state[1]))
-	_mat.set_shader_parameter("damage", float(state[1]))
-	_push_shader()
+	_sync_logic()
 	if bool(state[0]):
-		break_glass(global_position, Vector3.FORWARD, 0.5, true)
+		break_glass(global_position, Vector3.FORWARD, 0.5, true, -1.0)
+	elif not (_field != null and _field.replaying):
+		vis_at(INF)

@@ -275,6 +275,10 @@ Python-Skripten in `tools/` erzeugt – keine Fremdinhalte, alles reproduzierbar
   ungebremst durch die Öffnung; sie kann also nie durch heile Scheiben fliegen.
 - **Explosionen**: `GlassField.on_explosion` (Host, aus `Grenade.explode`): Reichweite 1,1 × Radius, Wirkung fällt mit der Entfernung
   ab, Wände dazwischen schwächen sie auf 30 %; nahe Scheiben brechen, weitere reißen nur an.
+- **Killcam**: Jede Scheibe führt eine Verlaufsliste (Zeit, Position, Richtung je Einschlag, Bruchzeit; gleiche Uhr wie der
+  `ReplayRecorder`). `ReplayRecorder` ruft `GlassField.replay_begin/step/end`: Die Anzeige geht auf den Zustand zu Replay-Beginn zurück,
+  Risse, Bruch, Scherben und Sounds erscheinen genau zu ihrer Zeit; Logik und Kollision laufen währenddessen live weiter und nach dem
+  Replay zeigt die Scheibe wieder den echten Zustand. Gilt für Killcam und Last-Kill-Cam.
 - **Multiplayer**: Der Host entscheidet (`MatchManager.is_authority()`), Clients zeigen nur. Events: `_rpc_glass` (Treffer/Bruch),
   `_rpc_glass_blast` (alle von einer Druckwelle betroffenen Scheiben in einem Paket), `_rpc_glass_state` für späte Lader.
   Splitter werden nie übertragen, jede Maschine simuliert sie lokal. `PROTOCOL_VERSION` = 10.
