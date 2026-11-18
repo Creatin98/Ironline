@@ -36,6 +36,7 @@ func _ready() -> void:
 	await _check_match_countdown()
 	await _check_damage_fx()
 	await _check_third_person()
+	await _check_bot_humanness()
 	await _simulate_cams()
 	await _simulate_steps()
 	await _simulate_slide()
@@ -805,6 +806,106 @@ func _check_third_person() -> void:
 		_fail("Nachladeerinnerung bleibt waehrend des Nachladens")
 	w.cancel_actions()
 	print("Dritte Person: Treffer, Schuss, Wechsel, Wurf, Landen, Seitwaerts, Ragdoll (begrenzt), Nachladehinweis OK")
+	game.free()
+	await get_tree().process_frame
+
+
+## Bot behaviour: the crosshair travels to a new enemy (no snap), shots wait for the reaction, a kill makes a pause,
+## the aim error drifts, combat styles vary. Difficulty numbers stay untouched.
+func _check_bot_humanness() -> void:
+	var cfg := MatchConfig.new()
+	cfg.mode_id = MatchConfig.MODE_FFA
+	cfg.map_id = "test_arena"
+	cfg.bots_enabled = true
+	cfg.bot_count = 1
+	cfg.bot_difficulty = MatchConfig.DIFFICULTY_HARD
+	cfg.time_limit = 0.0
+	MatchManager.prepare_match(cfg)
+	var game: Node = (load("res://scenes/game/game.tscn") as PackedScene).instantiate()
+	add_child(game)
+	await get_tree().process_frame
+	MatchManager.warmup_left = 0.05
+	var waited := 0.0
+	while MatchManager.state != MatchManager.State.RUNNING and waited < 6.0:
+		await get_tree().process_frame
+		waited += get_process_delta_time()
+	var me := MatchManager.get_local_participant()
+	var local: Player = me.node as Player
+	local.human_controller.deactivate()
+	var bot: Participant = null
+	for p in MatchManager.participants.values():
+		if p.is_bot:
+			bot = p
+	var bn: Player = bot.node as Player
+	var bc := bn.get_node("BotController") as BotController
+	# difficulty presets are untouched
+	var hard := BotDifficulty.preset(MatchConfig.DIFFICULTY_HARD)
+	if hard.reaction_time != 0.25 or hard.aim_error_deg != 2.2 or hard.turn_speed != 10.0 or BotDifficulty.preset(MatchConfig.DIFFICULTY_EASY).reaction_time != 0.85:
+		_fail("Schwierigkeitsstufen wurden veraendert")
+	# platform in the sky, enemy straight behind the bot (180 degrees)
+	var floor_body := StaticBody3D.new()
+	var fs := CollisionShape3D.new()
+	var fb := BoxShape3D.new()
+	fb.size = Vector3(60.0, 1.0, 60.0)
+	fs.shape = fb
+	floor_body.add_child(fs)
+	floor_body.collision_layer = 1
+	game.add_child(floor_body)
+	floor_body.global_position = Vector3(900.0, 99.5, 0.0)
+	bn.global_position = Vector3(900.0, 100.0, 0.0)
+	bn.rotation.y = 0.0 # looks to -Z
+	local.global_position = Vector3(900.0, 100.0, 12.0) # behind the bot
+	bn.velocity = Vector3.ZERO
+	local.velocity = Vector3.ZERO
+	for i in 8:
+		await get_tree().physics_frame
+	bn.head.set_pitch(0.0)
+	bc.target = null
+	bc._perception_timer = 0.0
+	bc._post_kill = 0.0
+	bn.rotation.y = PI * 0.75 # the enemy is almost behind: outside the field of view
+	var max_turn := 0.0
+	var fired_early := false
+	var start_yaw := bn.rotation.y
+	var t_first_shot := -1.0
+	var shots := {"n": 0}
+	var counter := func(id: int, _p: Vector3) -> void:
+		if id == bot.id:
+			shots["n"] += 1
+	GameEvents.shot_fired.connect(counter)
+	var prev_yaw := bn.rotation.y
+	for i in 150:
+		await get_tree().physics_frame
+		max_turn = maxf(max_turn, absf(wrapf(bn.rotation.y - prev_yaw, -PI, PI)))
+		prev_yaw = bn.rotation.y
+		if int(shots["n"]) > 0 and t_first_shot < 0.0:
+			t_first_shot = i / 60.0
+	GameEvents.shot_fired.disconnect(counter)
+	var cap := hard.turn_speed * 1.5 / 60.0 + 0.002
+	if max_turn > cap:
+		_fail("Bot dreht schneller als erlaubt (%.3f rad/Frame, Grenze %.3f)" % [max_turn, cap])
+	if t_first_shot >= 0.0 and t_first_shot < hard.reaction_time * 0.8:
+		_fail("Bot schiesst schneller als seine Reaktionszeit (%.2f s)" % t_first_shot)
+	# the aim error drifts: two consecutive frames never differ by more than a small step
+	bc._aim_error = Vector2(5.0, 5.0)
+	var before := bc._aim_cur
+	bc._update_look(1.0 / 60.0)
+	if bc._aim_cur.distance_to(before) > 1.2:
+		_fail("Zielfehler springt statt zu driften")
+	# kill: a pause before the next enemy is noticed
+	bc._on_any_kill(local.participant_id, bot.id, "ak47", false)
+	if bc._post_kill < 0.5 or bc.target != null:
+		_fail("Nach einem Kill gibt es keine Pause")
+	# the styles vary
+	var seen := {}
+	bc.target = local
+	for i in 80:
+		bc._pick_style()
+		seen[bc._style] = true
+	if seen.size() < 3:
+		_fail("Kampfstile variieren nicht (%d)" % seen.size())
+	print("Bot-Verhalten: Schwierigkeit unveraendert, Zielen mit Schwenk/Reaktion, Zielfehler driftet, Kill-Pause, Kampfstile OK")
+	floor_body.queue_free()
 	game.free()
 	await get_tree().process_frame
 

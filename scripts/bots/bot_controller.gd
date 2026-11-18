@@ -63,6 +63,26 @@ var _has_look_target: bool = false
 ## Seconds this bot is still blinded by a flashbang: it sees no enemies and does not shoot.
 var _blind_left: float = 0.0
 
+# human-like behaviour (does not touch the difficulty numbers: reaction time, aim error, turn speed, ranges ...)
+enum Style { HOLD, PUSH, FLANK }
+var _style: int = Style.HOLD
+var _flank_pt: Vector3 = Vector3.INF
+var _flank_done: bool = false
+var _aim_cur: Vector2 = Vector2.ZERO # the aim error drifts instead of jumping
+var _aim_point_s: Vector3 = Vector3.ZERO # where the crosshair really is: it travels to the enemy, it does not snap
+var _aim_valid: bool = false
+var _aim_head: bool = false
+var _aim_head_timer: float = 0.0
+var _move_s: Vector2 = Vector2.ZERO
+var _glance_cd: float = 2.0
+var _glance_t: float = 0.0
+var _glance_yaw: float = 0.0
+var _post_kill: float = 0.0 # after a kill: a short pause before the next enemy is noticed
+var _short_retreat: bool = false
+var _dodge_t: float = 0.0
+var _crouch_t: float = 0.0
+var _ads: bool = false
+
 
 func setup(new_player: Player, new_participant: Participant) -> void:
 	player = new_player
@@ -75,6 +95,8 @@ func setup(new_player: Player, new_participant: Participant) -> void:
 	GameEvents.shot_fired.connect(_on_shot_heard)
 	GameEvents.explosion_at.connect(_on_explosion_heard)
 	GameEvents.flashbang_exploded.connect(_on_flashbang)
+	player.health.damaged.connect(_on_hurt)
+	GameEvents.participant_killed.connect(_on_any_kill)
 
 
 func _ready() -> void:
@@ -94,6 +116,8 @@ func _on_respawned() -> void:
 	_spawn_wait = randf_range(0.3, 0.9)
 	_grenade_cooldown = randf_range(6.0, 14.0)
 	_blind_left = 0.0
+	_post_kill = 0.0
+	_aim_valid = false
 	_last_pos = player.global_position
 	_stuck_timer = 0.0
 
@@ -128,6 +152,9 @@ func _physics_process(delta: float) -> void:
 	_grenade_cooldown = maxf(0.0, _grenade_cooldown - delta)
 	_grenade_lob_timer = maxf(0.0, _grenade_lob_timer - delta)
 	_blind_left = maxf(0.0, _blind_left - delta)
+	_post_kill = maxf(0.0, _post_kill - delta)
+	_dodge_t = maxf(0.0, _dodge_t - delta)
+	_crouch_t = maxf(0.0, _crouch_t - delta)
 	_update_perception(delta)
 	_update_state(delta)
 	if _spawn_wait > 0.0:
@@ -145,6 +172,9 @@ func _update_perception(delta: float) -> void:
 	reaction_timer = maxf(0.0, reaction_timer - delta)
 	if _blind_left > 0.0:
 		target_visible = false # blinded: no enemy is seen
+		return
+	if _post_kill > 0.0:
+		target_visible = false # just killed somebody: a moment before the next one is noticed
 		return
 	_perception_timer -= delta
 	if _perception_timer > 0.0:
@@ -177,7 +207,11 @@ func _update_perception(delta: float) -> void:
 	if best != null:
 		if best != target:
 			target = best
-			reaction_timer = diff.reaction_time
+			# a human needs a different moment every time, and longer when the enemy appears far off the view axis
+			var off_axis := acos(clampf(forward.dot((best.get_center() - eye).normalized()), -1.0, 1.0))
+			reaction_timer = diff.reaction_time * randf_range(0.8, 1.3) + off_axis / PI * 0.25
+			_aim_valid = false
+			_pick_style()
 		target_visible = true
 		last_seen_pos = best.global_position
 		time_since_seen = 0.0
@@ -220,6 +254,67 @@ func _on_explosion_heard(position: Vector3, _radius: float) -> void:
 		last_seen_pos = position
 		_enter_state(State.SEARCH)
 		_set_objective(position)
+
+
+## Shot at: sometimes a human steps out of the line of fire; a kill makes the killer pause a moment.
+func _on_hurt(_amount: float, attacker_id: int) -> void:
+	if player == null or not player.alive or attacker_id == participant.id:
+		return
+	_dodge_t = 0.8
+	_strafe_dir = -_strafe_dir if _strafe_dir != 0.0 else (1.0 if randf() < 0.5 else -1.0)
+	var ratio := player.health.ratio()
+	if state == State.COMBAT and ratio < 0.75 and randf() < 0.4 and _pick_retreat_cover():
+		_short_retreat = true
+		_enter_state(State.RETREAT)
+
+
+func _on_any_kill(_victim_id: int, killer_id: int, _weapon: String, _head: bool) -> void:
+	if player != null and player.alive and killer_id == participant.id:
+		_post_kill = randf_range(0.6, 1.3)
+		target = null
+		target_visible = false
+		reaction_timer = maxf(reaction_timer, 0.4)
+
+
+## Combat plan per enemy: hold the position and strafe, push forward aggressively or take a side route.
+func _pick_style() -> void:
+	var r := randf()
+	var hp := player.health.ratio()
+	var push_chance := 0.3 if hp > 0.8 else 0.1
+	if r < push_chance:
+		_style = Style.PUSH
+	elif r < push_chance + 0.2:
+		_style = Style.FLANK
+	else:
+		_style = Style.HOLD
+	_flank_pt = Vector3.INF
+	_flank_done = false
+
+
+## A cover point to the side of the enemy (not straight ahead): the flanking route.
+func _pick_flank_point() -> Vector3:
+	if map == null or target == null:
+		return Vector3.INF
+	var w := player.weapon_manager.get_current_weapon()
+	var effective: float = w.data.bot_effective_range if w else 25.0
+	var me := player.global_position
+	var to_target := target.global_position - me
+	to_target.y = 0.0
+	var best := Vector3.INF
+	var best_score := -INF
+	for p in map.get_cover_points():
+		var dt := target.global_position.distance_to(p)
+		var dm := me.distance_to(p)
+		if dt < 6.0 or dt > effective * 0.95 or dm < 5.0 or dm > 30.0:
+			continue
+		var side: Vector3 = p - me
+		side.y = 0.0
+		var angle := absf(to_target.angle_to(side))
+		var score := angle * 3.0 - dm * 0.05 + randf() * 1.5
+		if score > best_score:
+			best_score = score
+			best = p
+	return best
 
 
 # ----------------------------------------------------------------------------- state machine
@@ -266,7 +361,8 @@ func _update_state(delta: float) -> void:
 		State.RETREAT:
 			if _objective_reached():
 				player.input.crouch = true
-			if health_ratio > 0.85 or state_timer > 8.0:
+			if health_ratio > 0.85 or state_timer > (2.8 if _short_retreat else 8.0):
+				_short_retreat = false
 				_enter_state(State.COMBAT if engaging else State.PATROL)
 			elif engaging and target_visible and target.global_position.distance_to(player.global_position) < 6.0:
 				_enter_state(State.COMBAT) # cornered: fight
@@ -391,21 +487,45 @@ func _combat_movement(delta: float) -> void:
 			_set_objective(aim_pos)
 		_follow_path(delta, false)
 		return
-	# in range: strafe / hold
+	# flanking: first take the side route (abandoned when the enemy is close)
+	if _style == Style.FLANK and not _flank_done:
+		if _flank_pt == Vector3.INF:
+			_flank_pt = _pick_flank_point()
+			if _flank_pt == Vector3.INF:
+				_flank_done = true
+		if not _flank_done:
+			if player.global_position.distance_to(_flank_pt) < 2.0 or state_timer > 8.0 or (target_visible and dist < effective * 0.5):
+				_flank_done = true
+			else:
+				if not has_objective or objective.distance_to(_flank_pt) > 1.0:
+					_set_objective(_flank_pt)
+				_follow_path(delta, not target_visible)
+				return
+	# in range: strafe / hold / push
 	_strafe_timer -= delta
-	if _strafe_timer <= 0.0:
-		_strafe_timer = randf_range(0.5, 1.4)
-		if randf() < diff.strafe_chance:
+	if _strafe_timer <= 0.0 or (_dodge_t > 0.7 and _strafe_dir == 0.0):
+		_strafe_timer = randf_range(0.5, 1.4) * (0.6 if _dodge_t > 0.0 else 1.0)
+		if randf() < diff.strafe_chance or _dodge_t > 0.0:
 			_strafe_dir = -1.0 if randf() < 0.5 else 1.0
 		else:
 			_strafe_dir = 0.0
+		if _style == Style.HOLD and dist > effective * 0.5 and randf() < 0.18:
+			_crouch_t = randf_range(0.8, 1.6) # a peek from a crouch
 	var move := Vector2(_strafe_dir, 0.0)
+	if _style == Style.PUSH:
+		move.x *= 0.5
+		if dist > effective * 0.3:
+			move.y = 0.9
 	# shotguns and SMGs push in, rifles keep distance
-	if dist < effective * 0.4:
+	elif dist < effective * 0.4:
 		move.y = -0.6
 	elif dist > effective * 0.8 and effective < 20.0:
 		move.y = 0.8
-	inp.move = move
+	if _crouch_t > 0.0:
+		inp.crouch = true
+		move *= 0.6
+	_move_s = _move_s.lerp(move, 1.0 - exp(-delta * 7.0)) # no sudden changes between standing and strafing
+	inp.move = _move_s
 	_wants_move = move.length() > 0.1
 
 
@@ -431,7 +551,18 @@ func _follow_path(delta: float, allow_sprint: bool) -> void:
 	_move_towards(path[path_index], allow_sprint)
 	if not _has_look_target:
 		var look_idx := mini(path_index + 1, path.size() - 1)
-		_look_at_point(path[look_idx] + Vector3(0, EYE_HEIGHT, 0), false)
+		var pt := path[look_idx] + Vector3(0, EYE_HEIGHT, 0)
+		# now and then a glance to the side (checks a corner) instead of staring along the route
+		_glance_cd -= delta
+		if _glance_cd <= 0.0:
+			_glance_cd = randf_range(2.0, 4.5)
+			_glance_t = randf_range(0.5, 1.1)
+			_glance_yaw = randf_range(-1.1, 1.1)
+		if _glance_t > 0.0:
+			_glance_t -= delta
+			var eye := player.get_eye_position()
+			pt = eye + (pt - eye).rotated(Vector3.UP, _glance_yaw)
+		_look_at_point(pt, false)
 
 
 func _recompute_path() -> void:
@@ -494,8 +625,8 @@ func _look_at_point(point: Vector3, with_error: bool) -> void:
 	_desired_yaw = atan2(-dir.x, -dir.z)
 	_desired_pitch = asin(clampf(dir.y, -1.0, 1.0))
 	if with_error:
-		_desired_yaw += deg_to_rad(_aim_error.x)
-		_desired_pitch += deg_to_rad(_aim_error.y)
+		_desired_yaw += deg_to_rad(_aim_cur.x)
+		_desired_pitch += deg_to_rad(_aim_cur.y)
 	_has_look_target = true
 
 
@@ -505,17 +636,28 @@ func _update_look(delta: float) -> void:
 		_aim_error_timer = randf_range(0.3, 0.6)
 		var e := diff.aim_error_deg
 		_aim_error = Vector2(randf_range(-e, e), randf_range(-e, e) * 0.6)
+	_aim_cur = _aim_cur.lerp(_aim_error, 1.0 - exp(-delta * 5.0)) # the error drifts, it does not jump
+	_aim_head_timer -= delta
+	if _aim_head_timer <= 0.0:
+		_aim_head_timer = randf_range(0.8, 1.8) # head or chest is decided now and then, not every frame
+		_aim_head = randf() < diff.headshot_bias
 	var engaging := target != null and is_instance_valid(target) and target.alive and (target_visible or time_since_seen < 1.5)
 	if engaging:
 		var aim_point: Vector3
 		if target_visible:
-			var head := target.get_eye_position()
-			var chest := target.get_center()
-			aim_point = head if randf() < diff.headshot_bias else chest
-			# remember the exact point so we keep aiming between perception ticks
+			var true_point := target.get_eye_position() if _aim_head else target.get_center()
 			last_seen_pos = target.global_position
+			if not _aim_valid:
+				# the crosshair starts where the bot looks right now and travels to the enemy
+				var eye := player.get_eye_position()
+				_aim_point_s = eye + player.head.get_aim_direction() * maxf(eye.distance_to(true_point), 2.0)
+				_aim_valid = true
+			# it follows a moving enemy with a small lag (as fast as the bot can turn)
+			_aim_point_s = _aim_point_s.lerp(true_point, 1.0 - exp(-delta * diff.turn_speed * 1.3))
+			aim_point = _aim_point_s
 		else:
 			aim_point = last_seen_pos + Vector3(0, 1.2, 0)
+			_aim_valid = false
 		_look_at_point(aim_point, true)
 		if _grenade_lob_timer > 0.0:
 			_desired_pitch += 0.35
@@ -531,8 +673,10 @@ func _update_look(delta: float) -> void:
 	var max_step := diff.turn_speed * delta
 	if engaging:
 		max_step *= 1.5
-	dyaw = clampf(dyaw, -max_step, max_step)
-	dpitch = clampf(dpitch, -max_step, max_step)
+	# eased turn: fast while far off, calm when close (no constant-speed snapping onto the target)
+	var ease_k := 1.0 - exp(-diff.turn_speed * 1.4 * delta)
+	dyaw = clampf(dyaw * ease_k * 1.6, -max_step, max_step)
+	dpitch = clampf(dpitch * ease_k * 1.6, -max_step, max_step)
 	# PlayerCamera: rotate_y(-look.x) and pitch -= look.y
 	player.input.look_delta = Vector2(-dyaw, -dpitch)
 
@@ -577,7 +721,8 @@ func _update_weapon(delta: float) -> void:
 		_burst_pause_timer = 0.0
 		return
 	# aiming down sights at range (not with the shotgun)
-	inp.aim = dist > 9.0 and not w.data.pump_action and not player.is_sprinting
+	_ads = dist > (8.0 if _ads else 11.0) # with hysteresis: no flickering between hip and sights
+	inp.aim = _ads and not w.data.pump_action and not player.is_sprinting
 	# grenade at medium range
 	if _grenade_cooldown <= 0.0 and wm.grenades > 0 and dist > 9.0 and dist < 26.0 and not w.is_reloading():
 		if randf() < diff.grenade_chance * delta * 10.0:

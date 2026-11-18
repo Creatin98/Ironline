@@ -386,3 +386,6 @@ Python-Skripten in `tools/` erzeugt – keine Fremdinhalte, alles reproduzierbar
 * **Ragdoll:** `Ragdoll` ersetzt beim Tod den Körper in derselben Pose durch 11 RigidBodies mit Generic6DOF-Gelenken (Knie/Ellbogen einseitig). Stoß weg vom Schützen je Waffe (`Player.DEATH_PUSH`), Kopfschuss
   schlägt den Kopf zurück, Explosionen werfen hoch. Nur Welt-Kollision (Layer 5), nach 4 s eingefroren, nach 9 s ausgeblendet, max. 8 gleichzeitig. Impulse erst nach den ersten Physik-Schritten (Massen).
 * **Nachladehinweis:** `HUD._update_reload_hint` - „R ZUM NACHLADEN“ ab `RELOAD_HINT_FRACTION` (25 %, mind. 2 Schuss) des Magazins; leer = größer, rot, pulsierend; weg beim Nachladen/Wechseln/Granate.
+* **Bot-Verhalten menschlicher (Schwierigkeitswerte unverändert):** Fadenkreuz wandert vom aktuellen Blick zum Gegner (kein Snap), folgt Bewegung mit kleinem Nachlauf, gedrosselte/geglättete Drehung,
+  Zielfehler driftet, Kopf/Brust nur alle ~1 s neu gewählt, Reaktionszeit zufällig ±30 % plus Verzögerung bei Gegnern abseits der Blickachse; nach einem Kill kurze Pause; Kampfstile `HOLD/PUSH/FLANK`
+  (Seitenroute über Deckungspunkte), Ausweichen und gelegentlich kurzer Rückzug bei Beschuss, Duck-Peeks, geglättetes Strafen, Seitenblicke beim Patrouillieren, ADS mit Hysterese.
