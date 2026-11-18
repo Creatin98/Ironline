@@ -217,8 +217,9 @@ func _create_roster() -> void:
 		var n := 0
 		for d in map.get_dummies():
 			n += 1
-			var dp := MatchManager.add_bot("Ziel %d (%s)" % [n, d["label"]], 0, "assault", Teams.Team.NONE)
+			var dp := MatchManager.add_bot("Ziel %d (%s)" % [n, d["label"]], 0, String(d.get("class", "assault")), Teams.Team.NONE)
 			dp.is_dummy = true
+			dp.dummy_info = d
 			dp.dummy_crouch = bool(d["crouch"])
 			dp.dummy_xf = Transform3D(Basis(Vector3.UP, deg_to_rad(float(d["yaw"]))), d["pos"])
 	if cfg.bots_enabled and MatchManager.is_authority():
@@ -348,6 +349,9 @@ func _process(delta: float) -> void:
 
 func _on_match_state_changed(state: int) -> void:
 	if state == MatchManager.State.RUNNING:
+		for dp in MatchManager.participants.values():
+			if dp.is_dummy and dp.node != null and is_instance_valid(dp.node):
+				_apply_dummy_pose(dp, dp.node as Player) # (the warm-up cleared their input)
 		for p in MatchManager.participants.values():
 			if MatchManager.is_authority() and not p.alive:
 				_spawn_participant(p)
@@ -379,13 +383,28 @@ func _ensure_player(p: Participant) -> Player:
 	return player
 
 
+## A training dummy: stance, aiming, weapon and animation as the map defines it (also re-applied when the round starts,
+## the warm-up clears the input).
+func _apply_dummy_pose(p: Participant, player: Player) -> void:
+	var di: Dictionary = p.dummy_info
+	player.input.crouch = p.dummy_crouch
+	player.input.aim = bool(di.get("aim", false))
+	if di.has("vel"):
+		player.pose_vel = di["vel"]
+	player.pose_sprint = bool(di.get("sprint", false))
+	player.name_label.visible = false # (the signs on the floor name the pose and weapon)
+	if int(di.get("weapon", 0)) == 1 and player.weapon_manager.weapons.size() > 1 and player.weapon_manager.current_index != 1:
+		player.weapon_manager.current_index = 1
+		player.weapon_manager._show_weapon(1, true)
+
+
 func _spawn_participant(p: Participant) -> void:
 	var player := _ensure_player(p)
 	_sync_class(p, player)
 	var t := p.dummy_xf if p.is_dummy else spawn_system.pick_spawn(p, MatchManager.mode.uses_teams)
 	_finish_spawn(p, player, t)
 	if p.is_dummy:
-		player.input.crouch = p.dummy_crouch
+		_apply_dummy_pose(p, player)
 	NetworkManager.broadcast_spawn(p.id, t.origin, t.basis.get_euler().y, p.class_id)
 
 

@@ -554,21 +554,21 @@ func _process(delta: float) -> void:
 	if GameSettings.weapon_sway and _walk_amp > 0.001:
 		var ph := player.head.get_bob_phase()
 		var amp := _walk_amp * (1.0 - 0.8 * _ads_blend) * (1.0 + 0.7 * sprint_s) * (1.0 - slide_s)
-		# sin² instead of |sin|: no hard turn at the lowest point (that made the stock flutter);
-		# small rotations only, they are magnified at the far end of the weapon
-		var step := sin(ph)
-		pos += Vector3(cos(ph * 0.5) * 0.007, -step * step * 0.008, 0.0) * amp
-		rot += Vector3(step * 0.005, cos(ph * 0.5) * 0.010, cos(ph * 0.5) * 0.010) * amp
+		# walking: slow, soft waves only (the doubled-frequency terms made the weapon quiver a little)
+		var step := cos(ph)
+		var half_w := cos(ph * 0.5)
+		pos += Vector3(half_w * 0.006, step * 0.0035, 0.0) * amp
+		rot += Vector3(sin(ph * 0.5) * 0.004, half_w * 0.008, half_w * 0.008) * amp
 	# sprinting: the rifle is carried across the body and keeps moving with the stride - only smooth waves of the step phase
 	# (no squared or doubled terms, they made it twitch): bounce, side sway, roll and pitch, all continuous
 	if GameSettings.weapon_sway and sprint_s > 0.01:
 		var sp := player.head.get_bob_phase()
 		var a2 := sprint_s * _walk_amp
-		# long strides: the swing from side to side takes two steps (half phase) and is wide, the vertical bob is small
-		var half := cos(sp * 0.5)
-		var half_s := sin(sp * 0.5)
-		pos += Vector3(half * 0.058, cos(sp) * 0.012, half_s * 0.016) * a2
-		rot += Vector3(half_s * 0.05, half * 0.16, half * 0.12) * a2
+		# long strides: a slow, wide swing from side to side (about every third step), the vertical bob is small
+		var half := cos(sp * 0.34)
+		var half_s := sin(sp * 0.34)
+		pos += Vector3(half * 0.075, cos(sp * 0.68) * 0.016, half_s * 0.02) * a2
+		rot += Vector3(half_s * 0.06, half * 0.22, half * 0.17) * a2
 	# weapon kick: strongly damped while aiming so the iron sight stays in view
 	var kick_scale := lerpf(1.0, w.data.ads_kick_scale, _ads_blend)
 	pos += Vector3(0.0, _kick * 0.25, _kick) * kick_scale

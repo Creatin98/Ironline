@@ -362,11 +362,31 @@ func _game_ui(state: String) -> void:
 	cfg.bots_enabled = true
 	cfg.bot_count = 5
 	cfg.time_limit = 0.0
+	if state.begins_with("showroom"):
+		cfg.mode_id = MatchConfig.MODE_FFA
+		cfg.map_id = "range"
+		cfg.training = true
+		cfg.bots_enabled = false
 	MatchManager.prepare_match(cfg)
 	var game: Node = (load("res://scenes/game/game.tscn") as PackedScene).instantiate()
 	get_tree().root.add_child.call_deferred(game)
 	await get_tree().process_frame
 	await get_tree().process_frame
+	if state.begins_with("showroom"):
+		MatchManager.warmup_time = 0.2
+		for i in 90:
+			await get_tree().physics_frame
+		var sl: Player = MatchManager.get_local_participant().node as Player
+		sl.human_controller.deactivate()
+		sl.global_position = Vector3(-18.5, 0.1, 26.0)
+		sl.rotation.y = deg_to_rad(90.0)
+		sl.head.set_pitch(-0.12)
+		for i in 20:
+			await get_tree().physics_frame
+		get_tree().paused = true
+		await get_tree().process_frame
+		await get_tree().process_frame
+		return
 	if state == "warmup":
 		# start countdown: picture still mostly grey
 		MatchManager.warmup_time = 8.0

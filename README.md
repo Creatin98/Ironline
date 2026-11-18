@@ -149,3 +149,5 @@ Im Menü „Training (Offline)“ startet **Zuschauer (freie Kamera)** ein Bot-M
 ## Trainingsarena
 
 Hauptmenü → **Trainingsarena**: Schießstand (46 × 150 m) mit fünf Bahnen und Zielen auf 10/25/50/75/100 m, Zonen-Dummys (stehend, hockend, hinter Deckung), einem Kampfhof (Deckung, Plattform, Haus mit Fensterglas). Die Dummys sind echte Spieler ohne Verhalten: Jeder Treffer zeigt **Zone, Schaden und Distanz** (unter dem Fadenkreuz und als schwebende Zahl am Ziel); sie sterben mit dem vollen Gore (Gliedmaßen, Kopf) und stehen kurz danach wieder auf. Munition und Granaten füllen sich automatisch auf, es gibt kein Kill- oder Zeitlimit.
+
+Die Trainingsarena hat im Westen einen **Showroom**: jede Waffe (AK-47, MP5, Schrotflinte, Scharfschützengewehr, Pistole) in jeder Pose (stehend, stehend anvisiert, Hocke, Hocke anvisiert, Rennen, Hocke gehend), beschriftet. In der Trainingsarena kannst du nicht sterben.

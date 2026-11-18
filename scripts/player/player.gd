@@ -52,6 +52,9 @@ var is_crouching: bool = false
 var is_sliding: bool = false
 var _slide_len: float = SLIDE_TIME
 var spectating: bool = false
+## Showroom dummies: a fixed animation pose (velocity in the figure's frame, sprint arms); Vector3.INF = off.
+var pose_vel: Vector3 = Vector3.INF
+var pose_sprint: bool = false
 var death_ragdoll: Ragdoll # our own corpse (the third-person death camera watches it)
 ## Natural lean at corners: -1 = left .. +1 = right (computed on every machine from the geometry, so everybody sees it).
 var lean: float = 0.0
@@ -551,8 +554,8 @@ func _kill_death_tween() -> void:
 ## Authoritative damage entry point used by weapons and grenades.
 ## Returns true if this damage killed the player.
 func take_damage(amount: float, attacker_id: int, weapon_id: String, hit_position: Vector3, headshot: bool, source_position: Vector3) -> bool:
-	if spectating:
-		return false
+	if spectating or (is_local and MatchManager.config != null and MatchManager.config.training):
+		return false # spectator / training: nobody gets hurt
 	if not alive or not MatchManager.is_authority():
 		return false
 	if MatchManager.state != MatchManager.State.RUNNING:
@@ -705,33 +708,37 @@ func _process(delta: float) -> void:
 
 ## Cheap procedural animation of the visible body: walking bob, sprint lean,
 ## and the held weapon follows the view pitch.
-## A wall right beside the player whose end is just ahead (a corner): the body leans a little towards the open side, as
-## you do when you peek around a corner while walking. Four short rays (sideways and slightly forward, both sides).
+## Corner lean, only while aiming: you walk up to a wall corner with the weapon raised and are right at its edge (a wall
+## within 0.7 m beside you that ends within about a metre ahead): the body leans a little towards the open side. Four short
+## rays (sideways and slightly forward, both sides); nothing happens in the open or along a long wall.
 func _update_lean(delta: float) -> void:
 	_lean_t -= delta
 	var spd := Vector2(_est_vel.x, _est_vel.z).length() # works for remote players, bots and the killcam alike
 	if _lean_t <= 0.0:
-		_lean_t = 0.06
+		_lean_t = 0.05
 		_lean_target = 0.0
-		if alive and spd > 0.8 and not is_sliding and not spectating:
+		# only while aiming down the sights, walking towards the very edge of a corner
+		if alive and is_aiming and spd > 0.4 and not is_sliding and not spectating:
 			var space := get_world_3d().direct_space_state
 			var o := global_position + Vector3(0, 1.2, 0)
 			var fwd := -global_transform.basis.z
 			var right := global_transform.basis.x
 			for side in [-1.0, 1.0]:
-				var q_side := PhysicsRayQueryParameters3D.create(o, o + right * side * 1.0, 1)
-				var hit_side := space.intersect_ray(q_side)
-				if hit_side.is_empty():
+				var side_hit := space.intersect_ray(PhysicsRayQueryParameters3D.create(o, o + right * side * 0.7, 1))
+				if side_hit.is_empty():
 					continue
-				var diag: Vector3 = (fwd * 0.94 + right * side * 0.34).normalized()
-				if not space.intersect_ray(PhysicsRayQueryParameters3D.create(o, o + diag * 2.6, 1)).is_empty():
-					continue # the wall goes on ahead: no corner
-				if not space.intersect_ray(PhysicsRayQueryParameters3D.create(o, o + fwd * 1.4, 1)).is_empty():
+				var dist_side: float = o.distance_to(side_hit["position"])
+				# the wall must end right ahead: a short diagonal ray passes beside the corner, the straight ray is free
+				var diag: Vector3 = (fwd * 0.9 + right * side * 0.44).normalized()
+				if not space.intersect_ray(PhysicsRayQueryParameters3D.create(o, o + diag * 1.3, 1)).is_empty():
 					continue
-				var closeness := 1.0 - clampf(o.distance_to(hit_side["position"]) / 1.0, 0.0, 1.0)
-				_lean_target = side * (0.45 + 0.55 * closeness) * clampf(spd / 3.0, 0.4, 1.0)
+				if not space.intersect_ray(PhysicsRayQueryParameters3D.create(o, o + fwd * 1.0, 1)).is_empty():
+					continue
+				# never lean into the wall: the head offset (0.13 * lean) stays clearly inside the free space
+				var room := maxf(0.0, dist_side - 0.3)
+				_lean_target = side * clampf(room / 0.13, 0.0, 0.8)
 				break
-	lean = lerpf(lean, _lean_target, minf(1.0, delta * (5.0 if absf(_lean_target) > absf(lean) else 4.0)))
+	lean = lerpf(lean, _lean_target, minf(1.0, delta * (7.0 if absf(_lean_target) > absf(lean) else 5.0)))
 	rig.lean = lean
 	head.lean = lean
 
@@ -745,6 +752,8 @@ func _animate_body(delta: float) -> void:
 	_last_pos = global_position
 	if v.length() > 25.0:
 		v = Vector3.ZERO # teleport (respawn)
+	if pose_vel != Vector3.INF:
+		v = Basis(Vector3.UP, rotation.y) * pose_vel
 	_est_vel = _est_vel.lerp(v, minf(1.0, delta * 12.0))
 	var vel_local := Basis(Vector3.UP, rotation.y).inverse() * _est_vel
 	var grounded := true
@@ -762,7 +771,7 @@ func _animate_body(delta: float) -> void:
 	if (not is_local or replay_mode) and alive:
 		hands.visible = rig.throw_progress < 0.0 # the weapon is out of the way during a grenade throw
 	_update_flash_cover(delta)
-	rig.animate(delta, vel_local, grounded, is_crouching, is_sliding, is_sprinting, head.pitch, _hand_target(true), _hand_target(false))
+	rig.animate(delta, vel_local, grounded, is_crouching, is_sliding, is_sprinting or pose_sprint, head.pitch, _hand_target(true), _hand_target(false))
 
 
 ## World hand position of the held weapon (wrist end of the forearm) in rig space, or INF without weapon.
@@ -834,7 +843,7 @@ func _update_states(delta: float) -> void:
 		_slide_buffer = 0.28
 	var crouch_press := input.crouch and not _prev_crouch_in
 	if not is_sliding and (crouch_press or (_slide_buffer > 0.0 and input.crouch)) and (is_sprinting or _air_sprint) and _slide_cd <= 0.0 \
-			and is_on_floor() and horizontal_speed >= SLIDE_MIN_START_SPEED and not _crouch_suppressed:
+			and is_on_floor() and horizontal_speed >= SLIDE_MIN_START_SPEED * _slide_speed_gate() and not _crouch_suppressed:
 		_slide_buffer = 0.0
 		_start_slide()
 	if is_on_floor():
@@ -887,6 +896,15 @@ func _update_states(delta: float) -> void:
 	is_sprinting = wants_sprint
 	# aim
 	is_aiming = input.aim and not is_sprinting and weapon_manager.can_aim()
+
+
+## While reloading the sprint is a little slower, so the slide threshold is lowered by the same factor (and a little more for
+## the class speed multiplier): sliding out of a reload sprint must always be possible.
+func _slide_speed_gate() -> float:
+	var w := weapon_manager.get_current_weapon()
+	if w != null and w.is_reloading():
+		return RELOAD_SPRINT_FACTOR * 0.92
+	return 1.0
 
 
 func _start_slide() -> void:

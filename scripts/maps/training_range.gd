@@ -1,5 +1,5 @@
 extends BlockMap
-## Trainingsarena: shooting range (46 x 150 m). The firing line is in the south (z = +60): five lanes with targets at
+## Trainingsarena: shooting range (82 x 150 m). The firing line is in the south (z = +60): five lanes with targets at
 ## 10, 25, 50, 75 and 100 m, a zone row close to the firing line (standing, crouched, behind cover) for studying the hit
 ## zones, and a combat yard at the north end (cover, stairs, a platform, a house with a window). The dummies are real
 ## players without a brain (see get_dummies): they show the hit zone and damage, die with the full gore and stand up again.
@@ -13,14 +13,18 @@ const FIRING_Z := 60.0
 
 func get_blocks() -> Array:
 	var b: Array = []
-	b.append(box(Vector3(0, -0.25, 0), Vector3(46, 0.5, 150), "concrete", Color(0.72, 0.72, 0.7)))
-	b.append(box(Vector3(0, 0.02, FIRING_Z - 1.0), Vector3(46, 0.04, 6.0), "asphalt")) # firing line apron
-	for x in [-23.25, 23.25]:
+	b.append(box(Vector3(0, -0.25, 0), Vector3(82, 0.5, 150), "concrete", Color(0.72, 0.72, 0.7)))
+	b.append(box(Vector3(0, 0.02, FIRING_Z - 1.0), Vector3(46, 0.04, 6.0), "asphalt"))
+	# showroom pad (west): every weapon in every pose
+	var pad := box(Vector3(-30.0, 0.03, 25.0), Vector3(17.0, 0.06, 14.0), "tiles", Color(0.55, 0.57, 0.6))
+	pad["collide"] = false
+	b.append(pad)
+	for x in [-41.25, 41.25]:
 		b.append(box(Vector3(x, 3.5, 0), Vector3(0.5, 7, 150.5), "concrete", C_DARK))
 	for z in [-75.25, 75.25]:
-		b.append(box(Vector3(0, 3.5, z), Vector3(46.5, 7, 0.5), "concrete", C_DARK))
+		b.append(box(Vector3(0, 3.5, z), Vector3(82.5, 7, 0.5), "concrete", C_DARK))
 	# earth berm behind the targets (stops nothing, looks right) and a back wall at the firing line
-	b.append(box(Vector3(0, 1.5, -72.0), Vector3(44, 3, 4), "dirt", Color(0.5, 0.42, 0.32)))
+	b.append(box(Vector3(0, 1.5, -72.0), Vector3(80, 3, 4), "dirt", Color(0.5, 0.42, 0.32)))
 	# lane dividers and shooting benches
 	for i in LANES_X.size():
 		var x: float = LANES_X[i]
@@ -54,13 +58,14 @@ func get_blocks() -> Array:
 
 
 func build_detail(d: MapDetail) -> void:
+	_showroom_signs()
 	# signs with the distances above every lane, bench lamps and a flag
 	for i in LANES_X.size():
 		var x: float = LANES_X[i]
 		d.add_box(Vector3(x, 3.4, FIRING_Z - 5.0), Vector3(2.4, 0.9, 0.12), "metal_panel", C_DARK)
 		d.add_box(Vector3(x, 3.4, FIRING_Z - 5.07), Vector3(2.0, 0.6, 0.04), "lamp", Color(0.95, 0.85, 0.5))
 		d.lamp(Vector3(x, 3.1, FIRING_Z - 3.0), Color(1.0, 0.95, 0.85), 0.7, 7.0)
-	for z in [-70.0, -20.0, 20.0]:
+	for z in [-70.0, -20.0, 48.0]:
 		d.lamp_post(Vector3(-21.5, 0, z), 5.0, 0.0)
 		d.lamp_post(Vector3(21.5, 0, z), 5.0, PI)
 	for dd in [10, 25, 50, 75, 100]:
@@ -74,6 +79,7 @@ func get_spawns() -> Array:
 	for x in LANES_X:
 		s.append(spawn(Vector3(x, 0.1, FIRING_Z + 5.0), 0.0, Teams.Team.NONE))
 	s.append(spawn(Vector3(0, 0.1, -40), 180.0, Teams.Team.NONE))
+	s.append(spawn(Vector3(-18.0, 0.1, 26.0), 90.0, Teams.Team.NONE)) # at the showroom, looking west at it
 	for i in 6: # team spawns (the range is no team map, they only keep the map checks happy)
 		s.append(spawn(Vector3(-10.0 + float(i) * 4.0, 0.1, FIRING_Z + 8.0), 0.0, Teams.Team.BLUE))
 		s.append(spawn(Vector3(-10.0 + float(i) * 4.0, 0.1, -36.0), 180.0, Teams.Team.RED))
@@ -107,4 +113,61 @@ func get_dummies() -> Array:
 	out.append({"pos": Vector3(-6, 0.05, -52.5), "yaw": 180.0, "crouch": false, "label": "Hof"})
 	out.append({"pos": Vector3(16, 3.05, -48.0), "yaw": 180.0, "crouch": false, "label": "Plattform"})
 	out.append({"pos": Vector3(-16, 0.05, -64.0), "yaw": 180.0, "crouch": false, "label": "Haus"})
+	out.append_array(_showroom())
 	return out
+
+
+const POSES := [
+	{"name": "Stehend", "crouch": false, "aim": false},
+	{"name": "Stehend anvisiert", "crouch": false, "aim": true},
+	{"name": "Hocke", "crouch": true, "aim": false},
+	{"name": "Hocke anvisiert", "crouch": true, "aim": true},
+	{"name": "Rennen", "crouch": false, "aim": false, "sprint": true, "vel": Vector3(0, 0, -7.7)},
+	{"name": "Hocke gehend", "crouch": true, "aim": false, "vel": Vector3(0, 0, -2.6)},
+]
+const SHOW_WEAPONS := [
+	{"name": "AK-47", "class": "assault", "weapon": 0}, {"name": "MP5", "class": "smg", "weapon": 0},
+	{"name": "Schrotflinte", "class": "shotgun", "weapon": 0}, {"name": "Scharfschützengewehr", "class": "sniper", "weapon": 0},
+	{"name": "Pistole", "class": "assault", "weapon": 1},
+]
+const SHOW_X0 := -36.0
+const SHOW_DX := 2.8
+const SHOW_Z0 := 20.0
+const SHOW_DZ := 2.8
+
+
+## Showroom: one dummy per weapon (rows, z) and pose (columns, x), all looking east.
+func _showroom() -> Array:
+	var out: Array = []
+	for r in SHOW_WEAPONS.size():
+		for c in POSES.size():
+			var w: Dictionary = SHOW_WEAPONS[r]
+			var po: Dictionary = POSES[c]
+			var d := {"pos": Vector3(SHOW_X0 + SHOW_DX * float(c), 0.05, SHOW_Z0 + SHOW_DZ * float(r)), "yaw": -90.0, "crouch": po["crouch"],
+					"label": "%s, %s" % [w["name"], po["name"]], "class": w["class"], "weapon": w["weapon"], "aim": po["aim"]}
+			if po.has("vel"):
+				d["vel"] = po["vel"]
+			if po.has("sprint"):
+				d["sprint"] = po["sprint"]
+			out.append(d)
+	return out
+
+
+## Signs for the showroom: pose names above the columns, weapon names left of the rows.
+func _showroom_signs() -> void:
+	for c in POSES.size():
+		_sign(Vector3(SHOW_X0 + SHOW_DX * float(c), 2.5, SHOW_Z0 - 2.2), String(POSES[c]["name"]).replace(" ", "\n"), 56)
+	for r in SHOW_WEAPONS.size():
+		_sign(Vector3(SHOW_X0 - 2.6, 1.2, SHOW_Z0 + SHOW_DZ * float(r)), String(SHOW_WEAPONS[r]["name"]), 56)
+
+
+func _sign(pos: Vector3, text: String, size: int) -> void:
+	var l := Label3D.new()
+	l.text = text
+	l.font_size = size
+	l.pixel_size = 0.005
+	l.outline_size = 10
+	l.modulate = Color(0.95, 0.85, 0.5)
+	l.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	geometry_root.add_child(l)
+	l.global_position = pos
