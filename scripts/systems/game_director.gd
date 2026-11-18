@@ -30,6 +30,12 @@ const MAPS: Dictionary = {
 		"description": "Villenanwesen am Wuestenhang. Versenkter Innenhof, Haupthaus, Garten und Garagentrakt.",
 		"color": Color(0.85, 0.62, 0.4),
 	},
+	"range": {
+		"name": "Trainingsarena",
+		"scene": "res://scenes/maps/training_range.tscn",
+		"description": "Schiessstand mit Zielen auf 10 bis 100 m, Trefferzonen-Dummys und Kampfhof.",
+		"color": Color(0.7, 0.62, 0.35),
+	},
 	"test_arena": {
 		"name": "Testarena",
 		"scene": "res://scenes/maps/test_arena.tscn",

@@ -77,6 +77,7 @@ func _ready() -> void:
 	GameEvents.local_weapon_changed.connect(_on_weapon_changed)
 	GameEvents.local_ammo_changed.connect(_on_ammo_changed)
 	GameEvents.local_ammo_picked.connect(_on_ammo_picked)
+	GameEvents.training_hit.connect(_on_training_hit)
 	GameEvents.local_grenades_changed.connect(_on_grenades_changed)
 	GameEvents.local_flashbangs_changed.connect(_on_flashbangs_changed)
 	GameEvents.local_health_changed.connect(_on_health_changed)
@@ -713,6 +714,47 @@ func set_spectator(on: bool) -> void:
 	if on:
 		hint_label.text = "ZUSCHAUER   WASD fliegen  •  Leertaste hoch  •  Strg runter  •  Shift schnell  •  Mausrad Tempo  •  F1 HUD aus/an  •  F2 Screenshot"
 		get_tree().create_timer(12.0).timeout.connect(func() -> void: if is_instance_valid(hint_label): hint_label.text = "")
+
+
+const ZONE_NAMES := {"head": "KOPF", "chest": "BRUST", "belly": "BAUCH", "upper_arm": "OBERARM", "forearm": "UNTERARM", "thigh": "OBERSCHENKEL", "shin": "WADE"}
+var _train_label: Label
+var _train_tween: Tween
+
+
+## Training: zone, damage and distance of the last hit on a dummy (below the crosshair) and a number that floats up at the dummy.
+func _on_training_hit(zone: String, amount: float, distance: float, world_pos: Vector3, killed: bool) -> void:
+	if _train_label == null:
+		_train_label = UITheme.label("", 26, Color(0.95, 0.95, 0.9), HORIZONTAL_ALIGNMENT_CENTER)
+		_train_label.set_anchors_preset(Control.PRESET_CENTER)
+		_train_label.custom_minimum_size = Vector2(700, 40)
+		_train_label.position = Vector2(-350, 120)
+		add_child(_train_label)
+	var zn: String = ZONE_NAMES.get(zone, zone.to_upper())
+	_train_label.text = "%s   −%d%s   •   %d m" % [zn, int(round(amount)), "   TÖDLICH" if killed else "", int(round(distance))]
+	_train_label.modulate = Color(1.0, 0.45, 0.35) if zone == "head" else Color.WHITE
+	if _train_tween != null:
+		_train_tween.kill()
+	_train_label.modulate.a = 1.0
+	_train_tween = create_tween()
+	_train_tween.tween_interval(1.6)
+	_train_tween.tween_property(_train_label, "modulate:a", 0.0, 0.5)
+	var l3 := Label3D.new()
+	l3.text = "%s %d" % [zn, int(round(amount))]
+	l3.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	l3.no_depth_test = true
+	l3.pixel_size = 0.004
+	l3.font_size = 48
+	l3.outline_size = 10
+	l3.modulate = Color(1.0, 0.5, 0.35) if zone == "head" else Color(0.95, 0.95, 0.9)
+	var parent := get_tree().get_first_node_in_group("effects_container")
+	if parent == null:
+		parent = get_tree().current_scene
+	parent.add_child(l3)
+	l3.global_position = world_pos + Vector3(0, 0.3, 0)
+	var tw := l3.create_tween().set_parallel(true)
+	tw.tween_property(l3, "position:y", l3.position.y + 0.9, 1.0)
+	tw.tween_property(l3, "modulate:a", 0.0, 1.0).set_delay(0.5)
+	tw.chain().tween_callback(l3.queue_free)
 
 
 func _show_weapon_banner(text: String) -> void:

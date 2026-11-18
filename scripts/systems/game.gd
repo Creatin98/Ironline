@@ -208,6 +208,14 @@ func _create_roster() -> void:
 			me.team = Teams.Team.NONE
 			me.display_name = "Zuschauer"
 			humans = 0
+	if cfg.training and map != null and map.has_method("get_dummies") and MatchManager.is_authority():
+		var n := 0
+		for d in map.get_dummies():
+			n += 1
+			var dp := MatchManager.add_bot("Ziel %d (%s)" % [n, d["label"]], 0, "assault", Teams.Team.NONE)
+			dp.is_dummy = true
+			dp.dummy_crouch = bool(d["crouch"])
+			dp.dummy_xf = Transform3D(Basis(Vector3.UP, deg_to_rad(float(d["yaw"]))), d["pos"])
 	if cfg.bots_enabled and MatchManager.is_authority():
 		var count := clampi(cfg.bot_count, 0, maxi(0, cfg.max_participants() - humans))
 		var names := GameDirector.random_bot_names(count)
@@ -215,6 +223,28 @@ func _create_roster() -> void:
 		for i in count:
 			var class_id: String = class_ids[randi() % class_ids.size()]
 			MatchManager.add_bot(names[i], cfg.bot_difficulty, class_id, Teams.Team.NONE)
+
+
+var _supply_t: float = 0.0
+
+
+## Training: ammunition and grenades are refilled while you shoot (so nothing runs out).
+func _training_supply(delta: float) -> void:
+	_supply_t -= delta
+	if _supply_t > 0.0:
+		return
+	_supply_t = 1.0
+	var wm := local_player.weapon_manager
+	for w in wm.weapons:
+		if w.reserve < w.data.magazine_size * 2:
+			w.reserve = w.data.reserve_ammo
+	if wm.grenades < 2:
+		wm.grenades = 2
+		GameEvents.local_grenades_changed.emit(2)
+	if wm.flashbangs < 1:
+		wm.flashbangs = 1
+		GameEvents.local_flashbangs_changed.emit(1)
+	wm._emit_local_state()
 
 
 ## Spectator: only the camera is ours. F1 hides the HUD, F2 saves a screenshot (user://screenshots).
@@ -293,6 +323,8 @@ func _update_gray() -> void:
 
 
 func _process(delta: float) -> void:
+	if MatchManager.config != null and MatchManager.config.training and local_player != null and is_instance_valid(local_player) and local_player.alive:
+		_training_supply(delta)
 	if speed_blur != null:
 		var sb := 0.0
 		if local_player != null and is_instance_valid(local_player) and local_player.alive and not _replay_active:
@@ -334,7 +366,7 @@ func _ensure_player(p: Participant) -> Player:
 	players_container.add_child(player)
 	var local := p.id == MatchManager.local_participant_id
 	player.setup(p, GameDirector.get_class_data(p.class_id), local)
-	if p.is_bot and MatchManager.is_authority():
+	if p.is_bot and not p.is_dummy and MatchManager.is_authority():
 		var bc: BotController = BotControllerScript.new()
 		bc.name = "BotController"
 		player.add_child(bc)
@@ -352,8 +384,10 @@ func _ensure_player(p: Participant) -> Player:
 func _spawn_participant(p: Participant) -> void:
 	var player := _ensure_player(p)
 	_sync_class(p, player)
-	var t := spawn_system.pick_spawn(p, MatchManager.mode.uses_teams)
+	var t := p.dummy_xf if p.is_dummy else spawn_system.pick_spawn(p, MatchManager.mode.uses_teams)
 	_finish_spawn(p, player, t)
+	if p.is_dummy:
+		player.input.crouch = p.dummy_crouch
 	NetworkManager.broadcast_spawn(p.id, t.origin, t.basis.get_euler().y, p.class_id)
 
 

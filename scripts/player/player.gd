@@ -561,6 +561,9 @@ func take_damage(amount: float, attacker_id: int, weapon_id: String, hit_positio
 	_last_hit_pos = hit_position
 	_last_zone = get_hit_zone(hit_position) if not headshot else {"zone": "head", "seg": 2, "side": 0}
 	var killed := health.apply_damage(amount, attacker_id, weapon_id, headshot)
+	var me_p := MatchManager.get_participant(participant_id)
+	if me_p != null and me_p.is_dummy:
+		GameEvents.training_hit.emit(String(_last_zone.get("zone", "")), amount, source_position.distance_to(hit_position), hit_position, killed)
 	if not killed:
 		_announce_hit_react(source_position, amount, headshot)
 	if is_local:

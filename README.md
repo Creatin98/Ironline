@@ -145,3 +145,7 @@ tests/         Headless-Smoke-Test
 ## Zuschauer-Modus
 
 Im Menü „Training (Offline)“ startet **Zuschauer (freie Kamera)** ein Bot-Match (volle Besetzung), in dem du unsichtbar und unverwundbar frei fliegst: WASD, Leertaste hoch, Strg runter, Shift schnell, Mausrad ändert das Tempo, **F1** blendet das HUD aus/ein, **F2** speichert einen Screenshot (`user://screenshots`, der Pfad wird eingeblendet).
+
+## Trainingsarena
+
+Hauptmenü → **Trainingsarena**: Schießstand (46 × 150 m) mit fünf Bahnen und Zielen auf 10/25/50/75/100 m, Zonen-Dummys (stehend, hockend, hinter Deckung), einem Kampfhof (Deckung, Plattform, Haus mit Fensterglas). Die Dummys sind echte Spieler ohne Verhalten: Jeder Treffer zeigt **Zone, Schaden und Distanz** (unter dem Fadenkreuz und als schwebende Zahl am Ziel); sie sterben mit dem vollen Gore (Gliedmaßen, Kopf) und stehen kurz danach wieder auf. Munition und Granaten füllen sich automatisch auf, es gibt kein Kill- oder Zeitlimit.

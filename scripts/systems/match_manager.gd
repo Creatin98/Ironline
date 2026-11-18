@@ -232,7 +232,7 @@ func report_kill(victim_id: int, killer_id: int, weapon_id: String, headshot: bo
 	GameEvents.participant_killed.emit(victim_id, killer_id, weapon_id, headshot)
 	GameEvents.scores_changed.emit()
 	NetworkManager.broadcast_kill(victim_id, killer_id, weapon_id, headshot, points, stats_dict(), paid_assists)
-	if mode.is_kill_limit_reached(team_scores, participants):
+	if not config.training and mode.is_kill_limit_reached(team_scores, participants):
 		end_match()
 
 

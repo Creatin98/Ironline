@@ -50,6 +50,7 @@ func _build() -> void:
 	_root.add_child(UITheme.spacer(40))
 	_menu_button("Online", _show_lobby)
 	_menu_button("Training (Offline)", _show_quick_play)
+	_menu_button("Trainingsarena", _start_range)
 	_menu_button("Klassen", _show_classes)
 	_menu_button("Einstellungen", _show_settings)
 	_menu_button("Spiel verlassen", GameDirector.quit_game)
@@ -176,6 +177,17 @@ func _refresh_quick_options() -> void:
 func _show_quick_play() -> void:
 	_hide_panels()
 	_quick_panel.visible = true
+
+
+func _start_range() -> void:
+	var cfg := MatchConfig.new()
+	cfg.mode_id = MatchConfig.MODE_FFA
+	cfg.map_id = "range"
+	cfg.training = true
+	cfg.bots_enabled = false
+	cfg.time_limit = 0.0
+	cfg.local_class_id = GameSettings.preferred_class_id if GameDirector.CLASSES.has(GameSettings.preferred_class_id) else "assault"
+	GameDirector.start_match(cfg, true)
 
 
 func _start_match(spectate: bool = false) -> void:

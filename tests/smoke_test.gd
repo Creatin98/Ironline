@@ -45,6 +45,7 @@ func _ready() -> void:
 	await _check_weapon_pickup()
 	_check_hit_zones()
 	await _check_spectator()
+	await _check_training()
 	await _check_maps()
 	await _check_glass()
 	await _simulate_bots()
@@ -2394,3 +2395,41 @@ func _check_spectator() -> void:
 	game.free()
 	await get_tree().process_frame
 	print("Zuschauer: freie Kamera, unsichtbar, unverwundbar, 12 Bots OK")
+
+
+func _check_training() -> void:
+	var cfg := MatchConfig.new()
+	cfg.mode_id = MatchConfig.MODE_FFA
+	cfg.map_id = "range"
+	cfg.training = true
+	cfg.bots_enabled = false
+	cfg.time_limit = 0.0
+	MatchManager.prepare_match(cfg)
+	var game: Node = (load("res://scenes/game/game.tscn") as PackedScene).instantiate()
+	add_child(game)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	MatchManager.warmup_left = 0.05
+	for i in 60:
+		await get_tree().physics_frame
+	var dummies := 0
+	var target: Player = null
+	for p in MatchManager.participants.values():
+		if p.is_dummy and p.node != null:
+			dummies += 1
+			if target == null:
+				target = p.node as Player
+	if dummies < 20:
+		_fail("Trainingsarena: zu wenige Dummys (%d)" % dummies)
+	elif target != null:
+		var got := [""]
+		var cb := func(zone: String, _a: float, _d: float, _w: Vector3, _k: bool) -> void: got[0] = zone
+		GameEvents.training_hit.connect(cb)
+		var head_pos := target.global_position + Vector3(0, 1.65, 0)
+		target.take_damage(10.0, MatchManager.local_participant_id, "ak47", head_pos, false, head_pos + Vector3(0, 0, 10))
+		GameEvents.training_hit.disconnect(cb)
+		if got[0] != "head":
+			_fail("Trainingsarena: Zone des Dummy-Treffers ist '%s', erwartet head" % got[0])
+	game.free()
+	await get_tree().process_frame
+	print("Trainingsarena: Dummys, Trefferzonen-Anzeige OK")

@@ -17,6 +17,9 @@ var score: int = 0
 var killstreak: int = 0
 var alive: bool = false
 var node: Node = null # The Player node while spawned
+var is_dummy: bool = false # training target: stands still at dummy_xf, dies and stands up again
+var dummy_xf: Transform3D = Transform3D.IDENTITY
+var dummy_crouch: bool = false
 var is_spectator: bool = false # free-fly camera only: invisible, untouchable, never an enemy
 
 
