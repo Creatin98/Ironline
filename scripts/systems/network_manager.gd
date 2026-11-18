@@ -13,7 +13,7 @@ extends Node
 
 enum Mode { OFFLINE, HOST, CLIENT }
 
-const PROTOCOL_VERSION := 10
+const PROTOCOL_VERSION := 11
 const DEFAULT_PORT := 7777
 const MAX_PEERS := 12
 const SNAPSHOT_EVERY_TICKS := 3 # 20 Hz at 60 physics ticks
@@ -38,6 +38,7 @@ const ACT_SWITCH := 16
 const ACT_PRIMARY := 32
 const ACT_SECONDARY := 64
 const ACT_FLASH := 128
+const ACT_USE := 256
 # snapshot flags (server -> clients)
 const SNAP_CROUCH := 1
 const SNAP_SPRINT := 2
@@ -474,6 +475,9 @@ func _rpc_client_loaded() -> void:
 		var glass := GlassField.find(get_tree())
 		if glass != null:
 			_rpc_glass_state.rpc_id(id, glass.export_state()) # panes that are already damaged or gone
+		for pk in get_tree().get_nodes_in_group("weapon_pickups"):
+			var wp := pk as WeaponPickup
+			_rpc_pickup_spawn.rpc_id(id, wp.pickup_id, wp.weapon_id, wp.magazine, wp.reserve, wp.global_position, wp.rotation.y)
 
 
 ## Host: complete roster/score/timer state to everybody (right before the warmup).
@@ -820,6 +824,32 @@ func _rpc_grenade_explode(gid: int, center: Vector3, kind: int) -> void:
 		grenade.explode_visual_at(center)
 	elif game != null:
 		game.play_explosion_at(center, kind)
+
+
+# ----------------------------------------------------------------------------- weapon pickups
+
+## Host: a weapon was dropped / put down.
+func broadcast_pickup_spawn(id: int, weapon_id: String, mag: int, res: int, pos: Vector3, yaw: float) -> void:
+	if mode == Mode.HOST and in_match and multiplayer.get_peers().size() > 0:
+		_rpc_pickup_spawn.rpc(id, weapon_id, mag, res, pos, yaw)
+
+
+@rpc("authority", "call_remote", "reliable")
+func _rpc_pickup_spawn(id: int, weapon_id: String, mag: int, res: int, pos: Vector3, yaw: float) -> void:
+	if mode == Mode.CLIENT and game != null and game.has_method("spawn_pickup"):
+		game.spawn_pickup(id, weapon_id, mag, res, pos, yaw)
+
+
+## Host: a player took pickup `id` (their primary weapon becomes `weapon_id` with this ammo).
+func broadcast_pickup_take(id: int, participant_id: int, weapon_id: String, mag: int, res: int) -> void:
+	if mode == Mode.HOST and in_match and multiplayer.get_peers().size() > 0:
+		_rpc_pickup_take.rpc(id, participant_id, weapon_id, mag, res)
+
+
+@rpc("authority", "call_remote", "reliable")
+func _rpc_pickup_take(id: int, participant_id: int, weapon_id: String, mag: int, res: int) -> void:
+	if mode == Mode.CLIENT and game != null and game.has_method("apply_pickup_take"):
+		game.apply_pickup_take(id, participant_id, weapon_id, mag, res)
 
 
 # ----------------------------------------------------------------------------- window glass

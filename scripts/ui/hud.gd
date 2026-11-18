@@ -514,7 +514,7 @@ func _on_match_state_changed(state: int) -> void:
 			_warmup = true
 			center_label.text = "Match beginnt in %d" % int(ceil(MatchManager.warmup_left))
 			sub_label.text = "%s  •  %s" % [MatchManager.mode.display_name, GameDirector.get_map_info(MatchManager.config.map_id)["name"]]
-			hint_label.text = "WASD Bewegen  •  Shift Sprint  •  Strg Ducken  •  RMT Zielen  •  R Nachladen  •  Q/1/2 Waffe  •  G Granate  •  F Blendgranate  •  Tab Punkte"
+			hint_label.text = "WASD Bewegen  •  Shift Sprint  •  Strg Ducken  •  RMT Zielen  •  R Nachladen  •  Q/1/2 Waffe  •  G Granate  •  F Blendgranate  •  E Waffe aufnehmen  •  Tab Punkte"
 		MatchManager.State.RUNNING:
 			_warmup = false
 			center_label.text = "KAMPF!"

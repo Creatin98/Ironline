@@ -235,6 +235,10 @@ func process_input(input: PlayerInputState, delta: float) -> void:
 	w.update(delta)
 
 	# switching cancels a grenade that has not been thrown yet, and may interrupt the raise (spam switching)
+	if input.use_pressed and MatchManager.is_authority() and player.alive:
+		var g := NetworkManager.game
+		if g != null and g.has_method("try_pickup"):
+			g.try_pickup(player)
 	if _grenade_timer > 0.0 and not _grenade_thrown and (input.select_primary or input.select_secondary or input.switch_pressed):
 		cancel_grenade(true)
 	if _grenade_timer <= 0.0 and (_switch_state == SwitchState.READY or _switch_state == SwitchState.RAISING):

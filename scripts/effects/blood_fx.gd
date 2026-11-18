@@ -6,7 +6,7 @@ extends RefCounted
 const MAX_WORLD_SPLATS := 90
 const SPLAT_LIFETIME := 25.0
 const VARIANTS := 4
-const TEX_SIZE := 96
+const TEX_SIZE := 160
 
 static var _textures: Array[ImageTexture] = []
 static var _materials: Array[StandardMaterial3D] = []
@@ -25,43 +25,65 @@ static func splat_texture(i: int) -> ImageTexture:
 	return _textures[i % VARIANTS]
 
 
+## A realistic splash: an irregular main body that stretches in one direction and a spray of cast-off drops
+## (round near the body, elongated with a tail towards the body farther out) plus fine mist. Different per variant.
 static func _make_texture(rng: RandomNumberGenerator) -> ImageTexture:
 	var img := Image.create(TEX_SIZE, TEX_SIZE, false, Image.FORMAT_RGBA8)
+	var bias := rng.randf() * TAU
+	var base := rng.randf_range(0.15, 0.23)
 	var phases: Array[float] = []
 	var amps: Array[float] = []
-	for k in 5:
+	for k in 6:
 		phases.append(rng.randf() * TAU)
-		amps.append(rng.randf_range(0.05, 0.16) / (1.0 + k * 0.35))
-	# satellite drops: [x, y, r]
-	var drops: Array = []
-	for k in rng.randi_range(5, 9):
-		var a := rng.randf() * TAU
-		var d := rng.randf_range(0.45, 0.85)
-		drops.append([cos(a) * d, sin(a) * d, rng.randf_range(0.03, 0.09)])
-	# spikes: a few streaks pointing outwards
-	var spikes: Array = []
-	for k in rng.randi_range(4, 7):
-		spikes.append([rng.randf() * TAU, rng.randf_range(0.5, 0.95)])
+		amps.append(rng.randf_range(0.2, 0.5) * base / (1.0 + k * 0.5))
+	var stretch := rng.randf_range(0.04, 0.16)
 	for y in TEX_SIZE:
 		for x in TEX_SIZE:
 			var px := (float(x) / (TEX_SIZE - 1)) * 2.0 - 1.0
 			var py := (float(y) / (TEX_SIZE - 1)) * 2.0 - 1.0
 			var r := sqrt(px * px + py * py)
 			var ang := atan2(py, px)
-			var edge := 0.38
+			var edge := base + stretch * pow(maxf(0.0, cos(ang - bias)), 3.0)
 			for k in amps.size():
-				edge += amps[k] * sin(ang * (k * 2 + 3) + phases[k])
-			var a := clampf((edge - r) / 0.06, 0.0, 1.0)
-			for dr in drops:
-				var dd := sqrt((px - dr[0]) * (px - dr[0]) + (py - dr[1]) * (py - dr[1]))
-				a = maxf(a, clampf((dr[2] - dd) / 0.02, 0.0, 1.0))
-			for sp in spikes:
-				var diff := absf(wrapf(ang - sp[0], -PI, PI))
-				var width := 0.05 + 0.04 * (1.0 - r)
-				if diff < width and r < sp[1] and r > 0.2:
-					a = maxf(a, (1.0 - diff / width) * clampf((sp[1] - r) / 0.25, 0.0, 1.0))
-			img.set_pixel(x, y, Color(1, 1, 1, a))
+				edge += amps[k] * sin(ang * float(k + 2) + phases[k])
+			var a := clampf((edge - r) / 0.035, 0.0, 1.0)
+			if a > 0.0:
+				img.set_pixel(x, y, Color(1, 1, 1, a))
+	# cast-off drops: mostly in the direction of the splash
+	for i in rng.randi_range(26, 40):
+		var dir_a := bias + rng.randfn(0.0, 0.85)
+		var dist := 0.2 + pow(rng.randf(), 1.5) * 0.72
+		var radius := lerpf(0.05, 0.012, dist) * rng.randf_range(0.6, 1.5)
+		var c := Vector2(cos(dir_a), sin(dir_a)) * dist
+		var tail := radius * rng.randf_range(0.0, 3.5) * clampf(dist * 1.6, 0.0, 1.0)
+		_drop(img, c, radius, tail, -Vector2(cos(dir_a), sin(dir_a)))
+	# fine mist
+	for i in rng.randi_range(30, 55):
+		var dir_a := bias + rng.randfn(0.0, 1.25)
+		var dist := rng.randf_range(0.25, 0.95)
+		_drop(img, Vector2(cos(dir_a), sin(dir_a)) * dist, rng.randf_range(0.006, 0.013), 0.0, Vector2.ZERO)
 	return ImageTexture.create_from_image(img)
+
+
+## A drop (optionally with a tail that points to `tail_dir`) at `c` (-1..1 space), only the pixels near it are touched.
+static func _drop(img: Image, c: Vector2, radius: float, tail: float, tail_dir: Vector2) -> void:
+	var half := float(TEX_SIZE - 1) * 0.5
+	var reach := radius + tail + 0.02
+	var x0 := clampi(int((c.x - reach + 1.0) * half), 0, TEX_SIZE - 1)
+	var x1 := clampi(int((c.x + reach + 1.0) * half) + 1, 0, TEX_SIZE - 1)
+	var y0 := clampi(int((c.y - reach + 1.0) * half), 0, TEX_SIZE - 1)
+	var y1 := clampi(int((c.y + reach + 1.0) * half) + 1, 0, TEX_SIZE - 1)
+	for y in range(y0, y1 + 1):
+		for x in range(x0, x1 + 1):
+			var p := Vector2(float(x) / half - 1.0, float(y) / half - 1.0)
+			var t := 0.0
+			if tail > 0.0:
+				t = clampf((p - c).dot(tail_dir) / tail, 0.0, 1.0)
+			var centre := c + tail_dir * tail * t
+			var rr := radius * (1.0 - 0.75 * t)
+			var a := clampf((rr - p.distance_to(centre)) / 0.01, 0.0, 1.0)
+			if a > img.get_pixel(x, y).a:
+				img.set_pixel(x, y, Color(1, 1, 1, a))
 
 
 static func _material(i: int) -> StandardMaterial3D:

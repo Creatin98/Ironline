@@ -68,6 +68,9 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif event.is_action_pressed("flashbang"):
 		player.input.flash_pressed = true
 		_pending_actions |= NetworkManager.ACT_FLASH
+	elif event.is_action_pressed("interact"):
+		player.input.use_pressed = true
+		_pending_actions |= NetworkManager.ACT_USE
 	elif event.is_action_pressed("switch_weapon"):
 		player.input.switch_pressed = true
 		_pending_actions |= NetworkManager.ACT_SWITCH
@@ -131,6 +134,8 @@ func send_to_server() -> void:
 		actions |= NetworkManager.ACT_GRENADE
 	if inp.flash_pressed:
 		actions |= NetworkManager.ACT_FLASH
+	if inp.use_pressed:
+		actions |= NetworkManager.ACT_USE
 	if inp.switch_pressed:
 		actions |= NetworkManager.ACT_SWITCH
 	if inp.select_primary:

@@ -299,6 +299,32 @@ func replay_shot() -> void:
 		AudioManager.play_3d(w.data.shot_sound, global_position + Vector3.UP, w.data.shot_volume_db, 0.05, 120.0)
 
 
+## Picks up a weapon from the floor: the primary weapon becomes `weapon_id` with the given ammo; the secondary weapon,
+## grenades and flashbangs stay as they are.
+func swap_primary(weapon_id: String, mag: int, res: int) -> void:
+	var data := WeaponPickup.weapon_data(weapon_id)
+	if data == null or weapon_manager.weapons.size() < 2:
+		return
+	var sec: Weapon = weapon_manager.weapons[1]
+	var s_mag := sec.magazine
+	var s_res := sec.reserve
+	var gren := weapon_manager.grenades
+	var flash := weapon_manager.flashbangs
+	var cd: ClassData = class_data.duplicate()
+	cd.primary = data
+	apply_class(cd)
+	weapon_manager.weapons[0].magazine = mag
+	weapon_manager.weapons[0].reserve = res
+	weapon_manager.weapons[1].magazine = s_mag
+	weapon_manager.weapons[1].reserve = s_res
+	weapon_manager.grenades = gren
+	weapon_manager.flashbangs = flash
+	if is_local:
+		weapon_manager._emit_local_state()
+		GameEvents.local_grenades_changed.emit(gren)
+		GameEvents.local_flashbangs_changed.emit(flash)
+
+
 ## Swaps the loadout (weapons, grenades). Called right before a respawn.
 func apply_class(new_class: ClassData) -> void:
 	class_data = new_class
@@ -874,6 +900,8 @@ func _apply_remote_input() -> void:
 		input.grenade_pressed = true
 	if a & NetworkManager.ACT_FLASH:
 		input.flash_pressed = true
+	if a & NetworkManager.ACT_USE:
+		input.use_pressed = true
 	if a & NetworkManager.ACT_SWITCH:
 		input.switch_pressed = true
 	if a & NetworkManager.ACT_PRIMARY:

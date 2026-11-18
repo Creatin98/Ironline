@@ -154,11 +154,21 @@ func _spawn_splats(amount: float) -> void:
 			sp["rot"] = randf() * TAU
 			sp["vy"] = 0.0
 		else:
-			sp["kind"] = 3 # drip: runs down and ends in a drop
-			sp["size"] = randf_range(150.0, 360.0) * k
-			sp["w"] = randf_range(9.0, 22.0) * k
-			sp["vy"] = randf_range(14.0, 40.0) * k
+			sp["kind"] = 3 # drip: a stain with a run that creeps down and ends in a bead
+			sp["size"] = randf_range(70.0, 190.0) * k
+			sp["w"] = randf_range(15.0, 28.0) * k
+			sp["vy"] = 0.0 # the stain stays, the run grows (see _draw_splats)
+			sp["rot"] = randf() * TAU
+			sp["tex"] = randi() % BloodFx.VARIANTS
+			sp["seed"] = randf() * 10.0
+		if int(sp["kind"]) == 1:
+			sp["tex_id"] = "smear" if randf() < 0.5 else "smear2"
 		splats.append(sp)
+	# extra sprays: coarse big drops and sometimes a second small fine mist
+	if randf() < 0.55:
+		splats.append({"kind": 6, "p": _edge_biased(s), "age": 0.0, "vy": randf_range(4.0, 14.0) * k, "size": randf_range(150.0, 320.0) * k, "rot": randf() * TAU})
+	if randf() < 0.35:
+		splats.append({"kind": 2, "p": _edge_biased(s), "age": 0.0, "vy": randf_range(4.0, 14.0) * k, "size": randf_range(120.0, 200.0) * k, "rot": randf() * TAU})
 	# a few dirt specks and fine scratches on the glass
 	if randf() < 0.6:
 		splats.append({"kind": 4, "p": _edge_biased(s), "age": 0.0, "vy": 0.0, "size": randf_range(120.0, 260.0) * k, "rot": randf() * TAU})
@@ -196,20 +206,13 @@ func _draw_splats() -> void:
 			0:
 				_stamp(BloodFx.splat_texture(int(sp["tex"])), p, sz * (0.72 + 0.28 * grow), 1.15, float(sp["rot"]), Color(0.48, 0.02, 0.02, a))
 			1:
-				_stamp(_texture("smear"), p, sz * (0.6 + 0.4 * grow), 0.45, float(sp["rot"]), Color(0.4, 0.015, 0.015, a * 0.8))
+				_stamp(_texture(String(sp.get("tex_id", "smear"))), p, sz * (0.6 + 0.4 * grow), 0.45, float(sp["rot"]), Color(0.4, 0.015, 0.015, a * 0.8))
 			2:
 				_stamp(_texture("speckle"), p, sz * (0.8 + 0.2 * grow), 1.0, float(sp["rot"]), Color(0.5, 0.03, 0.03, a))
 			3:
-				var len := sz * grow
-				var w: float = float(sp["w"])
-				var n := Vector2.RIGHT
-				var tip := p + Vector2(0.0, len)
-				var pts := PackedVector2Array([p + n * w * 0.5, p + Vector2(0.0, len * 0.4) + n * w * 0.22, tip + n * w * 0.06, tip - n * w * 0.06, p + Vector2(0.0, len * 0.4) - n * w * 0.22, p - n * w * 0.5])
-				var col := Color(0.42, 0.02, 0.02, a)
-				if len > 8.0:
-					canvas.draw_colored_polygon(pts, col)
-				canvas.draw_circle(tip, w * 0.3, col)
-				canvas.draw_circle(tip + Vector2(-w * 0.08, -w * 0.1), w * 0.1, Color(0.9, 0.55, 0.5, a * 0.5)) # a glint on the drop
+				_draw_drip(sp, p, sz, age, a)
+			6:
+				_stamp(_texture("coarse"), p, sz * (0.8 + 0.2 * grow), 1.0, float(sp["rot"]), Color(0.46, 0.025, 0.025, a))
 			4:
 				_stamp(_texture("speckle"), p, sz, 1.0, float(sp["rot"]), Color(0.18, 0.1, 0.06, a * 0.75)) # dirt, brownish
 			5:
@@ -217,6 +220,41 @@ func _draw_splats() -> void:
 					var dir := Vector2.from_angle(float(l[0]))
 					var q := p + dir.orthogonal() * float(l[2])
 					canvas.draw_line(q, q + dir * float(l[1]), Color(0.92, 0.85, 0.85, a * 0.22), 1.3, true)
+
+
+## A drip: a soft stain at the top, a run with a slightly wobbling edge that thins out while it creeps down,
+## and a round bead with a glint at its end. The run keeps growing for a while (slower and slower).
+func _draw_drip(sp: Dictionary, p: Vector2, sz: float, age: float, a: float) -> void:
+	var w: float = float(sp["w"])
+	var seed_f: float = float(sp["seed"])
+	var run := 1.0 - pow(1.0 - clampf(age * 0.35, 0.0, 1.0), 2.2)
+	var length := sz * (0.18 + 0.82 * run)
+	var col := Color(0.42, 0.02, 0.02, a)
+	_stamp(BloodFx.splat_texture(int(sp["tex"])), p, w * 7.0, 1.0, float(sp["rot"]), Color(0.46, 0.02, 0.02, a * 0.92))
+	var steps := 20
+	var left := PackedVector2Array()
+	var right := PackedVector2Array()
+	var end_c := p
+	var end_w := w * 0.3
+	for i in steps + 1:
+		var t := float(i) / float(steps)
+		var cx := p.x + sin(t * 5.0 + seed_f) * w * 0.45 * t + sin(t * 13.0 + seed_f * 2.0) * w * 0.08
+		var cy := p.y + length * t
+		var hw := w * (0.62 - 0.38 * t + 0.14 * sin(t * 15.0 + seed_f * 3.0)) * (0.55 if run < 0.15 else 1.0)
+		hw = maxf(hw, w * 0.16)
+		left.append(Vector2(cx - hw, cy))
+		right.append(Vector2(cx + hw, cy))
+		end_c = Vector2(cx, cy)
+		end_w = hw
+	var poly := PackedVector2Array()
+	poly.append_array(left)
+	right.reverse()
+	poly.append_array(right)
+	if length > 6.0:
+		canvas.draw_colored_polygon(poly, col)
+	canvas.draw_circle(end_c, end_w * 1.45, col)
+	canvas.draw_circle(end_c + Vector2(-end_w * 0.35, -end_w * 0.4), end_w * 0.4, Color(0.95, 0.6, 0.55, a * 0.45)) # glint
+	canvas.draw_circle(end_c + Vector2(end_w * 0.2, -length * 0.35), end_w * 0.35, Color(col.r, col.g, col.b, a * 0.8)) # a small drop that stayed behind
 
 
 func _stamp(tex: Texture2D, p: Vector2, size: float, aspect: float, rot: float, col: Color) -> void:
@@ -234,7 +272,9 @@ static func _texture(id: String) -> ImageTexture:
 	rng.seed = 424242 + id.hash() % 1000
 	var img: Image
 	if id == "speckle":
-		img = _make_speckle(rng)
+		img = _make_speckle(rng, false)
+	elif id == "coarse":
+		img = _make_speckle(rng, true)
 	else:
 		img = _make_smear(rng)
 	var t := ImageTexture.create_from_image(img)
@@ -243,14 +283,16 @@ static func _texture(id: String) -> ImageTexture:
 
 
 ## Fine spray: many small round drops of different sizes, a few bigger ones, soft edges.
-static func _make_speckle(rng: RandomNumberGenerator) -> Image:
+static func _make_speckle(rng: RandomNumberGenerator, coarse: bool = false) -> Image:
 	var size := 256
 	var img := Image.create(size, size, false, Image.FORMAT_RGBA8)
-	for i in 150:
+	for i in (46 if coarse else 150):
 		var ang := rng.randf() * TAU
 		var dist := pow(rng.randf(), 0.7) * 0.46
 		var c := Vector2(0.5 + cos(ang) * dist, 0.5 + sin(ang) * dist) * size
 		var r := (rng.randf_range(0.8, 3.0) if rng.randf() < 0.88 else rng.randf_range(4.0, 9.0)) * (1.0 - dist * 0.9)
+		if coarse:
+			r = (rng.randf_range(2.5, 6.0) if rng.randf() < 0.8 else rng.randf_range(8.0, 14.0)) * (1.0 - dist * 0.75)
 		var stretch := Vector2(1.0, rng.randf_range(0.8, 1.5)).rotated(ang)
 		for y in range(maxi(0, int(c.y - r * 2.0)), mini(size, int(c.y + r * 2.0) + 1)):
 			for x in range(maxi(0, int(c.x - r * 2.0)), mini(size, int(c.x + r * 2.0) + 1)):
@@ -274,12 +316,14 @@ static func _make_smear(rng: RandomNumberGenerator) -> Image:
 		stripes.append(rng.randf_range(0.45, 1.0))
 	for x in w:
 		var u := float(x) / w
-		var thick := (0.18 + 0.32 * sin(u * PI)) * (1.0 - u * 0.35)
+		var thick := (0.10 + 0.27 * sin(u * PI)) * (1.0 - u * 0.3)
+		var head := smoothstep(0.0, 0.2, u) # the smear starts softly, no straight cut
 		var centre := 0.5 + sin(u * 5.0 + wob) * 0.06
 		for y in h:
 			var v := float(y) / h
 			var d := absf(v - centre) / maxf(thick, 0.001)
-			var a := clampf(1.0 - d * d, 0.0, 1.0) * stripes[y] * clampf(1.15 - u * 0.9, 0.0, 1.0)
+			var edge_v := smoothstep(0.0, 0.07, minf(v, 1.0 - v))
+			var a := clampf(1.0 - d * d, 0.0, 1.0) * stripes[y] * smoothstep(0.0, 0.5, 1.0 - u) * head * edge_v
 			if rng.randf() < 0.04:
 				a *= 0.5
 			if a > 0.01:

@@ -20,6 +20,7 @@ var flash_held: bool = false
 var switch_pressed: bool = false
 var select_primary: bool = false
 var select_secondary: bool = false
+var use_pressed: bool = false          # pick up the weapon on the floor
 
 
 ## Call after the frame was processed so one-shot actions do not repeat.
@@ -33,6 +34,7 @@ func clear_one_shot() -> void:
 	switch_pressed = false
 	select_primary = false
 	select_secondary = false
+	use_pressed = false
 
 
 func clear_all() -> void:

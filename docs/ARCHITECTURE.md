@@ -283,6 +283,13 @@ Python-Skripten in `tools/` erzeugt – keine Fremdinhalte, alles reproduzierbar
   `_rpc_glass_blast` (alle von einer Druckwelle betroffenen Scheiben in einem Paket), `_rpc_glass_state` für späte Lader.
   Splitter werden nie übertragen, jede Maschine simuliert sie lokal. `PROTOCOL_VERSION` = 10.
 
+## Waffen am Boden
+- Stirbt ein Spieler (oder Bot), legt der Host dessen Hauptwaffe mit Restmunition als `WeaponPickup` ab (`Game._drop_primary_weapon`),
+  bis zu 10 gleichzeitig, 45 s Lebensdauer. Der Pickup liegt auf der Seite, hat Leuchtfleck und Label (`[E] aufnehmen` in 2 m).
+- **E** (`interact`, Bit `ACT_USE`) tauscht die nächste Waffe in Reichweite gegen die eigene Hauptwaffe (`Game.try_pickup`, nur Host);
+  die eigene bleibt mit ihrer Munition liegen. Sekundärwaffe, Granaten und Blendgranaten bleiben unverändert (`Player.swap_primary`).
+- Sync: `_rpc_pickup_spawn`, `_rpc_pickup_take`, späte Lader bekommen alle liegenden Waffen nachgereicht. `PROTOCOL_VERSION` = 11.
+
 ## Optik (Visual Overhaul)
 - **Materialien**: `assets/materials/*.tres` nutzen Albedo-, Normal- und Roughness-Map (triplanar, Welt-UV).
   Waffen (`weapon_metal/polymer/wood`) und Stoff (`cloth`) nutzen Objekt-Triplanar. Normal-Maps sind als Normal-Map importiert.

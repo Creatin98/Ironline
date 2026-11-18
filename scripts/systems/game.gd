@@ -340,6 +340,7 @@ func _respawn_delay_for(p: Participant) -> float:
 
 
 func _on_player_died(victim_id: int, killer_id: int, weapon_id: String, headshot: bool) -> void:
+	_drop_primary_weapon(victim_id)
 	var assisters: Array = []
 	var victim_p := MatchManager.get_participant(victim_id)
 	if victim_p != null and victim_p.node != null and is_instance_valid(victim_p.node):
@@ -355,6 +356,110 @@ func _on_player_died(victim_id: int, killer_id: int, weapon_id: String, headshot
 			_death_sequence(killer_id)
 		else:
 			_death_camera(killer_id)
+
+
+# ----------------------------------------------------------------------------- weapons on the floor
+
+const MAX_PICKUPS := 10
+var _pickups: Dictionary = {} # id -> WeaponPickup
+var _next_pickup_id: int = 1
+var _pickup_root: Node3D
+
+
+## Server: a dead player leaves the primary weapon (with what is left in it) on the floor.
+func _drop_primary_weapon(victim_id: int) -> void:
+	if not MatchManager.is_authority() or MatchManager.state != MatchManager.State.RUNNING:
+		return
+	var p := MatchManager.get_participant(victim_id)
+	if p == null or p.node == null or not is_instance_valid(p.node):
+		return
+	var pl := p.node as Player
+	if pl.weapon_manager.weapons.is_empty():
+		return
+	_drop_weapon_at(pl, pl.weapon_manager.weapons[0], pl.global_position, pl.rotation.y)
+
+
+func _drop_weapon_at(pl: Player, w: Weapon, pos: Vector3, yaw: float) -> void:
+	if w.magazine + w.reserve <= 0:
+		return
+	var space := pl.get_world_3d().direct_space_state
+	var q := PhysicsRayQueryParameters3D.create(pos + Vector3(0, 0.6, 0), pos + Vector3(0, -3.0, 0), 1)
+	var r := space.intersect_ray(q)
+	var ground := pos
+	if not r.is_empty():
+		ground = r["position"]
+	var id := _next_pickup_id
+	_next_pickup_id += 1
+	spawn_pickup(id, w.data.weapon_id, w.magazine, w.reserve, ground, yaw)
+	NetworkManager.broadcast_pickup_spawn(id, w.data.weapon_id, w.magazine, w.reserve, ground, yaw)
+
+
+## Everybody: a weapon appears on the floor.
+func spawn_pickup(id: int, weapon_id: String, mag: int, res: int, pos: Vector3, yaw: float) -> void:
+	if _pickups.has(id):
+		return
+	if _pickup_root == null:
+		_pickup_root = Node3D.new()
+		_pickup_root.name = "Pickups"
+		add_child(_pickup_root)
+	while _pickups.size() >= MAX_PICKUPS:
+		var oldest_id: int = _pickups.keys()[0]
+		var old: WeaponPickup = _pickups[oldest_id]
+		_pickups.erase(oldest_id)
+		if is_instance_valid(old):
+			old.queue_free()
+	var pk := WeaponPickup.create(id, weapon_id, mag, res, pos, yaw)
+	_pickup_root.add_child(pk)
+	pk.tree_exited.connect(func() -> void: _pickups.erase(id))
+	_pickups[id] = pk
+
+
+## Server: `pl` presses the use key: the nearest weapon within reach is swapped for the current primary weapon.
+func try_pickup(pl: Player) -> void:
+	var best: WeaponPickup = null
+	var best_d := WeaponPickup.PICKUP_RANGE
+	for pk in _pickups.values():
+		var wp := pk as WeaponPickup
+		if wp == null or not is_instance_valid(wp) or wp.age < 0.5:
+			continue
+		var d := wp.global_position.distance_to(pl.global_position)
+		if d < best_d:
+			best_d = d
+			best = wp
+	if best == null or pl.weapon_manager.weapons.is_empty():
+		return
+	var old: Weapon = pl.weapon_manager.weapons[0]
+	var old_id := old.data.weapon_id
+	var old_mag := old.magazine
+	var old_res := old.reserve
+	NetworkManager.broadcast_pickup_take(best.pickup_id, pl.participant_id, best.weapon_id, best.magazine, best.reserve)
+	var pos := pl.global_position
+	var yaw := pl.rotation.y
+	apply_pickup_take(best.pickup_id, pl.participant_id, best.weapon_id, best.magazine, best.reserve)
+	# the weapon that was carried stays behind (a little in front of the player, so it is not picked up again at once)
+	if old_mag + old_res > 0:
+		var fwd := -Vector3(sin(yaw), 0.0, cos(yaw))
+		var id := _next_pickup_id
+		_next_pickup_id += 1
+		var drop_pos := pos + fwd * 0.7
+		var space := pl.get_world_3d().direct_space_state
+		var r := space.intersect_ray(PhysicsRayQueryParameters3D.create(drop_pos + Vector3(0, 0.6, 0), drop_pos + Vector3(0, -3.0, 0), 1))
+		if not r.is_empty():
+			drop_pos = r["position"]
+		spawn_pickup(id, old_id, old_mag, old_res, drop_pos, yaw)
+		NetworkManager.broadcast_pickup_spawn(id, old_id, old_mag, old_res, drop_pos, yaw)
+
+
+## Everybody: pickup `id` was taken, the participant now carries `weapon_id` as primary weapon.
+func apply_pickup_take(id: int, participant_id: int, weapon_id: String, mag: int, res: int) -> void:
+	var pk: WeaponPickup = _pickups.get(id)
+	_pickups.erase(id)
+	if pk != null and is_instance_valid(pk):
+		AudioManager.play_3d("weapon_switch", pk.global_position, -4.0, 0.05, 30.0)
+		pk.queue_free()
+	var p := MatchManager.get_participant(participant_id)
+	if p != null and p.node != null and is_instance_valid(p.node):
+		(p.node as Player).swap_primary(weapon_id, mag, res)
 
 
 ## Server: the player asks to skip the killcam wait (allowed after KILLCAM_SKIP_AFTER seconds).

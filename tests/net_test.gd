@@ -236,6 +236,8 @@ func _run_host() -> void:
 	if client_node.class_data.class_id != "shotgun" or client_node.weapon_manager.weapons[0].data.weapon_id != "shotgun":
 		_fail("Klassenwechsel des Clients wurde beim Respawn nicht angewendet")
 	_log("Kill gewertet, Client respawnt als Shotgun-Klasse")
+	if NetworkManager.game == null or NetworkManager.game._pickups.size() < 1:
+		_fail("Host: die Waffe des getoeteten Clients liegt nicht auf dem Boden")
 	await get_tree().create_timer(1.0).timeout
 
 	# 5) grenade replication
@@ -499,6 +501,10 @@ func _run_client() -> void:
 	if respawned == null or respawned.weapon_manager.get_current_weapon().data.weapon_id != "shotgun":
 		_fail("Neue Klasse (Shotgun) ist nach dem Respawn nicht aktiv")
 	_log("Tod und Respawn repliziert, neue Klasse aktiv")
+	if not await _wait(func() -> bool: return NetworkManager.game != null and NetworkManager.game._pickups.size() >= 1, 6.0):
+		_fail("Client: die fallengelassene Waffe wurde nicht repliziert")
+	else:
+		_log("Fallengelassene Waffe repliziert")
 
 	# 5) grenade explosion thrown by the host
 	if not await _wait(func() -> bool: return int(_stats["explosions"]) >= 1, 15.0):

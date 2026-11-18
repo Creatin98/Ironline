@@ -42,6 +42,7 @@ func _ready() -> void:
 	await _simulate_slide()
 	_check_ak_handle_and_stairs()
 	await _check_reload_cancel_and_coyote()
+	await _check_weapon_pickup()
 	await _check_maps()
 	await _check_glass()
 	await _simulate_bots()
@@ -2259,5 +2260,63 @@ func _check_reload_cancel_and_coyote() -> void:
 	pl.weapon_manager.process_input(pl.input, 1.0 / 60.0)
 	if w.is_reloading():
 		_fail("Eine Granate muss das Nachladen abbrechen")
+	game.free()
+	await get_tree().process_frame
+
+
+## A dead player leaves the primary weapon on the floor; another player swaps it for the own one (ammo is kept).
+func _check_weapon_pickup() -> void:
+	var cfg := MatchConfig.new()
+	cfg.mode_id = MatchConfig.MODE_FFA
+	cfg.map_id = "test_arena"
+	cfg.bots_enabled = true
+	cfg.bot_count = 1
+	cfg.time_limit = 0.0
+	cfg.local_class_id = "assault"
+	MatchManager.prepare_match(cfg)
+	var game: Node = (load("res://scenes/game/game.tscn") as PackedScene).instantiate()
+	add_child(game)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	MatchManager.warmup_left = 0.05
+	for i in 40:
+		await get_tree().physics_frame
+	var me := MatchManager.get_local_participant()
+	var pl := me.node as Player
+	pl.human_controller.deactivate()
+	var bot_p: Participant = null
+	for p in MatchManager.participants.values():
+		if p.is_bot:
+			bot_p = p
+	var bot := bot_p.node as Player
+	var bw: Weapon = bot.weapon_manager.weapons[0]
+	bw.magazine = 7
+	bw.reserve = 21
+	var dropped_id := bw.data.weapon_id
+	bot.health.kill(me.id, "ak47", false)
+	await get_tree().process_frame
+	if game._pickups.size() != 1:
+		_fail("Ein toter Spieler muss seine Hauptwaffe fallen lassen (Pickups: %d)" % game._pickups.size())
+		game.free()
+		await get_tree().process_frame
+		return
+	var pk: WeaponPickup = game._pickups.values()[0]
+	if pk.weapon_id != dropped_id or pk.magazine != 7 or pk.reserve != 21:
+		_fail("Die fallengelassene Waffe muss ihre Restmunition behalten")
+	pl.global_position = pk.global_position + Vector3(0.5, 0.2, 0)
+	pk.age = 1.0
+	var mine: Weapon = pl.weapon_manager.weapons[0]
+	mine.magazine = 3
+	mine.reserve = 4
+	var mine_id := mine.data.weapon_id
+	var sec_ammo: int = pl.weapon_manager.weapons[1].magazine
+	game.try_pickup(pl)
+	var now_w: Weapon = pl.weapon_manager.weapons[0]
+	if now_w.data.weapon_id != dropped_id or now_w.magazine != 7 or now_w.reserve != 21:
+		_fail("Aufheben: Waffe oder Munition falsch (%s %d|%d)" % [now_w.data.weapon_id, now_w.magazine, now_w.reserve])
+	if pl.weapon_manager.weapons[1].magazine != sec_ammo:
+		_fail("Aufheben darf die Sekundaerwaffe nicht veraendern")
+	if game._pickups.size() != 1 or (game._pickups.values()[0] as WeaponPickup).magazine != 3 or (game._pickups.values()[0] as WeaponPickup).weapon_id != mine_id:
+		_fail("Die eigene Waffe muss beim Tausch auf dem Boden bleiben")
 	game.free()
 	await get_tree().process_frame
