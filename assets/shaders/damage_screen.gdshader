@@ -38,6 +38,16 @@ void fragment() {
 	float a = edge * strength * (0.5 + 0.8 * dirt) * (0.7 + 0.6 * streaks);
 	vec3 blood = mix(vec3(0.42, 0.015, 0.012), vec3(0.07, 0.0, 0.0), clamp(dirt * 0.9 + edge * 0.35, 0.0, 1.0));
 	col = mix(col, blood, clamp(a, 0.0, 0.93));
+	// gritty grime over the whole picture: mottled red-black stains (also towards the middle, but weaker), blood-spray
+	// grain and pale dust specks, so nothing stands alone like a single mark
+	float mott = vnoise(uv * vec2(3.2, 2.4) + 4.7) * 0.5 + vnoise(uv * vec2(9.0, 7.0) + 1.3) * 0.3 + vnoise(uv * vec2(26.0, 22.0)) * 0.2;
+	float grime_amt = clamp(hit * 0.55 + low * 0.55 + crit * 0.4, 0.0, 1.0) * (0.3 + 0.7 * smoothstep(0.2, 0.95, d));
+	float stain = smoothstep(0.5, 0.72, mott) * grime_amt;
+	col = mix(col, mix(vec3(0.3, 0.012, 0.01), vec3(0.04, 0.0, 0.0), smoothstep(0.55, 0.85, mott)), stain * 0.62);
+	float grain = vnoise(uv * vec2(190.0, 230.0));
+	col = mix(col, vec3(0.2, 0.01, 0.008), smoothstep(0.74, 0.9, grain) * grime_amt * 0.7);
+	float dust = vnoise(uv * vec2(140.0, 170.0) + 9.0);
+	col = mix(col, vec3(0.78, 0.72, 0.68), smoothstep(0.9, 0.97, dust) * grime_amt * 0.15);
 	// the instant red flash over the whole picture
 	col = mix(col, vec3(0.6, 0.03, 0.02), hit * hit * 0.34 * (0.45 + 0.55 * edge));
 	COLOR = vec4(col, 1.0);

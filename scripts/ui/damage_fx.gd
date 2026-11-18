@@ -134,7 +134,7 @@ func _process(delta: float) -> void:
 func _spawn_splats(amount: float) -> void:
 	var s := canvas.size
 	var k := s.y / 1080.0
-	var blobs := clampi(1 + int(amount / 25.0), 1, 5)
+	var blobs := clampi(3 + int(amount / 15.0), 3, 9)
 	for i in blobs + 1:
 		var pos := _edge_biased(s)
 		var roll := randf()
@@ -143,23 +143,18 @@ func _spawn_splats(amount: float) -> void:
 			sp["kind"] = 2
 			sp["size"] = randf_range(220.0, 420.0) * k
 			sp["rot"] = randf() * TAU
-		elif roll < 0.7:
-			sp["kind"] = 1 # smear, dragged by the wipe of a glove
-			sp["size"] = randf_range(200.0, 420.0) * k
-			sp["rot"] = randf() * TAU
-			sp["vy"] = 0.0
 		else:
-			sp["kind"] = 6 # grit: coarse spray instead of drips
-			sp["size"] = randf_range(180.0, 380.0) * k
+			sp["kind"] = 6 if roll < 0.6 else 2 # sprays only: no lone smears or blobs (they looked like fingerprints)
+			sp["size"] = randf_range(260.0, 560.0) * k
 			sp["rot"] = randf() * TAU
 			sp["vy"] = 0.0
 		if int(sp["kind"]) == 1:
 			sp["tex_id"] = "smear" if randf() < 0.5 else "smear2"
 		splats.append(sp)
 	# extra sprays: coarse big drops and sometimes a second small fine mist
-	if randf() < 0.55:
-		splats.append({"kind": 6, "p": _edge_biased(s), "age": 0.0, "vy": randf_range(4.0, 14.0) * k, "size": randf_range(150.0, 320.0) * k, "rot": randf() * TAU})
-	if randf() < 0.35:
+	for extra in 2:
+		splats.append({"kind": 6, "p": _edge_biased(s), "age": 0.0, "vy": randf_range(4.0, 14.0) * k, "size": randf_range(300.0, 600.0) * k, "rot": randf() * TAU})
+	if randf() < 0.7:
 		splats.append({"kind": 2, "p": _edge_biased(s), "age": 0.0, "vy": randf_range(4.0, 14.0) * k, "size": randf_range(120.0, 200.0) * k, "rot": randf() * TAU})
 	# a few dirt specks and fine scratches on the glass
 	if randf() < 0.9:
