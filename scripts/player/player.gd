@@ -58,10 +58,6 @@ var spectating: bool = false
 var pose_vel: Vector3 = Vector3.INF
 var pose_sprint: bool = false
 var death_ragdoll: Ragdoll # our own corpse (the third-person death camera watches it)
-## Natural lean at corners: -1 = left .. +1 = right (computed on every machine from the geometry, so everybody sees it).
-var lean: float = 0.0
-var _lean_target: float = 0.0
-var _lean_t: float = 0.0
 var fly_speed: float = 14.0
 var _slide_buffer: float = 0.0
 var _air_sprint: bool = false
@@ -712,45 +708,9 @@ func _process(delta: float) -> void:
 
 ## Cheap procedural animation of the visible body: walking bob, sprint lean,
 ## and the held weapon follows the view pitch.
-## Corner lean, only while aiming: you walk up to a wall corner with the weapon raised and are right at its edge (a wall
-## within 0.7 m beside you that ends within about a metre ahead): the body leans a little towards the open side. Four short
-## rays (sideways and slightly forward, both sides); nothing happens in the open or along a long wall.
-func _update_lean(delta: float) -> void:
-	_lean_t -= delta
-	var spd := Vector2(_est_vel.x, _est_vel.z).length() # works for remote players, bots and the killcam alike
-	if _lean_t <= 0.0:
-		_lean_t = 0.05
-		_lean_target = 0.0
-		# only while aiming down the sights, walking towards the very edge of a corner
-		if alive and is_aiming and spd > 0.4 and not is_sliding and not spectating:
-			var space := get_world_3d().direct_space_state
-			var o := global_position + Vector3(0, 1.2, 0)
-			var fwd := -global_transform.basis.z
-			var right := global_transform.basis.x
-			for side in [-1.0, 1.0]:
-				var side_hit := space.intersect_ray(PhysicsRayQueryParameters3D.create(o, o + right * side * 0.7, 1))
-				if side_hit.is_empty():
-					continue
-				var dist_side: float = o.distance_to(side_hit["position"])
-				# the wall must end right ahead: a short diagonal ray passes beside the corner, the straight ray is free
-				var diag: Vector3 = (fwd * 0.9 + right * side * 0.44).normalized()
-				if not space.intersect_ray(PhysicsRayQueryParameters3D.create(o, o + diag * 1.3, 1)).is_empty():
-					continue
-				if not space.intersect_ray(PhysicsRayQueryParameters3D.create(o, o + fwd * 1.0, 1)).is_empty():
-					continue
-				# never lean into the wall: the head offset (0.13 * lean) stays clearly inside the free space
-				var room := maxf(0.0, dist_side - 0.3)
-				_lean_target = side * clampf(room / 0.13, 0.0, 0.8)
-				break
-	lean = lerpf(lean, _lean_target, minf(1.0, delta * (7.0 if absf(_lean_target) > absf(lean) else 5.0)))
-	rig.lean = lean
-	head.lean = lean
-
-
 func _animate_body(delta: float) -> void:
 	if delta <= 0.0:
 		return
-	_update_lean(delta)
 	# velocity from the actual movement (works for local, remote, bots and replay ghosts alike)
 	var v := (global_position - _last_pos) / delta
 	_last_pos = global_position

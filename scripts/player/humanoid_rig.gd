@@ -9,6 +9,7 @@ extends Node3D
 ## Origin = feet, facing -Z. Total height about 1.78 m.
 
 const HIP_H := 0.92
+const FOOT_LIFT := 0.05
 const THIGH := 0.44
 const SHIN := 0.42
 const UPPER_ARM := 0.29
@@ -43,7 +44,6 @@ var _outline_color: Color = Color(-1, 0, 0)
 
 ## Flashbang: 0..1, the left arm covers the face.
 var flash_cover: float = 0.0
-var lean: float = 0.0 # -1 left .. +1 right (corner lean)
 var _phase: float = 0.0
 var _time: float = 0.0
 var _crouch: float = 0.0
@@ -488,7 +488,7 @@ func animate(delta: float, vel_local: Vector3, on_floor: bool, crouching: bool, 
 	h = lerpf(h, 0.34, _slide)
 	h = lerpf(h, HIP_H + 0.04, _air)
 	h -= 0.13 * _land
-	_pelvis.position.y = h
+	_pelvis.position.y = h + FOOT_LIFT # the boots stand on the floor (measured: the soles were 5 cm below it)
 	position.z = 0.18 * _crouch + 0.38 * _slide
 	var lean := -0.05 * moving - 0.30 * _sprint - 0.42 * _crouch + 0.5 * _slide - 0.1 * _air + 0.22 * _land
 	lean += 0.05 * _aim # leaning into the sights
@@ -499,8 +499,7 @@ func animate(delta: float, vel_local: Vector3, on_floor: bool, crouching: bool, 
 		var wind := smoothstep(0.35, 0.58, throw_progress) - smoothstep(0.62, 0.78, throw_progress)
 		twist = -0.55 * wind
 	_spine.rotation.x = _spine_lean + _hit.x + 0.06 * _kick
-	_spine.rotation.z = sin(_time * 1.7) * 0.012 + (-vel_local.x * 0.012) + _hit.y - lean * 0.2
-	_pelvis.position.x = lean * 0.07
+	_spine.rotation.z = sin(_time * 1.7) * 0.012 + (-vel_local.x * 0.012) + _hit.y
 	_spine.rotation.y = _hit.z + twist
 	_head.rotation.x = clampf(pitch, -1.2, 1.2) * 0.75 - _spine.rotation.x * 0.7 + _head_snap.x
 	_head.rotation.z = _head_snap.y - 0.15 * _aim # the head leans onto the stock (right shoulder) while aiming
