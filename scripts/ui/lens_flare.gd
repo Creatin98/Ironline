@@ -65,11 +65,11 @@ func _draw() -> void:
 	draw_texture_rect(_glow, Rect2(p.x - 900.0 * k, p.y - 14.0 * k, 1800.0 * k, 28.0 * k), false, Color(0.7, 0.85, 1.0, 0.42 * i))
 	draw_texture_rect(_glow, Rect2(p.x - 420.0 * k, p.y - 5.0 * k, 840.0 * k, 10.0 * k), false, Color(1.0, 1.0, 1.0, 0.5 * i))
 	# ring around the sun
-	_blob(_ring, p, 760.0 * k, Color(1.0, 0.88, 0.7, 0.10 * i))
+	_blob(_ring, p, 760.0 * k, Color(1.0, 0.88, 0.7, 0.03 * i))
 	# ghosts along the axis through the centre
 	var ghosts := [
-		[0.28, 80.0, Color(0.5, 1.0, 0.7), 0.16, 0], [0.55, 46.0, Color(1.0, 0.55, 0.35), 0.2, 1], [0.82, 130.0, Color(0.55, 0.7, 1.0), 0.12, 2],
-		[1.12, 60.0, Color(1.0, 0.8, 0.4), 0.2, 1], [1.45, 160.0, Color(0.9, 0.5, 1.0), 0.1, 0], [1.85, 100.0, Color(0.5, 1.0, 0.9), 0.13, 2],
+		[0.28, 80.0, Color(0.5, 1.0, 0.7), 0.10, 0], [0.55, 46.0, Color(1.0, 0.55, 0.35), 0.07, 0], [0.82, 130.0, Color(0.55, 0.7, 1.0), 0.05, 2],
+		[1.12, 60.0, Color(1.0, 0.8, 0.4), 0.09, 0], [1.45, 160.0, Color(0.9, 0.5, 1.0), 0.06, 0], [1.85, 100.0, Color(0.5, 1.0, 0.9), 0.05, 0],
 	]
 	for g in ghosts:
 		var gp := p + v * float(g[0])

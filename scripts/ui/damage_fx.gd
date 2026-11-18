@@ -143,13 +143,13 @@ func _spawn_splats(amount: float) -> void:
 			sp["kind"] = 2
 			sp["size"] = randf_range(220.0, 420.0) * k
 			sp["rot"] = randf() * TAU
-		elif roll < 0.5:
+		elif roll < 0.34:
 			sp["kind"] = 0 # a splash: irregular body with cast-off drops (drawn procedurally, every one different)
-			sp["size"] = randf_range(90.0, 230.0) * k * (0.7 + amount / 120.0)
+			sp["size"] = randf_range(80.0, 190.0) * k * (0.7 + amount / 160.0)
 			sp["rot"] = randf() * TAU
 			sp["tex"] = randi() % BloodFx.VARIANTS
 			sp["shape"] = _make_splash_shape()
-		elif roll < 0.78:
+		elif roll < 0.66:
 			sp["kind"] = 1 # smear, dragged by the wipe of a glove
 			sp["size"] = randf_range(200.0, 420.0) * k
 			sp["rot"] = randf() * TAU
@@ -223,7 +223,7 @@ static func _make_splash_shape() -> Dictionary:
 	var bias := randf() * TAU
 	var body := PackedVector2Array()
 	var n := 22
-	var base := randf_range(0.17, 0.26)
+	var base := randf_range(0.08, 0.13)
 	var ph: Array[float] = []
 	for k in 5:
 		ph.append(randf() * TAU)
@@ -246,13 +246,18 @@ static func _make_splash_shape() -> Dictionary:
 
 
 func _draw_splash(shape: Dictionary, p: Vector2, size: float, rot: float, a: float) -> void:
-	var col := Color(0.46, 0.02, 0.02, a)
+	# wet blood on glass: translucent, soft-edged (several layers, dark in the middle), drops thin and see-through
 	var half := size * 0.5
 	var xf := Transform2D(rot, Vector2.ONE, 0.0, p)
-	var body := PackedVector2Array()
-	for v in shape["body"]:
-		body.append(xf * ((v as Vector2) * half * 2.0))
-	canvas.draw_colored_polygon(body, col)
+	var layers := [[1.0, 0.22, Color(0.5, 0.05, 0.04)], [0.8, 0.28, Color(0.42, 0.03, 0.03)], [0.58, 0.34, Color(0.32, 0.02, 0.02)], [0.34, 0.4, Color(0.22, 0.012, 0.012)]]
+	for l in layers:
+		var body := PackedVector2Array()
+		for v in shape["body"]:
+			body.append(xf * ((v as Vector2) * half * 2.0 * float(l[0])))
+		var c: Color = l[2]
+		c.a = a * float(l[1])
+		canvas.draw_colored_polygon(body, c)
+	var col := Color(0.4, 0.025, 0.02, a * 0.6)
 	for dr in shape["drops"]:
 		var c: Vector2 = xf * ((dr[0] as Vector2) * half * 2.0)
 		var rad: float = float(dr[1]) * size
@@ -262,6 +267,8 @@ func _draw_splash(shape: Dictionary, p: Vector2, size: float, rot: float, a: flo
 			var side := dir.orthogonal() * rad
 			canvas.draw_colored_polygon(PackedVector2Array([c + side, c + dir * tail, c - side]), col)
 		canvas.draw_circle(c, rad, col)
+		if rad > 2.5:
+			canvas.draw_circle(c - Vector2(rad * 0.3, rad * 0.3), rad * 0.22, Color(1.0, 0.8, 0.75, a * 0.35)) # glint
 
 
 ## A drip: a soft stain at the top, a run with a slightly wobbling edge that thins out while it creeps down,
