@@ -198,6 +198,14 @@ def make_mechanical():
     def tink(f, g):
         return gain(env_exp(sine(f, 0.12), 0.03), g)
     write_wav("casing_drop", mix(tink(3400, 0.7), gain(env_exp(highpass(noise(0.01), 4000), 0.002), 0.4), delay(tink(3900, 0.4), 0.055), delay(tink(4300, 0.2), 0.09)), 0.55)
+    # heartbeat: "lub-dub", two dull low thumps (second one softer), felt more than heard
+    def beat(g):
+        return gain(mix(env_exp(sweep(70, 38, 0.18), 0.07), gain(env_exp(lowpass(noise(0.18), 160), 0.05), 0.5)), g)
+    hb = [0.0] * int(0.6 * SR)
+    for t, g in [(0.0, 1.0), (0.2, 0.65)]:
+        for k, v in enumerate(beat(g)):
+            hb[int(t * SR) + k] += v
+    write_wav("heartbeat", hb, 0.9)
     # medal pop: dark sub thud, a short metallic strike and a faint ring (serious, cinematic, short)
     medal_sub = gain(env_exp(sweep(110, 42, 0.42), 0.13), 1.0)
     medal_strike = gain(env_exp(highpass(noise(0.06), 2500), 0.012), 0.35)

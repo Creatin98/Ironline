@@ -93,6 +93,8 @@ const REBINDABLE: Array[Array] = [
 ]
 ## action -> {"t": "key" | "mouse", "c": physical keycode | mouse button}; only deviations from the defaults are saved.
 var key_bindings: Dictionary = {}
+## Secondary binding per action (same format; "none" = explicitly empty).
+var key_bindings2: Dictionary = {}
 var default_bindings: Dictionary = {}
 
 
@@ -145,7 +147,9 @@ func _capture_default_bindings() -> void:
 
 
 ## Binding of an action as the game uses it now (override or default).
-func binding_of(action: String) -> Dictionary:
+func binding_of(action: String, slot: int = 0) -> Dictionary:
+	if slot == 1:
+		return key_bindings2.get(action, {})
 	return key_bindings.get(action, default_bindings.get(action, {}))
 
 
@@ -155,13 +159,17 @@ func apply_bindings() -> void:
 		var action: String = a[0]
 		var b: Dictionary = binding_of(action)
 		var ev := binding_to_event(b)
-		if ev == null:
+		var ev2 := binding_to_event(binding_of(action, 1))
+		if ev == null and ev2 == null:
 			continue
 		for old in InputMap.action_get_events(action):
 			if old is InputEventMouseButton and ((old as InputEventMouseButton).button_index == MOUSE_BUTTON_WHEEL_UP or (old as InputEventMouseButton).button_index == MOUSE_BUTTON_WHEEL_DOWN):
 				continue
 			InputMap.action_erase_event(action, old)
-		InputMap.action_add_event(action, ev)
+		if ev != null:
+			InputMap.action_add_event(action, ev)
+		if ev2 != null:
+			InputMap.action_add_event(action, ev2)
 
 
 func load_settings(path: String = SAVE_PATH) -> void:
@@ -206,11 +214,15 @@ func load_settings(path: String = SAVE_PATH) -> void:
 		set(key, cfg.get_value("hud", key, get(key)))
 	ads_sensitivity = cfg.get_value("controls", "ads_sensitivity", ads_sensitivity)
 	key_bindings.clear()
+	key_bindings2.clear()
 	if cfg.has_section("bindings"):
 		for a in REBINDABLE:
 			var v: Variant = cfg.get_value("bindings", a[0], null)
 			if typeof(v) == TYPE_DICTIONARY and (v as Dictionary).has("t"):
 				key_bindings[a[0]] = v
+			var v2: Variant = cfg.get_value("bindings2", a[0], null)
+			if typeof(v2) == TYPE_DICTIONARY and (v2 as Dictionary).has("t"):
+				key_bindings2[a[0]] = v2
 	player_name = cfg.get_value("player", "name", player_name)
 	preferred_team = cfg.get_value("player", "team", preferred_team)
 	preferred_class_id = cfg.get_value("player", "class_id", preferred_class_id)
@@ -253,6 +265,8 @@ func save(path: String = SAVE_PATH) -> void:
 	cfg.set_value("controls", "ads_sensitivity", ads_sensitivity)
 	for action in key_bindings:
 		cfg.set_value("bindings", action, key_bindings[action])
+	for action in key_bindings2:
+		cfg.set_value("bindings2", action, key_bindings2[action])
 	cfg.set_value("player", "name", player_name)
 	cfg.set_value("player", "team", preferred_team)
 	cfg.set_value("player", "class_id", preferred_class_id)

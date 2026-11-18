@@ -339,7 +339,8 @@ func try_fire(is_aiming: bool, move_ratio: float, in_air: bool, crouching: bool)
 		if collider is Player:
 			var target := collider as Player
 			var distance := origin.distance_to(hit_pos)
-			var headshot := hit_pos.y >= target.get_headshot_y() and data.headshot_multiplier > 1.0
+			var zone := target.get_hit_zone(hit_pos)
+			var headshot := String(zone["zone"]) == "head" and data.headshot_multiplier > 1.0
 			var dmg := data.damage_at_distance(distance)
 			if headshot:
 				dmg *= data.headshot_multiplier

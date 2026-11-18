@@ -51,6 +51,8 @@ var is_sprinting: bool = false
 var is_crouching: bool = false
 var is_sliding: bool = false
 var _slide_len: float = SLIDE_TIME
+var _slide_buffer: float = 0.0
+var _air_sprint: bool = false
 ## Match over: everybody glides to a stop slowly instead of freezing (see Game._on_match_ended).
 var run_out: bool = false
 var _sprint_time: float = 0.0
@@ -126,6 +128,7 @@ var _last_hit_react_msec: int = 0
 ## What the last death looked like (read by the replay recorder so the killcams show the same gore).
 var last_death: Dictionary = {}
 var _replay_ragdoll: Ragdoll
+var _last_zone: Dictionary = {}
 var _last_hit_pos: Vector3 = Vector3.INF # where the last hit landed (world), host/local only
 var _last_damage_source: Vector3 = Vector3.INF # where the last damage came from (explosion centre), host/local only
 ## Weapon -> how hard the body is thrown when it dies (ragdoll).
@@ -483,6 +486,8 @@ func _pick_gore(weapon_id: String, headshot: bool) -> Array:
 	if headshot:
 		return []
 	var chance: float = {"pistol": 0.06, "mp5": 0.1, "ak47": 0.18, "shotgun": 0.55, "sniper": 0.7, "grenade": 1.0}.get(weapon_id, 0.0)
+	if HitZones.is_limb(String(_last_zone.get("zone", ""))):
+		chance = minf(1.0, chance * 2.2 + 0.1) # a shot into a limb takes it off much more often
 	if randf() > chance:
 		return []
 	if weapon_id == "grenade":
@@ -491,23 +496,21 @@ func _pick_gore(weapon_id: String, headshot: bool) -> Array:
 		var all := [3, 7, 4, 8, 5, 9, 6, 10]
 		all.shuffle()
 		return all.slice(0, randi_range(2, 3)) + ([2] if randf() < 0.2 else [])
-	var rel := Vector3.ZERO
-	var known := _last_hit_pos != Vector3.INF
-	if known:
-		rel = _last_hit_pos - global_position
-	var side := 0 if (known and rel.dot(global_transform.basis.x) > 0.0) or (not known and randf() < 0.5) else 1
-	var arm := randf() < 0.5
-	if known:
-		arm = rel.y > 0.95 or (rel.y > 0.7 and randf() < 0.5)
-	var whole := randf() < 0.55
-	var idx: int
-	if arm:
-		idx = (5 if side == 0 else 9) if whole else (6 if side == 0 else 10)
+	# the zone of the fatal hit decides: a limb hit takes that limb, a torso hit takes a random limb (less often)
+	var seg: int = int(_last_zone.get("seg", -1))
+	var out: Array = []
+	if seg >= 3:
+		out.append(seg)
+		if int(_last_zone.get("seg", 0)) in [5, 9, 3, 7] and randf() < 0.35: # an upper segment often takes the lower one with it
+			out.append(seg + 1)
 	else:
-		idx = (3 if side == 0 else 7) if whole else (4 if side == 0 else 8)
-	var out := [idx]
+		if randf() > 0.5:
+			return []
+		var side := randi() % 2
+		var pool := [3 + 4 * side, 4 + 4 * side, 5 + 4 * side, 6 + 4 * side]
+		out.append(pool[randi() % 4])
 	if weapon_id == "shotgun" and randf() < 0.3:
-		out.append((9 if side == 0 else 5) if arm else (7 if side == 0 else 3))
+		out.append([3, 5, 7, 9][randi() % 4])
 	return out
 
 
@@ -552,6 +555,7 @@ func take_damage(amount: float, attacker_id: int, weapon_id: String, hit_positio
 		return false # kein Friendly Fire
 	_last_damage_source = source_position
 	_last_hit_pos = hit_position
+	_last_zone = get_hit_zone(hit_position) if not headshot else {"zone": "head", "seg": 2, "side": 0}
 	var killed := health.apply_damage(amount, attacker_id, weapon_id, headshot)
 	if not killed:
 		_announce_hit_react(source_position, amount, headshot)
@@ -568,6 +572,12 @@ func take_damage(amount: float, attacker_id: int, weapon_id: String, hit_positio
 func _on_health_changed(current: float, maximum: float) -> void:
 	if is_local:
 		GameEvents.local_health_changed.emit(current, maximum)
+
+
+## Body zone of a world-space hit point (see HitZones).
+func get_hit_zone(world_pos: Vector3) -> Dictionary:
+	var local := Basis(Vector3.UP, rotation.y).inverse() * (world_pos - global_position)
+	return HitZones.classify(local, current_height)
 
 
 ## World y above which a hit counts as a headshot.
@@ -756,9 +766,20 @@ func _update_states(delta: float) -> void:
 	if not input.crouch:
 		_crouch_suppressed = false
 	# slide: crouch pressed while sprinting on the ground
-	if not is_sliding and input.crouch and not _prev_crouch_in and is_sprinting and _slide_cd <= 0.0 \
+	# crouch pressed in the air does nothing visible (no mid-air crouch spam); a press shortly before landing is remembered,
+	# so a sprint jump flows into a slide right on touchdown
+	_slide_buffer = maxf(0.0, _slide_buffer - delta)
+	if input.crouch and not _prev_crouch_in and not is_on_floor():
+		_slide_buffer = 0.28
+	var crouch_press := input.crouch and not _prev_crouch_in
+	if not is_sliding and (crouch_press or (_slide_buffer > 0.0 and input.crouch)) and (is_sprinting or _air_sprint) and _slide_cd <= 0.0 \
 			and is_on_floor() and horizontal_speed >= SLIDE_MIN_START_SPEED and not _crouch_suppressed:
+		_slide_buffer = 0.0
 		_start_slide()
+	if is_on_floor():
+		_air_sprint = false
+	elif is_sprinting:
+		_air_sprint = true
 	_prev_crouch_in = input.crouch
 	if is_sliding:
 		_slide_t += delta
@@ -772,7 +793,7 @@ func _update_states(delta: float) -> void:
 			# Space while crouched: stand up first (jump needs a second press)
 			input.jump_pressed = false
 			_crouch_suppressed = true
-		var want_crouch := input.crouch and not _crouch_suppressed
+		var want_crouch := input.crouch and not _crouch_suppressed and (is_on_floor() or is_crouching)
 		if want_crouch and not is_crouching:
 			is_crouching = true
 			_set_height(CROUCH_HEIGHT)

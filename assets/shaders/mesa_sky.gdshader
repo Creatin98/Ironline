@@ -45,13 +45,13 @@ void sky() {
 	if (dir.y > 0.0) {
 		float cov = cloud_cover;
 		// layer 1: low, heavy cumulus, slow
-		vec2 p1 = proj(dir, 0.22) * 1.7 + wind * t * 0.006;
+		vec2 p1 = proj(dir, 0.22) * 0.85 + wind * t * 0.006; // big cloud masses
 		float n1 = fbm(p1);
 		float n1s = fbm(p1 + sd.xz * 0.12);
 		float d1 = smoothstep(0.62 - cov * 0.34, 0.8 - cov * 0.3, n1);
 		float lit1 = clamp(0.5 + (n1 - n1s) * 3.6, 0.0, 1.0);
 		// layer 2: higher, smaller cumulus, faster, a different direction
-		vec2 p2 = proj(dir, 0.5) * 3.0 + wind.yx * t * 0.011 + 31.0;
+		vec2 p2 = proj(dir, 0.5) * 1.6 + wind.yx * t * 0.011 + 31.0;
 		float n2 = fbm(p2);
 		float d2 = smoothstep(0.64 - cov * 0.3, 0.82 - cov * 0.26, n2) * 0.8;
 		float lit2 = clamp(0.55 + (n2 - fbm(p2 + sd.xz * 0.2)) * 3.0, 0.0, 1.0);

@@ -11,6 +11,8 @@ extends CanvasLayer
 const SHADER := preload("res://assets/shaders/damage_screen.gdshader")
 const LIFETIME := 8.0
 const MAX_SPLATS := 48
+var _beat_t: float = 0.0
+var _dazed_set: float = 0.0
 const CRIT_RATIO := 0.25
 
 var screen: ColorRect
@@ -86,6 +88,9 @@ func reset() -> void:
 	low = 0.0
 	crit = 0.0
 	_health_ratio = 1.0
+	if _dazed_set > 0.0:
+		_dazed_set = 0.0
+		AudioManager.set_flash_effect(0.0)
 	screen.visible = false
 	canvas.queue_redraw()
 	set_process(false)
@@ -102,6 +107,9 @@ func _process(delta: float) -> void:
 	canvas.visible = visible_state
 	if not visible_state:
 		hit = maxf(0.0, hit - delta * 3.0)
+		if _dazed_set > 0.0:
+			_dazed_set = 0.0
+			AudioManager.set_flash_effect(0.0)
 		return
 	hit = maxf(0.0, hit - delta * 1.9) # aggressive attack, controlled fade
 	var low_target := smoothstep(0.0, 1.0, clampf((0.65 - _health_ratio) / 0.65, 0.0, 1.0)) * 0.9
@@ -116,6 +124,7 @@ func _process(delta: float) -> void:
 	_mat.set_shader_parameter("low", low)
 	_mat.set_shader_parameter("crit", crit)
 	_mat.set_shader_parameter("pulse", pulse)
+	_update_dazed(delta)
 	_mat.set_shader_parameter("t", _time)
 	var heal_speed := 1.0 + (2.0 if _health_ratio > 0.9 else 0.0) # healed: the lens cleans up quicker
 	for sp in splats:
@@ -130,6 +139,20 @@ func _process(delta: float) -> void:
 
 
 # ----------------------------------------------------------------------------- lens splatter
+
+## Almost dead: a slow, heavy heartbeat and a slightly dulled hearing with a faint ring (never as strong as a flashbang).
+func _update_dazed(delta: float) -> void:
+	var level := clampf((crit - 0.35) / 0.65, 0.0, 1.0)
+	_beat_t -= delta
+	if level > 0.0 and _beat_t <= 0.0:
+		_beat_t = lerpf(1.15, 0.62, level)
+		AudioManager.play_2d("heartbeat", lerpf(-14.0, -3.0, level), 0.0)
+	var want := level * 0.3
+	var current := AudioManager.get_flash_effect()
+	if current <= _dazed_set + 0.01: # not while a flashbang has a stronger effect
+		_dazed_set = lerpf(_dazed_set, want, minf(1.0, delta * 1.5))
+		AudioManager.set_flash_effect(_dazed_set)
+
 
 func _spawn_splats(amount: float) -> void:
 	var s := canvas.size

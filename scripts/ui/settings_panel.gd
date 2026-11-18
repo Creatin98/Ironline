@@ -29,6 +29,7 @@ var _volume_snapshot: Dictionary = {}
 var _key_buttons: Dictionary = {}
 var _pending_bindings: Dictionary = {}
 var _rebinding: String = ""
+var _confirm: Control
 var _rebind_msec: int = 0
 var _defaults: Node
 
@@ -187,62 +188,120 @@ func _build_game(page: VBoxContainer) -> void:
 	_toggle(h, 2, "FPS-Anzeige", "show_fps")
 
 
-## Key bindings: one button per action; click, then press the new key or mouse button (Esc cancels).
+## Key bindings: two buttons per action (primary, secondary); click, then press the new key or mouse button (Esc cancels,
+## Entf / right click on a filled secondary button clears it). A key that is already used asks before it is taken over.
 func _build_keys(page: VBoxContainer) -> void:
 	var g := _section(page, "Tastenbelegung")
 	for a in GameSettings.REBINDABLE:
 		var action: String = a[0]
-		var btn := UITheme.button("", 18, 240)
-		btn.pressed.connect(func() -> void: _begin_rebind(action))
-		_row(g, String(a[1]), btn, null)
-		_key_buttons[action] = btn
+		var box := UITheme.hbox(8)
+		for slot in 2:
+			var btn := UITheme.button("", 17, 170)
+			var sl := slot
+			btn.pressed.connect(func() -> void: _begin_rebind(action, sl))
+			box.add_child(btn)
+			_key_buttons["%s|%d" % [action, slot]] = btn
+		_row(g, String(a[1]), box, null)
 	_gap(page)
-	var hint := UITheme.label("Pause (Esc) ist fest belegt. Die Änderungen gelten nach „Übernehmen“.", 16, UITheme.TEXT_DIM)
-	page.add_child(hint)
+	page.add_child(UITheme.label("Zwei Belegungen pro Aktion. Entf löscht die Belegung, Esc bricht ab, Pause (Esc) ist fest. Gilt nach „Übernehmen“.", 15, UITheme.TEXT_DIM))
+
+
+func _binding(action: String, slot: int) -> Dictionary:
+	var k := "%s|%d" % [action, slot]
+	return _pending_bindings[k] if _pending_bindings.has(k) else GameSettings.binding_of(action, slot)
 
 
 func _refresh_keys() -> void:
-	for action in _key_buttons:
-		var b: Dictionary = _pending_bindings.get(action, GameSettings.binding_of(action))
-		var btn: Button = _key_buttons[action]
-		btn.text = "Taste drücken …" if action == _rebinding else GameSettings.binding_text(b)
+	for k in _key_buttons:
+		var parts := String(k).split("|")
+		var btn: Button = _key_buttons[k]
+		btn.text = "Taste drücken …" if k == _rebinding else GameSettings.binding_text(_binding(parts[0], int(parts[1])))
 
 
-func _begin_rebind(action: String) -> void:
-	_rebinding = action
+func _begin_rebind(action: String, slot: int) -> void:
+	_rebinding = "%s|%d" % [action, slot]
 	_rebind_msec = Time.get_ticks_msec()
 	_refresh_keys()
 
 
 func _input(event: InputEvent) -> void:
-	if _rebinding == "" or not visible:
+	if _rebinding == "" or not visible or _confirm != null:
 		return
 	if event is InputEventKey and event.pressed and not event.echo:
 		get_viewport().set_input_as_handled()
-		if (event as InputEventKey).keycode == KEY_ESCAPE:
+		var code := (event as InputEventKey).keycode
+		if code == KEY_ESCAPE:
+			_rebinding = ""
+		elif code == KEY_DELETE or code == KEY_BACKSPACE:
+			_pending_bindings[_rebinding] = {}
 			_rebinding = ""
 		else:
-			_set_binding(_rebinding, GameSettings.event_to_binding(event))
+			_try_binding(_rebinding, GameSettings.event_to_binding(event))
 	elif event is InputEventMouseButton and event.pressed and (event as InputEventMouseButton).button_index != MOUSE_BUTTON_WHEEL_UP and (event as InputEventMouseButton).button_index != MOUSE_BUTTON_WHEEL_DOWN:
-		# the first click is the one that opened the rebinding (the button itself), so wait one frame
-		if Time.get_ticks_msec() - _rebind_msec > 150:
+		if Time.get_ticks_msec() - _rebind_msec > 150: # the click that opened the rebinding does not count
 			get_viewport().set_input_as_handled()
-			_set_binding(_rebinding, GameSettings.event_to_binding(event))
+			_try_binding(_rebinding, GameSettings.event_to_binding(event))
 	_refresh_keys()
 
 
-func _set_binding(action: String, b: Dictionary) -> void:
+## Sets the binding; if another action already uses it, a dialog shows what is replaced (that action loses the key).
+func _try_binding(key: String, b: Dictionary) -> void:
 	if b.is_empty():
 		_rebinding = ""
 		return
-	# another action with the same key gets the key of this one (swap), so nothing is ever double-bound
-	var mine: Dictionary = _pending_bindings.get(action, GameSettings.binding_of(action))
+	var parts := key.split("|")
+	var action: String = parts[0]
 	for a in GameSettings.REBINDABLE:
 		var other: String = a[0]
-		if other != action and _pending_bindings.get(other, GameSettings.binding_of(other)) == b:
-			_pending_bindings[other] = mine
-	_pending_bindings[action] = b
+		for slot in 2:
+			var ok := "%s|%d" % [other, slot]
+			if ok != key and _binding(other, slot) == b:
+				_ask_replace(key, b, ok, String(a[1]))
+				return
+	_pending_bindings[key] = b
 	_rebinding = ""
+
+
+func _ask_replace(key: String, b: Dictionary, other_key: String, other_name: String) -> void:
+	var dim := ColorRect.new()
+	dim.color = Color(0, 0, 0, 0.55)
+	dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	dim.mouse_filter = Control.MOUSE_FILTER_STOP
+	add_child(dim)
+	var center := CenterContainer.new()
+	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	dim.add_child(center)
+	var box := UITheme.panel(Color(0.05, 0.06, 0.08, 0.99))
+	center.add_child(box)
+	var v := UITheme.vbox(14)
+	box.add_child(v)
+	v.add_child(UITheme.label("TASTE BEREITS BELEGT", 24, UITheme.ACCENT, HORIZONTAL_ALIGNMENT_CENTER))
+	var action_name := ""
+	for a in GameSettings.REBINDABLE:
+		if a[0] == key.split("|")[0]:
+			action_name = String(a[1])
+	v.add_child(UITheme.label("„%s“ ist schon für „%s“ belegt.\nWenn du ersetzt, verliert „%s“ diese Belegung\nund „%s“ bekommt sie." % [GameSettings.binding_text(b), other_name, other_name, action_name], 18, UITheme.TEXT, HORIZONTAL_ALIGNMENT_CENTER))
+	var row := UITheme.hbox(14)
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	var back := UITheme.button("Zurück", 20, 180)
+	var ok := UITheme.button("Ersetzen", 20, 180)
+	row.add_child(back)
+	row.add_child(ok)
+	v.add_child(row)
+	_confirm = dim
+	back.pressed.connect(func() -> void: _close_confirm())
+	ok.pressed.connect(func() -> void:
+		_pending_bindings[other_key] = {}
+		_pending_bindings[key] = b
+		_close_confirm())
+
+
+func _close_confirm() -> void:
+	if _confirm != null:
+		_confirm.queue_free()
+		_confirm = null
+	_rebinding = ""
+	_refresh_keys()
 
 
 # ----------------------------------------------------------------------------- widgets
@@ -495,7 +554,10 @@ func _load_values() -> void:
 ## sound sliders are heard at once).
 func _reset_tab() -> void:
 	if _tab == 3:
-		_pending_bindings = GameSettings.default_bindings.duplicate(true)
+		_pending_bindings.clear()
+		for a in GameSettings.REBINDABLE:
+			_pending_bindings["%s|0" % a[0]] = GameSettings.default_bindings.get(a[0], {})
+			_pending_bindings["%s|1" % a[0]] = {}
 		_rebinding = ""
 		_refresh_keys()
 		return
@@ -510,11 +572,19 @@ func _reset_tab() -> void:
 
 
 func _apply() -> void:
-	for action in _pending_bindings:
-		if _pending_bindings[action] == GameSettings.default_bindings.get(action):
-			GameSettings.key_bindings.erase(action)
+	for k in _pending_bindings:
+		var parts := String(k).split("|")
+		var action: String = parts[0]
+		var b: Dictionary = _pending_bindings[k]
+		if int(parts[1]) == 0:
+			if b == GameSettings.default_bindings.get(action):
+				GameSettings.key_bindings.erase(action)
+			else:
+				GameSettings.key_bindings[action] = b
+		elif b.is_empty():
+			GameSettings.key_bindings2.erase(action)
 		else:
-			GameSettings.key_bindings[action] = _pending_bindings[action]
+			GameSettings.key_bindings2[action] = b
 	GameSettings.apply_bindings()
 	for e in _entries:
 		if e["kind"] == "volume":

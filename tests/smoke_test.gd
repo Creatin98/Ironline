@@ -43,6 +43,7 @@ func _ready() -> void:
 	_check_ak_handle_and_stairs()
 	await _check_reload_cancel_and_coyote()
 	await _check_weapon_pickup()
+	_check_hit_zones()
 	await _check_maps()
 	await _check_glass()
 	await _simulate_bots()
@@ -2332,3 +2333,20 @@ func _check_weapon_pickup() -> void:
 		_fail("Gleiche Waffe ueberlaufen muss ein Magazin geben (Reserve %d -> %d)" % [res_before, now_w.reserve])
 	game.free()
 	await get_tree().process_frame
+
+
+func _check_hit_zones() -> void:
+	var cases := [
+		[Vector3(0, 1.7, 0), "head"], [Vector3(0, 1.35, 0), "chest"], [Vector3(0, 1.05, 0), "belly"],
+		[Vector3(0.25, 1.3, 0), "upper_arm"], [Vector3(-0.25, 0.95, 0), "forearm"],
+		[Vector3(0.1, 0.7, 0), "thigh"], [Vector3(-0.1, 0.25, 0), "shin"],
+	]
+	for c in cases:
+		var z := HitZones.classify(c[0], 1.8)
+		if String(z["zone"]) != String(c[1]):
+			_fail("Trefferzone %s erwartet, bekommen %s" % [c[1], z["zone"]])
+	if int(HitZones.classify(Vector3(-0.25, 1.3, 0), 1.8)["seg"]) != 9 or int(HitZones.classify(Vector3(0.1, 0.25, 0), 1.8)["seg"]) != 4:
+		_fail("Trefferzone: Segment/Seite falsch")
+	if String(HitZones.classify(Vector3(0, 1.0, 0), 1.2)["zone"]) != "head":
+		_fail("Trefferzone: Kopf in der Hocke")
+	print("Trefferzonen: Kopf, Brust, Bauch, Arme, Beine, Hocke OK")

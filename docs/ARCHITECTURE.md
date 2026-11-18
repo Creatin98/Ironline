@@ -456,3 +456,9 @@ Python-Skripten in `tools/` erzeugt – keine Fremdinhalte, alles reproduzierbar
 
 * **Mesa-Erweiterung:** Die Map ist jetzt 84 × 56 m (vorher 64 × 56). Die alten Außenmauern (x = ±32,25) sind Innenmauern mit Toren (Mitte, Spawn-Plätze, Brückendurchgang); dahinter liegen zwei Flügel: West „Weinberg“ (Brunnenhof, Terrasse +1,8 mit Hecken-Deckung, zwei Treppen, Cantina) und Ost „Markt“ (Hof mit Brunnen und Ständen, Ladenblock mit Dachterrasse +3,5, lange Außentreppe, Brücke zum Garagendach). Neue Lane-Schlüssel `wing_west`, `wing_east`. Dekor in `MesaScenery.wings`.
 * **Hocke:** `HumanoidRig` hockt gestaffelt (linker Fuß vorn, rechte Ferse hoch) mit echten Schritten im Gehen; die Beckenhöhe wird aus den Beinwinkeln berechnet, sodass der tiefere Fuß den Boden berührt (kein Schweben). Gilt für alle Spieler und die Killcams (gleiche Animationsfunktion).
+
+* **Trefferzonen:** `HitZones.classify` teilt den Körper passend zum Modell in Kopf, Brust, Bauch, Oberarm, Unterarm, Oberschenkel, Wade (mit Seite) auf, skaliert mit der aktuellen Höhe (Hocke). `Player.get_hit_zone` liefert die Zone; Kopfschuss = Zone „head“, die Zone des tödlichen Treffers bestimmt, welches Glied abfliegt (`_pick_gore`, Segment-Index = Ragdoll-Segment).
+* **Tastenbelegung:** zwei Belegungen pro Aktion (`key_bindings`, `key_bindings2`, Sektionen `[bindings]`/`[bindings2]`); bereits belegte Tasten fragen per Dialog (Zurück / Ersetzen).
+* **Movement:** Ducken beginnt nur am Boden; ein Druck kurz vor der Landung (0,28 s) startet beim Aufsetzen den Slide eines Sprint-Sprungs.
+* **Kritisches Leben:** Herzschlag (`heartbeat`) und leicht gedämpftes Gehör (`DamageFx._update_dazed`, schwächer als Flashbang).
+* **Mesa-Himmel:** große Wolkenmassen und wandernde Wolkenschatten (Decals in `MesaSky`).

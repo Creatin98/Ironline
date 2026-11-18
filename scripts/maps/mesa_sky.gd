@@ -52,6 +52,63 @@ func _ready() -> void:
 func _process(delta: float) -> void:
 	_t += delta
 	_update(delta)
+	_move_shadows(delta)
+
+
+## Cloud shadows: large soft dark blobs (Decals, projected onto the ground and buildings) that drift with the wind; they match
+## the cloud cover (more and darker shadows when it is cloudy) and wrap around at the edge of the area.
+var _shadows: Array = []
+
+
+func _build_shadows() -> void:
+	var tex := _blob_texture()
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 5150
+	for i in 5:
+		var d := Decal.new()
+		d.texture_albedo = tex
+		d.size = Vector3(rng.randf_range(50.0, 80.0), 40.0, rng.randf_range(34.0, 56.0))
+		d.albedo_mix = 1.0
+		d.modulate = Color(0.04, 0.05, 0.08, 0.0)
+		d.upper_fade = 0.0
+		d.lower_fade = 0.0
+		d.cull_mask = 0xFFFFF
+		d.position = Vector3(rng.randf_range(-70.0, 70.0), 12.0, rng.randf_range(-45.0, 45.0))
+		d.rotation.y = rng.randf() * TAU
+		get_parent().add_child(d)
+		_shadows.append({"node": d, "speed": rng.randf_range(1.6, 3.2), "base": rng.randf_range(0.35, 0.6)})
+
+
+func _move_shadows(delta: float) -> void:
+	if _shadows.is_empty():
+		_build_shadows()
+	var cover: float = _mat.get_shader_parameter("cloud_cover")
+	for sh in _shadows:
+		var d: Decal = sh["node"]
+		d.position += Vector3(1.0, 0.0, 0.35).normalized() * float(sh["speed"]) * delta
+		if d.position.x > 90.0:
+			d.position.x = -90.0
+			d.position.z = randf_range(-45.0, 45.0)
+		var edge := clampf((90.0 - absf(d.position.x)) / 25.0, 0.0, 1.0) # fades in and out while wrapping
+		var want := float(sh["base"]) * clampf((cover - 0.25) * 2.2, 0.0, 1.0) * (1.0 - 0.6 * _cover) * edge
+		d.modulate.a = lerpf(d.modulate.a, want, minf(1.0, delta * 1.5))
+
+
+static func _blob_texture() -> ImageTexture:
+	var n := 128
+	var img := Image.create(n, n, false, Image.FORMAT_RGBA8)
+	var noise := FastNoiseLite.new()
+	noise.seed = 11
+	noise.frequency = 0.022
+	noise.fractal_octaves = 4
+	for y in n:
+		for x in n:
+			var p := Vector2(float(x) / (n - 1) * 2.0 - 1.0, float(y) / (n - 1) * 2.0 - 1.0)
+			var fall := clampf(1.0 - p.length(), 0.0, 1.0)
+			var v := noise.get_noise_2d(float(x), float(y)) * 0.5 + 0.5
+			var a := smoothstep(0.38, 0.72, v) * smoothstep(0.0, 0.5, fall)
+			img.set_pixel(x, y, Color(1, 1, 1, a))
+	return ImageTexture.create_from_image(img)
 
 
 ## Weather: slow cycle of the overall cloud cover (a few minutes) and, on top of it, clouds that cross the sun.
