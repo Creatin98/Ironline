@@ -51,6 +51,11 @@ var _cycle_index: int = 0 # shell cycles since the reload started
 var fire_queue_t: float = 0.0
 var _slide_timer: float = 0.0
 var _pump_rest: Vector3 = Vector3.ZERO
+var _handle_node: Node3D
+var _handle_rest: Vector3 = Vector3.ZERO
+var _handle_t: float = 0.0 # remaining time of the handle's back-and-forth after a shot
+const HANDLE_CYCLE := 0.085
+const HANDLE_TRAVEL := 0.05
 ## Bolt action (sniper): the bolt with its handle, the right hand that works it.
 var _bolt_node: Node3D
 var _bolt_rest: Vector3 = Vector3.ZERO
@@ -74,6 +79,9 @@ func setup(new_data: WeaponData, new_player: Player, local: bool) -> void:
 		muzzle = model.get_node_or_null("Muzzle")
 		pump_node = model.get_node_or_null("Pump")
 		slide_node = model.get_node_or_null("Slide")
+		_handle_node = model.get_node_or_null("ChargingHandle") as Node3D # AK: reciprocates with every shot
+		if _handle_node:
+			_handle_rest = _handle_node.position
 		if pump_node:
 			_pump_rest = pump_node.position
 			_pump_hand = model.get_node_or_null("LeftHand") as Node3D
@@ -141,6 +149,9 @@ func cancel_actions() -> void:
 		pump_node.position = _pump_rest
 	if _pump_hand:
 		_pump_hand.position = _pump_hand_rest
+	if _handle_node:
+		_handle_t = 0.0
+		_handle_node.position = _handle_rest
 	_reset_bolt()
 
 
@@ -191,6 +202,11 @@ func update(delta: float) -> void:
 	fire_queue_t = maxf(0.0, fire_queue_t - delta)
 	if slide_node:
 		slide_node.position.z = 0.035 if _slide_timer > 0.0 else 0.0
+	if _handle_node and _handle_t > 0.0:
+		# the charging handle runs back and forth with the bolt carrier (a quick cycle per shot)
+		_handle_t = maxf(0.0, _handle_t - delta)
+		var ph := 1.0 - _handle_t / HANDLE_CYCLE
+		_handle_node.position = _handle_rest + Vector3(0.0, 0.0, HANDLE_TRAVEL * sin(ph * PI))
 	match state:
 		State.DRAWING:
 			_state_timer -= delta
@@ -347,6 +363,8 @@ func try_fire(is_aiming: bool, move_ratio: float, in_air: bool, crouching: bool)
 
 	if slide_node:
 		_slide_timer = 0.07
+	if _handle_node:
+		_handle_t = HANDLE_CYCLE
 	if data.bolt_action:
 		# the bolt is worked after every shot (the scope drops out, see WeaponManager.can_aim)
 		_bolt_sound_idx = 0

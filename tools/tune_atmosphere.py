@@ -52,7 +52,7 @@ MAPS = {
         "sun": {"light_color": "Color(1, 0.94, 0.84, 1)", "light_energy": "1.4"},
     },
 }
-SUN_EXTRA = {"shadow_normal_bias": "1.2", "shadow_blur": "1.3", "directional_shadow_blend_splits": "true", "directional_shadow_max_distance": "110.0"}
+SUN_EXTRA = {"shadow_normal_bias": "2.0", "shadow_bias": "0.08", "shadow_blur": "1.3", "directional_shadow_blend_splits": "true", "directional_shadow_max_distance": "110.0"}
 
 
 def set_keys(block: str, values: dict) -> str:

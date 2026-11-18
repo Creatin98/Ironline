@@ -70,6 +70,41 @@ func add_block(b: Dictionary) -> void:
 		_append(_box_mesh, Transform3D(basis.scaled_local(size), b["pos"]), mat, tint)
 
 
+## Real stairs for a sloped collider block (see BlockMap.ramp): solid steps (concrete, plaster, wood) or open
+## industrial stairs with risers, treads and stringers (metal). Visual only.
+func add_stairs(b: Dictionary) -> void:
+	var low: Vector3 = b["low"]
+	var high: Vector3 = b["high"]
+	var width: float = b["width"]
+	var mat: String = b.get("mat", "concrete")
+	var tint = b.get("tint", null)
+	var rise_total := high.y - low.y
+	var n := maxi(2, roundi(rise_total / 0.18))
+	var rs := rise_total / float(n)
+	var flat := Vector3(high.x - low.x, 0, high.z - low.z)
+	var length := flat.length()
+	var fwd := flat / length
+	var run := length / float(n)
+	var basis := Basis(Vector3.UP, atan2(fwd.x, fwd.z))
+	var open := mat == "metal_panel"
+	for i in n:
+		var c := Vector3(low.x, 0, low.z) + fwd * (run * (float(i) + 0.5))
+		var top := low.y + float(i + 1) * rs
+		if open:
+			add_box(Vector3(c.x, top - 0.03, c.z), Vector3(width - 0.1, 0.06, run + 0.03), mat, tint, basis) # tread
+			add_box(Vector3(c.x, top - rs * 0.5, c.z) - fwd * (run * 0.5 - 0.012), Vector3(width - 0.1, rs, 0.025), mat, tint, basis) # riser
+		else:
+			var h := top - low.y
+			add_box(Vector3(c.x, low.y + h * 0.5, c.z), Vector3(width, h, run), mat, tint, basis)
+			# a lighter nosing line on the tread edge
+			add_box(Vector3(c.x, top + 0.004, c.z) - fwd * (run * 0.5 - 0.02), Vector3(width, 0.012, 0.04), "concrete", Color(0.8, 0.78, 0.72), basis)
+	if open:
+		var side := fwd.cross(Vector3.UP).normalized()
+		for sgn in [-1.0, 1.0]:
+			var off: Vector3 = side * sgn * (width * 0.5 - 0.04)
+			bar(low + off - Vector3(0, 0.1, 0), high + off - Vector3(0, 0.1, 0), 0.07, 0.3, mat, Color(0.2, 0.22, 0.25))
+
+
 ## Finishes all merged meshes and adds them below `parent`.
 func flush(parent: Node3D) -> void:
 	var root := Node3D.new()

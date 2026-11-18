@@ -423,8 +423,8 @@ func build_detail(d: MapDetail) -> void:
 		d.barrel(Vector3(29.0, 0, sgn * 22.5), Color(0.55, 0.22, 0.14))
 		d.pallet(Vector3(28.0, 0, sgn * 24.5), 0.3)
 		d.barrel(Vector3(-30.5, 0, sgn * 24.0), Color(0.2, 0.32, 0.5))
-		d.dashed_line(Vector3(-17.5, 0.045, sgn * 22.0), Vector3(-17.5, 0.045, sgn * 5.0), 0.1, 0.8, 0.8, Color(0.8, 0.76, 0.66))
-		d.marking(Vector3(0, 0.045, sgn * 21.7), Vector3(44.0, 0.01, 0.15), Color(0.9, 0.86, 0.7))
+		d.dashed_line(Vector3(-17.5, 0.07, sgn * 22.0), Vector3(-17.5, 0.07, sgn * 5.0), 0.1, 0.8, 0.8, Color(0.8, 0.76, 0.66))
+		d.marking(Vector3(0, 0.07, sgn * 21.7), Vector3(44.0, 0.01, 0.15), Color(0.9, 0.86, 0.7))
 		# pool coping, pergola beams over the terrace, string of garden lights
 		d.add_box(Vector3(-21.0, 0.43, sgn * 15.5), Vector3(6.4, 0.06, 3.9), "concrete", C_WHITE)
 		d.bar(Vector3(-30.0, 4.7, sgn * 4.0), Vector3(-25.0, 4.7, sgn * 4.0), 0.2, 0.25, "wood_planks", C_WOOD)

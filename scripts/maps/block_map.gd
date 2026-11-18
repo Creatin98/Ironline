@@ -75,18 +75,32 @@ static func cylinder(pos: Vector3, diameter: float, height: float, mat: String, 
 	return d
 
 
-## A walkable ramp from `low` (ground end, top surface) to `high` (upper end, top surface).
+## A walkable slope from `low` (ground end, top surface) to `high` (upper end, top surface). Higher than ~45 cm it
+## is drawn as real stairs (MapDetail.add_stairs: steps of ~18 cm) while the invisible collider stays a smooth slope
+## (walking and navigation do not stumble over single steps); the slope runs half a step above the lower end, so the
+## feet stay within half a step of the treads.
 static func ramp(low: Vector3, high: Vector3, width: float, mat: String, thickness: float = 0.3, tint = null) -> Dictionary:
-	var forward := (high - low)
+	var is_stairs := (high.y - low.y) > 0.45 and width >= 1.2
+	var phys_low := low
+	if is_stairs:
+		var steps := maxi(2, roundi((high.y - low.y) / 0.18))
+		phys_low = low + Vector3(0, (high.y - low.y) / float(steps) * 0.5, 0)
+	var forward := (high - phys_low)
 	var length := forward.length()
 	forward = forward.normalized()
 	var right := forward.cross(Vector3.UP).normalized()
 	var up := right.cross(forward).normalized()
 	var basis := Basis(right, up, -forward)
-	var center := (low + high) * 0.5 - up * (thickness * 0.5)
+	var center := (phys_low + high) * 0.5 - up * (thickness * 0.5)
 	var d := {"pos": center, "size": Vector3(width, thickness, length), "mat": mat, "basis": basis}
 	if tint != null:
 		d["tint"] = tint
+	if is_stairs:
+		d["visible"] = false
+		d["stairs"] = true
+		d["low"] = low
+		d["high"] = high
+		d["width"] = width
 	return d
 
 
@@ -303,6 +317,8 @@ func _add_block(b: Dictionary, detail: MapDetail) -> void:
 
 	if is_visible:
 		detail.add_block(b)
+	elif b.has("stairs"):
+		detail.add_stairs(b)
 
 
 func _get_material(mat_name: String, tint) -> Material:

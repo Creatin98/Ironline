@@ -289,8 +289,10 @@ def ak47():
     s.box("DustCoverRidge", (0, 0.062, -0.034), (0.022, 0.008, 0.270), "steel")
     s.box("EjectionPort", (0.0255, 0.030, -0.020), (0.002, 0.020, 0.075), "steel")
     # charging handle on the LEFT side: a visible lever with a knob (the support hand pulls it during the reload)
-    s.box("ChargingHandle", (-0.046, 0.040, -0.015), (0.040, 0.012, 0.016), "steel_light")
-    s.box("ChargingKnob", (-0.070, 0.040, -0.015), (0.014, 0.020, 0.030), "polymer")
+    s.box("HandleSlot", (-0.0255, 0.040, 0.012), (0.002, 0.010, 0.130), "steel")  # the rail the handle runs in
+    handle = s.group("ChargingHandle", (-0.046, 0.040, -0.015))  # moves with every shot and with the reload
+    s.box("HandleLever", (0, 0, 0), (0.040, 0.012, 0.016), "steel_light", parent=handle)
+    s.box("HandleKnob", (-0.024, 0, 0), (0.014, 0.020, 0.030), "polymer", parent=handle)
     s.box("SafetyLever", (0.0265, 0.010, -0.010), (0.003, 0.010, 0.080), "steel_light")
     # rear sight (tangent leaf with a U notch)
     s.box("RearSightBase", (0, 0.070, -0.170), (0.024, 0.010, 0.050), "gunmetal")

@@ -40,6 +40,7 @@ func _ready() -> void:
 	await _simulate_cams()
 	await _simulate_steps()
 	await _simulate_slide()
+	_check_ak_handle_and_stairs()
 	await _check_maps()
 	await _check_glass()
 	await _simulate_bots()
@@ -2185,3 +2186,18 @@ func _check_glass() -> void:
 	map.free()
 	map2.free()
 	await get_tree().process_frame
+
+
+## The AK's charging handle is one moving group (lever + knob), and ramps of more than 45 cm are drawn as stairs.
+func _check_ak_handle_and_stairs() -> void:
+	var ak: Node3D = (load("res://scenes/weapons/models/ak47_model.tscn") as PackedScene).instantiate()
+	var handle := ak.get_node_or_null("ChargingHandle")
+	if handle == null or handle.get_node_or_null("HandleKnob") == null or handle.get_node_or_null("HandleLever") == null:
+		_fail("AK: Spannhebel muss eine Gruppe aus Hebel und Knauf sein (beweglich)")
+	ak.free()
+	var r := BlockMap.ramp(Vector3(0, 0, 0), Vector3(0, 3.5, 6), 3.0, "concrete")
+	if not r.get("stairs", false) or r.get("visible", true):
+		_fail("Rampen ueber 45 cm muessen als Treppe (unsichtbare Kollisionsschraege) gebaut werden")
+	var small := BlockMap.ramp(Vector3(0, 0, 0), Vector3(0, 0.3, 3), 3.0, "concrete")
+	if small.get("stairs", false):
+		_fail("Niedrige Rampen bleiben Rampen")
