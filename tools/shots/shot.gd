@@ -411,6 +411,8 @@ func _game_ui(state: String) -> void:
 		# screen splatter + blood sprayed on the surfaces in front of the player
 		game.hud._add_blood_splats(90.0)
 		game.hud._add_blood_splats(60.0)
+		game.hud._hit_vignette = 0.8
+		game.hud.vignette.color.a = 0.8
 		for sp in game.hud._blood_splats:
 			sp["age"] = 0.5
 		var origin: Vector3 = local.head.get_aim_origin()

@@ -27,6 +27,7 @@ var center_label: Label
 var sub_label: Label
 var popup_box: VBoxContainer
 var vignette: ColorRect
+var _hit_vignette: float = 0.0 # blood/dirt at the edges after hits, fades over a few seconds
 var damage_flash: ColorRect
 var fps_label: Label
 var hint_label: Label
@@ -83,7 +84,25 @@ func _build() -> void:
 	# --- fullscreen overlays ---
 	vignette = ColorRect.new()
 	vignette.set_anchors_preset(Control.PRESET_FULL_RECT)
-	vignette.color = Color(0.6, 0.0, 0.0, 0.0)
+	vignette.color = Color(0.4, 0.01, 0.01, 0.0)
+	var vsh := Shader.new()
+	# dirty, bloody screen edges: red towards the corners, streaky grain; the alpha of `color` is the strength
+	vsh.code = """shader_type canvas_item;
+float h(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+float n(vec2 p){ vec2 i = floor(p); vec2 f = fract(p); f = f*f*(3.0-2.0*f);
+	return mix(mix(h(i), h(i+vec2(1,0)), f.x), mix(h(i+vec2(0,1)), h(i+vec2(1,1)), f.x), f.y); }
+void fragment() {
+	vec2 c = UV - vec2(0.5);
+	float d = length(c * vec2(1.0, 0.8)) * 1.45;
+	float edge = smoothstep(0.35, 1.0, d);
+	float dirt = n(UV * vec2(9.0, 14.0)) * 0.6 + n(UV * vec2(38.0, 52.0)) * 0.4;
+	float streak = n(vec2(UV.x * 26.0, UV.y * 3.0));
+	float a = edge * (0.45 + 0.75 * dirt) * (0.8 + 0.4 * streak);
+	COLOR = vec4(mix(COLOR.rgb, vec3(0.16, 0.0, 0.0), dirt * 0.6), clamp(a, 0.0, 1.0) * COLOR.a);
+}"""
+	var vmat := ShaderMaterial.new()
+	vmat.shader = vsh
+	vignette.material = vmat
 	vignette.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(vignette)
 	_kill_flash = ColorRect.new()
@@ -376,6 +395,8 @@ func _process(delta: float) -> void:
 	var target_vignette := 0.0
 	if _health_ratio < 0.6:
 		target_vignette = (0.6 - _health_ratio) / 0.6 * 0.55
+	_hit_vignette = maxf(0.0, _hit_vignette - delta * 0.28)
+	target_vignette = maxf(target_vignette, _hit_vignette)
 	vignette.color.a = lerpf(vignette.color.a, target_vignette, minf(1.0, delta * 6.0))
 	# respawn countdown
 	if _respawn_time_left >= 0.0:
@@ -613,6 +634,13 @@ func _draw_blood() -> void:
 					_blood_layer.draw_colored_polygon(pts, col)
 				_blood_layer.draw_circle(p + d * len, w * 0.34, col)
 				_blood_layer.draw_circle(p, w * 0.55, col)
+			3: # beads: glossy translucent drops with a dark rim and a highlight
+				var r: float = float(sp["size"]) * (0.6 + 0.4 * grow)
+				var sag: float = clampf(age * 0.05, 0.0, 1.0) * float(sp["size"]) * 0.6
+				var q := p + Vector2(0.0, sag)
+				_blood_layer.draw_circle(q, r, Color(0.28, 0.0, 0.0, a * 0.9))
+				_blood_layer.draw_circle(q + Vector2(0.0, r * 0.08), r * 0.82, Color(0.62, 0.05, 0.04, a * 0.75))
+				_blood_layer.draw_circle(q + Vector2(-r * 0.3, -r * 0.35), r * 0.28, Color(1.0, 0.75, 0.7, a * 0.7))
 			_: # spray / scratches: thin fan of lines with droplets at the ends
 				var d2: Vector2 = sp["dir"]
 				var rays: Array = sp["rays"]
@@ -626,7 +654,7 @@ func _draw_blood() -> void:
 ## Blood on the screen: splats, smears/drips and thin scratch sprays, spread over the whole picture
 ## (kept away from the very middle). Stronger hits = more of them.
 func _add_blood_splats(amount: float) -> void:
-	var count := clampi(2 + int(amount / 12.0), 2, 8)
+	var count := clampi(3 + int(amount / 9.0), 3, 12)
 	var s := _blood_layer.size
 	var k := s.y / 1080.0
 	for i in count:
@@ -638,11 +666,20 @@ func _add_blood_splats(amount: float) -> void:
 				break
 		var kind_roll := randf()
 		var sp := {"p": pos, "age": 0.0, "vy": randf_range(8.0, 40.0), "kind": 0}
-		if kind_roll < 0.45:
+		if kind_roll < 0.22:
+			# a cluster of beads (the "pearls" of a spray) - one entry per bead
+			sp["kind"] = 3
+			sp["size"] = randf_range(5.0, 16.0) * k
+			for b in randi_range(3, 7):
+				var bead := sp.duplicate()
+				bead["p"] = pos + Vector2.from_angle(randf() * TAU) * randf_range(10.0, 120.0) * k
+				bead["size"] = randf_range(4.0, 17.0) * k
+				_blood_splats.append(bead)
+		elif kind_roll < 0.5:
 			sp["size"] = randf_range(80.0, 200.0) * k
 			sp["rot"] = randf() * TAU
 			sp["tex"] = randi() % BloodFx.VARIANTS
-		elif kind_roll < 0.78:
+		elif kind_roll < 0.8:
 			sp["kind"] = 1
 			sp["dir"] = Vector2.DOWN.rotated(randf_range(-0.7, 0.7)) if randf() < 0.7 else Vector2.from_angle(randf() * TAU)
 			sp["size"] = randf_range(160.0, 420.0) * k
@@ -655,13 +692,14 @@ func _add_blood_splats(amount: float) -> void:
 				rays.append([randf_range(-0.55, 0.55), randf_range(70.0, 260.0) * k, randf_range(2.0, 5.0) * k])
 			sp["rays"] = rays
 		_blood_splats.append(sp)
-	while _blood_splats.size() > 26:
+	while _blood_splats.size() > 60:
 		_blood_splats.pop_front()
 
 
 func _on_local_damaged(amount: float, source_position: Vector3) -> void:
-	damage_flash.color.a = clampf(damage_flash.color.a + amount / 100.0 * 0.4, 0.0, 0.4)
+	damage_flash.color.a = clampf(damage_flash.color.a + amount / 100.0 * 0.4, 0.0, 0.45)
 	_add_blood_splats(amount)
+	_hit_vignette = clampf(maxf(_hit_vignette, 0.35) + amount / 90.0 * 0.45, 0.0, 1.0)
 	if _player != null and is_instance_valid(_player):
 		var to := Vector2(source_position.x - _player.global_position.x, source_position.z - _player.global_position.z)
 		if to.length() > 1.0:
