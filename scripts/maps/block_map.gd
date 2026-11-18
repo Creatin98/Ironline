@@ -38,6 +38,11 @@ func get_blocks() -> Array:
 
 
 ## Each entry: {"pos": Vector3, "yaw": float (degrees), "team": int}
+## Optional extras per map: props, markings, roof equipment (visual only, see MapDetail).
+func build_detail(_detail: MapDetail) -> void:
+	pass
+
+
 func get_spawns() -> Array:
 	return []
 
@@ -165,7 +170,7 @@ static func car(center: Vector3, color: Color, yaw: float = 0.0) -> Array:
 	var out: Array = []
 	var basis := Basis(Vector3.UP, deg_to_rad(yaw))
 	var body_pos := center + Vector3(0, 0.65, 0)
-	out.append({"pos": body_pos, "size": Vector3(1.9, 0.9, 4.4), "mat": "metal_panel", "tint": color, "basis": basis})
+	out.append({"pos": body_pos, "size": Vector3(1.9, 0.9, 4.4), "mat": "metal_panel", "tint": color, "basis": basis, "kind": "car"})
 	out.append({"pos": center + Vector3(0, 1.4, 0) + basis * Vector3(0, 0, 0.2), "size": Vector3(1.7, 0.6, 2.2), "mat": "metal_panel", "tint": Color(0.15, 0.17, 0.2), "basis": basis})
 	for wx in [-0.85, 0.85]:
 		for wz in [-1.4, 1.4]:
@@ -192,8 +197,14 @@ func _build_geometry() -> void:
 	geometry_root = Node3D.new()
 	geometry_root.name = "Geometry"
 	nav_region.add_child(geometry_root)
-	for b in get_blocks():
+	var blocks := get_blocks()
+	for b in blocks:
 		_add_block(b)
+	# visual-only detail (no colliders): automatic wall detail plus the map's own extras
+	var detail := MapDetail.new(self)
+	detail.build(blocks)
+	build_detail(detail)
+	detail.flush(geometry_root)
 
 
 func _bake_navigation() -> void:

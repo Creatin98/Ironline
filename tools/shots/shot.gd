@@ -84,6 +84,8 @@ func _run() -> void:
 		await _game_ui(target.substr(5))
 	elif target.begins_with("map_"):
 		await _map_preview(target.substr(4))
+	elif target.begins_with("view_"):
+		await _map_view(target.substr(5))
 	elif target.begins_with("class_"):
 		await _class_preview(target.substr(6))
 	for i in wait_frames:
@@ -170,6 +172,34 @@ func _map_preview(map_id: String) -> void:
 	cam.look_at(c, Vector3.UP)
 	cam.current = true
 	print("MAP ", map_id, " aabb ", box, " dist ", dist)
+
+
+## Eye-level view of a map: --pos=x,y,z --look=x,y,z (map as in the game, ground-level camera).
+func _map_view(map_id: String) -> void:
+	var info := GameDirector.get_map_info(map_id)
+	var map: Node3D = (load(info["scene"]) as PackedScene).instantiate()
+	get_tree().root.add_child.call_deferred(map)
+	for i in 4:
+		await get_tree().process_frame
+	var pos := Vector3(0, 1.7, 0)
+	var look := Vector3(0, 1.5, -10)
+	var fov := 78.0
+	for arg in OS.get_cmdline_user_args():
+		if arg.begins_with("--pos="):
+			var p := arg.substr(6).split(",")
+			pos = Vector3(float(p[0]), float(p[1]), float(p[2]))
+		elif arg.begins_with("--look="):
+			var l := arg.substr(7).split(",")
+			look = Vector3(float(l[0]), float(l[1]), float(l[2]))
+		elif arg.begins_with("--fov="):
+			fov = float(arg.substr(6))
+	var cam := Camera3D.new()
+	cam.fov = fov
+	cam.far = 500.0
+	get_tree().root.add_child(cam)
+	cam.global_position = pos
+	cam.look_at(look, Vector3.UP)
+	cam.current = true
 
 
 func _class_preview(class_id: String) -> void:

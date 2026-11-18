@@ -122,6 +122,21 @@ func get_blocks() -> Array:
 	return b
 
 
+func build_detail(d: MapDetail) -> void:
+	for z in [-14.0, 14.0]:
+		d.lamp_post(Vector3(-9.2, 0, z), 5.0, 0.0)
+		d.lamp_post(Vector3(9.2, 0, -z), 5.0, PI)
+	d.power_box(Vector3(-29.6, 0, 6.0), PI * 0.5)
+	d.power_box(Vector3(29.6, 0, -6.0), -PI * 0.5)
+	d.barrel(Vector3(-29.3, 0, -3.0), Color(0.2, 0.32, 0.5))
+	d.barrel(Vector3(-29.3, 0, -2.0), Color(0.55, 0.22, 0.14))
+	d.barrel(Vector3(29.3, 0, 3.0), Color(0.55, 0.22, 0.14))
+	d.pallet(Vector3(29.0, 0, 7.0), 0.2)
+	d.dashed_line(Vector3(0, 0.005, -21), Vector3(0, 0.005, 21), 0.15, 2.0, 2.0, Color(0.9, 0.85, 0.4))
+	d.marking(Vector3(-4.9, 0.006, 0), Vector3(0.12, 0.01, 44), Color(0.85, 0.85, 0.8))
+	d.marking(Vector3(4.9, 0.006, 0), Vector3(0.12, 0.01, 44), Color(0.85, 0.85, 0.8))
+
+
 func get_spawns() -> Array:
 	var s: Array = []
 	# Rot im Norden (schaut nach Sueden = +Z -> yaw 180)

@@ -190,6 +190,43 @@ func get_blocks() -> Array:
 	return b
 
 
+func build_detail(d: MapDetail) -> void:
+	# gas station: fascia, lights, pump screens, hoses, price pole
+	d.add_box(Vector3(0, 3.6, -15.45), Vector3(14.3, 0.4, 0.12), "plaster", C_RED)
+	d.add_box(Vector3(0, 3.6, -22.55), Vector3(14.3, 0.4, 0.12), "plaster", C_RED)
+	d.add_box(Vector3(-7.15, 3.6, -19), Vector3(0.12, 0.4, 7.2), "plaster", C_RED)
+	d.add_box(Vector3(7.15, 3.6, -19), Vector3(0.12, 0.4, 7.2), "plaster", C_RED)
+	for x in [-3.0, 3.0]:
+		d.lamp(Vector3(x, 3.42, -19), Color(1.0, 0.95, 0.8), 0.9, 8.0)
+		d.add_box(Vector3(x, 1.25, -18.72), Vector3(0.6, 0.35, 0.04), "metal_panel", Color(0.08, 0.12, 0.1))
+		d.add_cylinder(Vector3(x + 0.55, 1.0, -18.72), 0.06, 0.8, "rubber")
+	d.add_cylinder(Vector3(-11.5, 2.5, -13.5), 0.18, 5.0, "metal_panel", Color(0.35, 0.37, 0.4))
+	d.add_box(Vector3(-11.5, 5.0, -13.5), Vector3(1.4, 1.0, 0.15), "plaster", Color(0.9, 0.85, 0.5))
+	# street lamps and utility poles with cables along the alley wall
+	for z in [-12.0, 12.0]:
+		d.lamp_post(Vector3(7.9, 0, z), 5.0, PI)
+		d.lamp_post(Vector3(-7.9, 0, -z), 5.0, 0.0)
+	for z in [-14.0, 0.0, 14.0]:
+		d.utility_pole(Vector3(-29.5, 0, z), 7.0, PI * 0.5)
+	for z in [-14.0, 0.0]:
+		for x in [-0.85, 0.0, 0.85]:
+			d.wire(Vector3(-29.5 + x, 6.65, z), Vector3(-29.5 + x, 6.65, z + 14.0), 0.5)
+	# alley and dock clutter (against the outer walls)
+	d.barrel(Vector3(-29.2, 0, -10.0), Color(0.55, 0.22, 0.14))
+	d.barrel(Vector3(-29.2, 0, -9.0), Color(0.2, 0.32, 0.5))
+	d.barrel(Vector3(-29.2, 0, 8.0), Color(0.55, 0.22, 0.14))
+	d.pallet(Vector3(-28.8, 0, 3.0), 0.1)
+	d.pallet(Vector3(-28.8, 0, -4.0), -0.05)
+	d.pallet(Vector3(29.0, 0, 12.0), 0.2)
+	d.barrel(Vector3(29.3, 0, 14.0), Color(0.2, 0.32, 0.5))
+	d.power_box(Vector3(29.7, 0, -4.0), -PI * 0.5)
+	d.power_box(Vector3(-29.7, 0, 20.0), PI * 0.5)
+	# road markings
+	d.dashed_line(Vector3(0, 0.005, -13.5), Vector3(0, 0.005, 13.5), 0.15, 2.0, 2.0, Color(0.88, 0.8, 0.45))
+	d.marking(Vector3(0, 0.006, -14.2), Vector3(10.0, 0.01, 0.4), Color(0.85, 0.85, 0.8))
+	d.marking(Vector3(0, 0.006, 14.2), Vector3(10.0, 0.01, 0.4), Color(0.85, 0.85, 0.8))
+
+
 func get_spawns() -> Array:
 	var s: Array = []
 	for x in [-24.0, -15.0, -5.0, 5.0, 15.0, 24.0]:

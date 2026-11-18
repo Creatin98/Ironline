@@ -26,7 +26,7 @@ MATERIALS = {
 }
 
 # roughness values in MATERIALS are kept for reference; the roughness map holds the real values
-NORMAL_SCALE = {"brick": 1.3, "concrete": 1.1, "asphalt": 1.0, "water": 0.6, "rubber": 0.8}
+NORMAL_SCALE = {"wood_planks": 0.5, "metal_panel": 0.7, "brick": 1.3, "concrete": 1.1, "asphalt": 1.0, "water": 0.6, "rubber": 0.8}
 
 TEMPLATE = """[gd_resource type="StandardMaterial3D" load_steps=4 format=3]
 

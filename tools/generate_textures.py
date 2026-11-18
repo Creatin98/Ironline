@@ -75,7 +75,7 @@ def cracks(count, length=90, width=1.4, seed=1):
         x, y = r.random() * SIZE, r.random() * SIZE
         ang = r.random() * np.pi * 2
         for step in range(int(length * (0.5 + r.random()))):
-            ang += r.normal(0, 0.28)
+            ang += r.normal(0, 0.09)
             x += np.cos(ang) * 2.0
             y += np.sin(ang) * 2.0
             w = width * (1.0 - step / (length * 1.6))
@@ -86,7 +86,7 @@ def cracks(count, length=90, width=1.4, seed=1):
                     if dx * dx + dy * dy <= rr * rr:
                         img[(yi + dy) % SIZE, (xi + dx) % SIZE] = 1.0
             if r.random() < 0.012:
-                ang += r.choice([-1, 1]) * r.uniform(0.5, 1.1) # a branch turns away
+                ang += r.choice([-1, 1]) * r.uniform(0.3, 0.7) # a branch turns away
     return img
 
 
@@ -144,7 +144,7 @@ def save(name, albedo, height, rough, nstrength=6.0):
 def asphalt():
     h = fbm(5, 3, 0.6) * 0.5 + speckle(0.35, 11) * 0.25 + blur(speckle(0.2, 12)) * 0.4
     patches = (noise(2, 1, 7) > 0.62).astype(float)
-    cr = cracks(7, 110, 1.3, 21)
+    cr = cracks(5, 110, 1.1, 21)
     base = mix(col(0.20, 0.205, 0.215), col(0.12, 0.125, 0.135), h)
     base = mix(base, base * 1.18, patches * 0.7) # lighter repair patches
     base = mix(base, col(0.04, 0.04, 0.045), cr * 0.9)
@@ -158,11 +158,11 @@ def asphalt():
 
 def concrete():
     h = fbm(6, 3, 0.55)
-    pores = speckle(0.012, 31)
+    pores = speckle(0.004, 31)
     pores = blur(pores)
     stain = fbm(3, 2, 0.6, seed=32)
     base = mix(col(0.58, 0.575, 0.56), col(0.40, 0.395, 0.385), h * 0.8 + stain * 0.5 - 0.3)
-    base = mix(base, col(0.28, 0.27, 0.26), np.clip(pores * 6, 0, 1) * 0.8)
+    base = mix(base, col(0.28, 0.27, 0.26), np.clip(pores * 5, 0, 1) * 0.35)
     streak = fbm(3, 14, 0.5, seed=33)
     streak_v = np.repeat(streak[:1, :], SIZE, axis=0) * 0.5 + 0.5
     base *= (0.9 + 0.12 * streak_v)[..., None]
@@ -175,7 +175,7 @@ def concrete():
         for hy in (SIZE // 4, 3 * SIZE // 4):
             yy, xx = np.mgrid[0:SIZE, 0:SIZE]
             holes = np.maximum(holes, (((xx - hx) ** 2 + (yy - hy) ** 2) < 25).astype(float))
-    base = mix(base, col(0.18, 0.18, 0.18), holes * 0.8)
+    base = mix(base, col(0.3, 0.3, 0.29), holes * 0.5)
     save("concrete", base, h * 0.6 - seams * 0.8 - cr * 0.5 - holes * 0.6 - pores * 0.8, 0.9 + 0.08 * h - 0.1 * seams, 7.0)
 
 
@@ -201,16 +201,16 @@ def brick():
 def plaster():
     h = fbm(6, 3, 0.55)
     mott = fbm(3, 2, 0.6, seed=51)
-    base = mix(col(0.82, 0.76, 0.66), col(0.70, 0.64, 0.55), mott * 0.9 + h * 0.3 - 0.2)
+    base = mix(col(0.84, 0.80, 0.72), col(0.76, 0.72, 0.64), mott * 0.8 + h * 0.3 - 0.2)
     water = fbm(3, 12, 0.5, seed=52)
     wv = np.repeat(water[:1, :], SIZE, axis=0)
     base *= (0.92 + 0.1 * wv)[..., None]
     bottom = np.linspace(0, 1, SIZE)[:, None] ** 3
     base = mix(base, col(0.38, 0.33, 0.28), bottom * 0.45 * (0.5 + noise(6, 2, 53)))
-    cr = cracks(5, 70, 0.9, 54)
-    base = mix(base, col(0.2, 0.17, 0.14), cr * 0.9)
-    peel = (noise(3, 2, 55) > 0.72).astype(float)
-    base = mix(base, col(0.52, 0.28, 0.2), blur(peel, 2) * 0.55) # plaster chipped down to the brick
+    cr = cracks(2, 70, 0.7, 54)
+    base = mix(base, col(0.42, 0.37, 0.3), cr * 0.7)
+    peel = (noise(5, 2, 55) > 0.80).astype(float)
+    base = mix(base, col(0.62, 0.52, 0.45), blur(peel, 2) * 0.35) # plaster chipped down to the brick
     save("plaster", base, h * 0.7 - cr * 0.6 - peel * 0.5, 0.86 + 0.1 * h, 6.0)
 
 
@@ -219,7 +219,7 @@ def metal_panel():
     mseam = grid_lines(n, n, 2.0)
     h = fbm(4, 4, 0.5)
     sc = scratches(260, 61)
-    base = mix(col(0.40, 0.43, 0.47), col(0.30, 0.32, 0.36), h)
+    base = mix(col(0.62, 0.65, 0.69), col(0.47, 0.49, 0.53), h)
     cell = cells(n, n)
     base *= (0.9 + 0.2 * cell)[..., None]
     base = mix(base, col(0.62, 0.64, 0.66), sc * 0.5)
@@ -250,11 +250,11 @@ def wood_planks():
     # stretched grain: noise sampled along the plank
     stretched = np.roll(fbm(4, 40, 0.5, seed=73), 3, 0)
     stretched = np.repeat(stretched[::8, :], 8, axis=0) * 0.5 + 0.5 * grain
-    tones = [col(0.50, 0.33, 0.18), col(0.45, 0.29, 0.15), col(0.56, 0.38, 0.21), col(0.40, 0.26, 0.14)]
+    tones = [col(0.50, 0.38, 0.26), col(0.46, 0.35, 0.24), col(0.55, 0.43, 0.30), col(0.42, 0.32, 0.22)]
     base = np.zeros((SIZE, SIZE, 3))
     for i, c in enumerate(tones):
         base[(plank % len(tones)) == i] = c
-    base *= (0.8 + 0.4 * stretched)[..., None] * (0.9 + 0.2 * cell)[..., None]
+    base *= (0.88 + 0.24 * stretched)[..., None] * (0.93 + 0.14 * cell)[..., None]
     knots = np.zeros((SIZE, SIZE))
     for _ in range(5):
         kx, ky = rng.integers(0, SIZE), rng.integers(0, SIZE)
@@ -357,7 +357,7 @@ def ship_hull():
     seam = grid_lines(n, n, 2.5)
     h = fbm(4, 4, 0.5)
     cell = cells(n, n)
-    paints = [col(0.20, 0.27, 0.34), col(0.23, 0.3, 0.37), col(0.18, 0.24, 0.31)]
+    paints = [col(0.80, 0.82, 0.84), col(0.84, 0.86, 0.88), col(0.76, 0.79, 0.82)]
     idx = (cell * 3).astype(int) % 3
     base = np.zeros((SIZE, SIZE, 3))
     for i, c in enumerate(paints):
@@ -365,18 +365,18 @@ def ship_hull():
     base *= (0.85 + 0.25 * h)[..., None]
     rust = fbm(5, 4, 0.6, seed=141)
     bottom = (np.linspace(0, 1, SIZE)[:, None] ** 2)
-    rust_m = np.clip((rust - 0.52) * 3.0 + bottom * 0.5 - 0.1, 0, 1)
-    base = mix(base, col(0.45, 0.2, 0.09), rust_m * 0.8)
+    rust_m = np.clip((rust - 0.7) * 3.5 + bottom * 0.45 - 0.12, 0, 1)
+    base = mix(base, col(0.5, 0.26, 0.13), rust_m * 0.6)
     chips = (fbm(4, 10, 0.6, seed=142) > 0.64).astype(float)
     base = mix(base, col(0.5, 0.51, 0.52), chips * 0.5)
-    base = mix(base, col(0.08, 0.1, 0.12), seam * 0.8)
+    base = mix(base, col(0.35, 0.38, 0.42), seam * 0.8)
     yy, xx = np.mgrid[0:SIZE, 0:SIZE]
     rivets = np.zeros((SIZE, SIZE))
     for cy in (12, SIZE // n - 12):
         for py in range(cy, SIZE, SIZE // n):
             for px in range(10, SIZE, 24):
                 rivets = np.maximum(rivets, (((xx - px) ** 2 + (yy - py) ** 2) < 6).astype(float))
-    base = mix(base, base * 1.4, rivets * 0.6)
+    base = mix(base, base * 0.8, rivets * 0.6)
     save("ship_hull", base, h * 0.3 - seam * 0.9 + rivets * 0.7 - rust_m * 0.2, 0.42 + 0.45 * rust_m + 0.15 * h, 6.0)
 
 

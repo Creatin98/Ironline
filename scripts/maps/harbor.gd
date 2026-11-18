@@ -150,6 +150,61 @@ func get_blocks() -> Array:
 	return b
 
 
+func build_detail(d: MapDetail) -> void:
+	# deck railings with posts and handrails (all four sides, plus the sun deck)
+	d.rail(Vector3(-14.82, 0.0, -31.9), Vector3(-14.82, 0.0, 31.9))
+	d.rail(Vector3(14.82, 0.0, -31.9), Vector3(14.82, 0.0, 31.9))
+	d.rail(Vector3(-14.82, 0.0, 31.88), Vector3(14.82, 0.0, 31.88))
+	d.rail(Vector3(-14.82, 0.0, -31.88), Vector3(14.82, 0.0, -31.88))
+	d.rail(Vector3(-9.88, ROOF_Y, -9.8), Vector3(-9.88, ROOF_Y, 13.2), 1.0)
+	d.rail(Vector3(9.88, ROOF_Y, -13.2), Vector3(9.88, ROOF_Y, 9.8), 1.0)
+	d.rail(Vector3(-9.9, ROOF_Y, -13.2), Vector3(9.9, ROOF_Y, -13.2), 1.0)
+	d.rail(Vector3(-9.9, ROOF_Y, 13.2), Vector3(9.9, ROOF_Y, 13.2), 1.0)
+	# hull: portholes, rubbing strake, waterline stripe
+	for side in [-1.0, 1.0]:
+		var x: float = side * 15.52
+		for z in range(-28, 30, 4):
+			d.add_cylinder(Vector3(x, -1.25, float(z) + 1.0), 0.62, 0.05, "metal_panel", Color(0.7, 0.72, 0.74), Basis(Vector3.BACK, PI * 0.5))
+			d.add_cylinder(Vector3(x + side * 0.02, -1.25, float(z) + 1.0), 0.46, 0.05, "metal_panel", Color(0.05, 0.08, 0.1), Basis(Vector3.BACK, PI * 0.5))
+		d.add_box(Vector3(side * 15.58, -0.95, 0), Vector3(0.12, 0.16, 62), "metal_panel", Color(0.15, 0.17, 0.2))
+		d.add_box(Vector3(side * 15.53, -2.55, 0), Vector3(0.1, 0.6, 62), "plaster", Color(0.55, 0.14, 0.12))
+	# bollards and lifebuoys along the rails
+	for z in range(-24, 28, 8):
+		for side in [-1.0, 1.0]:
+			d.add_cylinder(Vector3(side * 14.5, 0.22, float(z)), 0.26, 0.45, "metal_panel", Color(0.2, 0.22, 0.25))
+			d.add_cylinder(Vector3(side * 14.5, 0.47, float(z)), 0.36, 0.06, "metal_panel", Color(0.2, 0.22, 0.25))
+	for z in [-18.0, -2.0, 16.0, 26.0]:
+		for side in [-1.0, 1.0]:
+			d.add_cylinder(Vector3(side * 14.74, 0.75, z), 0.62, 0.1, "metal_panel", Color(0.9, 0.42, 0.1), Basis(Vector3.BACK, PI * 0.5))
+			d.add_cylinder(Vector3(side * 14.74, 0.75, z), 0.34, 0.11, "plaster", Color(0.95, 0.95, 0.95), Basis(Vector3.BACK, PI * 0.5))
+	# mast, radar, vents and a dish on the bridge roof (unreachable)
+	var roof := Vector3(0, ROOF_Y + 2.6, 0)
+	d.antenna(roof + Vector3(1.8, 0, -1.2), 3.6)
+	d.add_cylinder(roof + Vector3(-1.6, 0.9, 1.0), 0.14, 1.8, "metal_panel", Color(0.5, 0.52, 0.55))
+	d.add_box(roof + Vector3(-1.6, 1.85, 1.0), Vector3(1.6, 0.08, 0.18), "metal_panel", Color(0.7, 0.72, 0.75))
+	d.add_cylinder(roof + Vector3(0.2, 0.3, 1.5), 1.0, 0.6, "plaster", Color(0.95, 0.95, 0.95))
+	d.vent_stack(roof + Vector3(-1.5, 0, -1.6), 0.9)
+	d.vent_stack(roof + Vector3(0.6, 0, -1.7), 0.7)
+	# interior lighting
+	d.lamp(Vector3(0, 3.05, -8.5), Color(1.0, 0.9, 0.72), 1.1, 9.0)
+	d.lamp(Vector3(0, 3.05, 0), Color(1.0, 0.92, 0.78), 1.2, 10.0)
+	d.lamp(Vector3(0, 3.05, 8.5), Color(1.0, 0.72, 0.45), 1.1, 9.0)
+	d.lamp(Vector3(0, ROOF_Y + 2.35, 0), Color(0.85, 0.92, 1.0), 0.8, 6.0)
+	# helipad ring and H
+	d.marking(Vector3(0, 0.142, 25), Vector3(0.35, 0.01, 3.4), Color(0.92, 0.92, 0.9))
+	d.marking(Vector3(-1.1, 0.142, 25), Vector3(0.35, 0.01, 3.4), Color(0.92, 0.92, 0.9))
+	d.marking(Vector3(1.1, 0.142, 25), Vector3(0.35, 0.01, 3.4), Color(0.92, 0.92, 0.9))
+	d.add_cylinder(Vector3(0, 0.101, 25), 8.6, 0.01, "plaster", Color(0.92, 0.92, 0.9))
+	d.add_cylinder(Vector3(0, 0.107, 25), 8.1, 0.01, "asphalt", Color(0.6, 0.6, 0.62))
+	# deck equipment: winch cables, tender crates, fire cabinets on the superstructure
+	for side in [-1.0, 1.0]:
+		for z in [-10.5, -2.0, 6.0]:
+			d.add_box(Vector3(side * 7.25, 1.2, z), Vector3(0.18, 0.7, 0.5), "metal_panel", Color(0.7, 0.14, 0.12))
+		d.pallet(Vector3(side * 12.2, 0.0, 22.0 * -side), 0.4)
+		d.barrel(Vector3(side * 13.6, 0.0, 12.0 * side), Color(0.75, 0.75, 0.78))
+	d.pallet(Vector3(-5.0, 0.0, 19.0), 0.0)
+
+
 func get_spawns() -> Array:
 	var s: Array = []
 	for x in [-11.0, -6.0, -2.0, 2.0, 6.0, 11.0]:

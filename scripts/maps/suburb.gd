@@ -101,6 +101,40 @@ func get_blocks() -> Array:
 	return b
 
 
+func build_detail(d: MapDetail) -> void:
+	# school bus: window band, black rub rails, lights, bumpers, wheels
+	var bus := Vector3(0, 0, 0)
+	for sx in [-1.31, 1.31]:
+		d.add_box(bus + Vector3(sx, 2.15, 0.0), Vector3(0.05, 0.7, 10.0), "metal_panel", Color(0.16, 0.2, 0.24))
+		d.add_box(bus + Vector3(sx, 1.55, 0.0), Vector3(0.06, 0.08, 10.8), "metal_panel", Color(0.06, 0.06, 0.07))
+		d.add_box(bus + Vector3(sx, 1.05, 0.0), Vector3(0.06, 0.08, 10.8), "metal_panel", Color(0.06, 0.06, 0.07))
+		for z in range(-4, 5, 2):
+			d.add_box(bus + Vector3(sx, 2.15, float(z) + 0.0), Vector3(0.07, 0.72, 0.06), "metal_panel", Color(0.75, 0.6, 0.12))
+	for sz in [-5.52, 5.52]:
+		d.add_box(bus + Vector3(0, 2.1, sz), Vector3(2.3, 0.8, 0.05), "metal_panel", Color(0.16, 0.2, 0.24))
+		d.add_box(bus + Vector3(0, 0.55, sz), Vector3(2.7, 0.3, 0.2), "metal_panel", Color(0.1, 0.1, 0.11))
+		for lx in [-0.95, 0.95]:
+			d.add_box(bus + Vector3(lx, 1.1, sz), Vector3(0.3, 0.2, 0.05), "lamp", Color(1.0, 0.92, 0.7) if sz < 0.0 else Color(0.9, 0.1, 0.08))
+	d.add_box(bus + Vector3(0, 3.0, 0), Vector3(2.4, 0.06, 10.4), "metal_panel", Color(0.85, 0.82, 0.78))
+	for wz in [-3.8, 3.8]:
+		for wx in [-1.37, 1.37]:
+			d.add_cylinder(bus + Vector3(wx, 0.45, wz), 0.5, 0.05, "metal_panel", Color(0.7, 0.72, 0.75), Basis(Vector3.BACK, PI * 0.5))
+	# street lamps, power boxes, bins, road markings
+	for z in [-16.0, 16.0]:
+		d.lamp_post(Vector3(-7.2, 0, z), 5.0, 0.0)
+		d.lamp_post(Vector3(7.2, 0, -z), 5.0, PI)
+	d.power_box(Vector3(-27.3, 0, 8.0), PI * 0.5)
+	d.power_box(Vector3(27.3, 0, -8.0), -PI * 0.5)
+	d.dashed_line(Vector3(0, 0.06, -21), Vector3(0, 0.06, -6.5), 0.14, 2.0, 2.0, Color(0.9, 0.8, 0.3))
+	d.dashed_line(Vector3(0, 0.06, 6.5), Vector3(0, 0.06, 21), 0.14, 2.0, 2.0, Color(0.9, 0.8, 0.3))
+	d.marking(Vector3(-4.2, 0.065, 0), Vector3(0.12, 0.01, 44), Color(0.85, 0.85, 0.8))
+	d.marking(Vector3(4.2, 0.065, 0), Vector3(0.12, 0.01, 44), Color(0.85, 0.85, 0.8))
+	# roof equipment on the unreachable house roofs
+	d.vent_stack(Vector3(-13.5, FLOOR_H + UPPER_H + 0.6, -12.5), 0.9)
+	d.vent_stack(Vector3(13.5, FLOOR_H + UPPER_H + 0.6, 12.5), 0.9)
+	d.antenna(Vector3(-8.5, FLOOR_H + UPPER_H + 0.6, -8.5), 3.0)
+
+
 ## Two-storey house 10 x 9 m. `north` = Rot house (front faces +Z / street side east).
 func _house(c: Vector3, color: Color, north: bool) -> Array:
 	var out: Array = []
