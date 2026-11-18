@@ -194,6 +194,10 @@ def make_mechanical():
     slap = gain(env_exp(lowpass(noise(0.05), 700), 0.012), 0.9)
     tuck = [a + b for a, b in zip(gain(env_exp(sine(430, 0.05), 0.01), 0.6) + [0.0] * 5, slap + [0.0] * 200)][:len(slap)]
     write_wav("ammo_stow", concat(zipper, tuck), 0.85)
+    # casing hitting concrete: a short bright brass "tink" with a tiny second bounce
+    def tink(f, g):
+        return gain(env_exp(sine(f, 0.12), 0.03), g)
+    write_wav("casing_drop", mix(tink(3400, 0.7), gain(env_exp(highpass(noise(0.01), 4000), 0.002), 0.4), delay(tink(3900, 0.4), 0.055), delay(tink(4300, 0.2), 0.09)), 0.55)
     # medal pop: dark sub thud, a short metallic strike and a faint ring (serious, cinematic, short)
     medal_sub = gain(env_exp(sweep(110, 42, 0.42), 0.13), 1.0)
     medal_strike = gain(env_exp(highpass(noise(0.06), 2500), 0.012), 0.35)
@@ -809,9 +813,51 @@ def make_ui():
     write_wav("ui_hover", env_exp(sine(1400, 0.04), 0.01), 0.3)
     write_wav("ui_back", mix(env_exp(sine(900, 0.07), 0.02), env_exp(sine(600, 0.07), 0.025)), 0.45)
     write_wav("respawn", concat(tone(660, 0.1), tone(990, 0.16)), 0.6)
-    write_wav("round_start", concat(tone(523, 0.14), tone(659, 0.14), tone(784, 0.3)), 0.7)
-    write_wav("round_win", concat(tone(523, 0.12), tone(659, 0.12), tone(784, 0.12), tone(1047, 0.45)), 0.75)
-    write_wav("round_lose", concat(tone(440, 0.18), tone(415, 0.18), tone(392, 0.5)), 0.7)
+    # epic, dark and short: deep drum hits, a low brass-like power chord that swells, a faint metallic shimmer
+    def saw(freq, seconds):
+        out = []
+        ph = 0.0
+        for i in range(int(seconds * SR)):
+            ph = (ph + freq / SR) % 1.0
+            out.append(2.0 * ph - 1.0)
+        return out
+
+    def drum(freq0, freq1, seconds, decay, g=1.0):
+        return gain(mix(env_exp(sweep(freq0, freq1, seconds), decay), gain(env_exp(lowpass(noise(seconds), 420), decay * 0.4), 0.5)), g)
+
+    def swell(freqs, seconds, a, r, cutoff, g):
+        parts = [lowpass(saw(f, seconds), cutoff) for f in freqs]
+        return gain(env_adsr(mix(*parts), a, 0.1, 0.8, r), g)
+
+    def at(track, t, total):
+        out = [0.0] * int(total * SR)
+        off = int(t * SR)
+        for i, v in enumerate(track):
+            if off + i < len(out):
+                out[off + i] += v
+        return out
+
+    # round start: one hit and a rising low chord
+    start = mix(at(drum(95, 38, 0.9, 0.22, 1.1), 0.0, 1.6), at(swell([55, 82.4, 110, 164.8], 1.4, 0.55, 0.5, 900, 0.5), 0.1, 1.6))
+    write_wav("round_start", start, 0.8)
+    # victory: three drum hits, a powerful open chord (root, fifth, octave, tenth) with a lifted shimmer
+    shimmer = [0.0] * int(3.4 * SR)
+    for f, dcy, g in zip([1318, 1760, 2637, 3520], [0.5, 0.45, 0.4, 0.3], [0.5, 0.4, 0.3, 0.25]):
+        for k, sm in enumerate(env_exp(sine(f, 1.6), dcy)):
+            shimmer[int(1.1 * SR) + k] += sm * g
+    win = mix(
+        at(drum(100, 40, 0.8, 0.2, 1.0), 0.0, 3.4), at(drum(100, 40, 0.8, 0.2, 1.0), 0.42, 3.4), at(drum(110, 38, 1.2, 0.3, 1.2), 0.84, 3.4),
+        at(swell([73.4, 110, 146.8, 184.9, 220], 2.4, 0.9, 1.1, 1100, 0.55), 0.84, 3.4),
+        gain(shimmer, 0.12),
+    )
+    write_wav("round_win", win, 0.85)
+    # defeat: one heavy hit, a low minor drone that sinks, an uneasy tritone underneath
+    lose = mix(
+        at(drum(80, 30, 1.4, 0.4, 1.3), 0.0, 3.2),
+        at(swell([55, 65.4, 82.4], 2.6, 0.7, 1.3, 520, 0.6), 0.2, 3.2),
+        at(swell([77.8, 116.5], 2.2, 1.1, 1.2, 420, 0.28), 0.5, 3.2),
+    )
+    write_wav("round_lose", lose, 0.8)
     write_wav("countdown_tick", env_exp(sine(1000, 0.1), 0.03), 0.5)
     write_wav("countdown_go", env_exp(sine(1500, 0.3), 0.1), 0.6)
 

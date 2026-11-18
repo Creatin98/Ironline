@@ -19,6 +19,7 @@ const R_WRIST := 0.030
 const R_ELBOW := 0.052
 const R_SHOULDER := 0.062
 
+var _cover: float = 0.0
 var _upper: Array[MeshInstance3D] = []
 var _fore: Array[MeshInstance3D] = []
 var _skin_mat: StandardMaterial3D
@@ -113,7 +114,9 @@ static func limb(length: float, r0: float, r1: float, sides: int = 8) -> ArrayMe
 
 
 ## Solves both arms. Targets: the wrists in camera space (Vector3.INF = hand not available, arm hidden).
-func update(right_wrist: Vector3, left_wrist: Vector3) -> void:
+## `cover`: 0..1, the left arm is raised across the eyes (flashbang): the elbow swings up and to the side.
+func update(right_wrist: Vector3, left_wrist: Vector3, cover: float = 0.0) -> void:
+	_cover = cover
 	_solve(0, right_wrist)
 	_solve(1, left_wrist)
 
@@ -137,6 +140,8 @@ func _solve(side: int, target: Vector3) -> void:
 	var a := (l1 * l1 - l2 * l2 + d * d) / (2.0 * d)
 	var h := sqrt(maxf(0.0, l1 * l1 - a * a))
 	var pole: Vector3 = POLES[side]
+	if side == 1 and _cover > 0.001:
+		pole = pole.lerp(Vector3(-0.6, 0.9, -0.5), _cover) # elbow up and out, forearm horizontal across the eyes
 	var side_dir := pole - fwd * pole.dot(fwd)
 	if side_dir.length() < 0.001:
 		side_dir = Vector3.DOWN

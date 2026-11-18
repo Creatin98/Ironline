@@ -1,15 +1,15 @@
 class_name UITheme
 ## Shared colours and small factory helpers so every screen looks the same.
 
-const ACCENT := Color(0.97, 0.63, 0.16)
-const ACCENT_DIM := Color(0.97, 0.63, 0.16, 0.6)
+const ACCENT := Color(0.86, 0.6, 0.24)
+const ACCENT_DIM := Color(0.86, 0.6, 0.24, 0.6)
 const TEXT := Color(0.94, 0.94, 0.92)
 const TEXT_DIM := Color(0.7, 0.72, 0.75)
-const BG := Color(0.06, 0.07, 0.09, 0.82)
+const BG := Color(0.035, 0.04, 0.05, 0.78)
 const BG_SOLID := Color(0.08, 0.09, 0.11, 1.0)
 const BG_LIGHT := Color(0.14, 0.16, 0.19, 0.9)
-const DANGER := Color(0.9, 0.2, 0.15)
-const SUCCESS := Color(0.35, 0.8, 0.4)
+const DANGER := Color(0.78, 0.14, 0.1)
+const SUCCESS := Color(0.62, 0.7, 0.58)
 
 
 static func panel_style(bg: Color = BG, radius: int = 4, border: Color = Color(0, 0, 0, 0), border_width: int = 0) -> StyleBoxFlat:
@@ -58,9 +58,16 @@ static func button(text: String, size: int = 22, min_width: float = 260.0) -> Bu
 	return b
 
 
-static func panel(bg: Color = BG, radius: int = 4) -> PanelContainer:
+## HUD panel: dark, hard-edged, a thin light line on top and a short accent mark at the left edge (drawn by HudFrame).
+static func panel(bg: Color = BG, radius: int = 0) -> PanelContainer:
 	var p := PanelContainer.new()
-	p.add_theme_stylebox_override("panel", panel_style(bg, radius))
+	var st := panel_style(bg, 0, Color(1, 1, 1, 0.06), 1)
+	st.border_width_left = 3
+	st.border_color = Color(0.86, 0.6, 0.24, 0.85) if bg == BG else Color(1, 1, 1, 0.1)
+	st.border_width_top = 1
+	st.border_width_right = 0
+	st.border_width_bottom = 0
+	p.add_theme_stylebox_override("panel", st)
 	p.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	return p
 

@@ -134,7 +134,7 @@ func _process(delta: float) -> void:
 func _spawn_splats(amount: float) -> void:
 	var s := canvas.size
 	var k := s.y / 1080.0
-	var blobs := clampi(3 + int(amount / 15.0), 3, 9)
+	var blobs := clampi(1 + int(amount / 45.0), 1, 3) # few, faint sprays: the grit comes from the shader
 	for i in blobs + 1:
 		var pos := _edge_biased(s)
 		var roll := randf()
@@ -152,9 +152,9 @@ func _spawn_splats(amount: float) -> void:
 			sp["tex_id"] = "smear" if randf() < 0.5 else "smear2"
 		splats.append(sp)
 	# extra sprays: coarse big drops and sometimes a second small fine mist
-	for extra in 2:
+	for extra in 1:
 		splats.append({"kind": 6, "p": _edge_biased(s), "age": 0.0, "vy": randf_range(4.0, 14.0) * k, "size": randf_range(300.0, 600.0) * k, "rot": randf() * TAU})
-	if randf() < 0.3:
+	if randf() < 0.15:
 		splats.append({"kind": 2, "p": _edge_biased(s), "age": 0.0, "vy": randf_range(4.0, 14.0) * k, "size": randf_range(120.0, 200.0) * k, "rot": randf() * TAU})
 	# a few dirt specks and fine scratches on the glass
 	if randf() < 0.9:
@@ -180,7 +180,7 @@ func _draw_splats() -> void:
 		var age := float(sp["age"])
 		var fade := clampf((LIFETIME - age) / 2.2, 0.0, 1.0)
 		var grow := clampf(age * 6.0, 0.0, 1.0)
-		var a := fade * (0.95 - 0.25 * clampf(age / LIFETIME, 0.0, 1.0)) # blood dries: a little less opaque with time
+		var a := fade * (0.42 - 0.14 * clampf(age / LIFETIME, 0.0, 1.0)) # faint, thin spray; blood dries: a little less opaque with time
 		var p: Vector2 = sp["p"]
 		var sz: float = float(sp.get("size", 0.0))
 		match int(sp["kind"]):

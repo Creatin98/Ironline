@@ -33,6 +33,7 @@ var _paused: bool = false
 
 var recorder: ReplayRecorder
 var flash_overlay: FlashOverlay
+var speed_blur: SpeedBlur
 var scope_overlay: ScopeOverlay
 var _cam: Camera3D # shared by killcam and last-kill replay
 var _killcam_active: bool = false
@@ -115,7 +116,9 @@ func _ready() -> void:
 	flash_overlay = FlashOverlay.new()
 	flash_overlay.name = "FlashOverlay"
 	add_child(flash_overlay)
-	AudioManager.play_2d("round_start", -2.0)
+	speed_blur = SpeedBlur.new()
+	speed_blur.name = "SpeedBlur"
+	add_child(speed_blur)
 
 	if GameDirector.is_loading():
 		await GameDirector.loading_finished
@@ -265,6 +268,11 @@ func _update_gray() -> void:
 
 
 func _process(delta: float) -> void:
+	if speed_blur != null:
+		var sb := 0.0
+		if local_player != null and is_instance_valid(local_player) and local_player.alive and not _replay_active:
+			sb = local_player.head.get_sprint_blend()
+		speed_blur.set_amount(sb, delta)
 	_update_gray()
 	_update_killcam(delta)
 	_update_outro(delta)

@@ -36,6 +36,7 @@ var _targets: Dictionary = {} # id -> Player that is posed (real node or ghost)
 var _camera: Camera3D
 var _killer_id: int = 0
 var _victim_dead_shown: bool = false
+var _arms: FirstPersonArms
 var ghost_scene: PackedScene
 var _slow_from: float = -1.0 # replay time at which the slow motion starts (< 0 = none)
 var _time_changed: bool = false # we touched Engine.time_scale, so we must restore it
@@ -238,8 +239,23 @@ func killer_scope_fov() -> float:
 	return 0.0
 
 
+## The killer's arms in the killcam picture: the same first-person arms as in the game, solved to the wrists of the weapon hands.
+func _update_arms(killer: Player) -> void:
+	if _arms == null or not is_instance_valid(_arms):
+		_arms = FirstPersonArms.new()
+		_arms.name = "KillcamArms"
+		_camera.add_child(_arms)
+		_arms.set_colors(killer.rig.get_skin_color(), killer.rig.get_shirt_color())
+	_arms.visible = killer.hands.visible
+	var wr: Array = killer.replay_arm_wrists(_camera.global_transform)
+	_arms.update(wr[0], wr[1])
+
+
 func _clear_targets() -> void:
 	killer_aim = 0.0
+	if _arms != null and is_instance_valid(_arms):
+		_arms.queue_free()
+	_arms = null
 	Ragdoll.clear_all() # corpses of the replay
 	var glass := GlassField.find(get_tree())
 	if glass != null:
@@ -393,3 +409,4 @@ func _apply(t: float, first: bool) -> void:
 		var kn: Player = _targets[_killer_id]
 		if kn != null and is_instance_valid(kn):
 			kn.replay_viewmodel(killer_aim, _camera.global_transform)
+			_update_arms(kn)

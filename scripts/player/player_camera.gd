@@ -21,6 +21,11 @@ var recoil_recovery: float = 9.0
 var _bob_time: float = 0.0
 var _bob_roll: float = 0.0
 var _sprint_blend: float = 0.0
+
+
+func get_sprint_blend() -> float:
+	return _sprint_blend
+
 var _bob_offset: Vector3 = Vector3.ZERO
 var _land_dip: float = 0.0
 var _land_velocity: float = 0.0
@@ -91,11 +96,11 @@ func update_camera(delta: float, horizontal_speed: float, on_floor: bool, eye_he
 	var roll_target := 0.0
 	if GameSettings.camera_bob and on_floor and horizontal_speed > 0.5 and not sliding:
 		var speed_ratio := clampf(horizontal_speed / 7.5, 0.0, 1.2)
-		_bob_time += delta * BOB_FREQUENCY * (0.8 + speed_ratio * 1.6) * TAU
+		_bob_time += delta * BOB_FREQUENCY * (0.8 + speed_ratio * 1.6) * (1.0 + 0.25 * _sprint_blend) * TAU
 		var ads_scale := 0.3 if is_aiming else 1.0
-		var amount := BOB_AMOUNT * speed_ratio * ads_scale
+		var amount := BOB_AMOUNT * speed_ratio * ads_scale * (1.0 + 0.9 * _sprint_blend)
 		bob_target = Vector3(cos(_bob_time * 0.5) * amount * 0.7, sin(_bob_time) * amount, 0.0)
-		roll_target = cos(_bob_time * 0.5) * 0.006 * speed_ratio * ads_scale * (1.3 if sprinting else 1.0)
+		roll_target = cos(_bob_time * 0.5) * 0.006 * speed_ratio * ads_scale * (1.0 + 1.6 * _sprint_blend)
 	else:
 		_bob_time = fmod(_bob_time, TAU)
 	_bob_roll = lerpf(_bob_roll, roll_target, minf(1.0, delta * 9.0))

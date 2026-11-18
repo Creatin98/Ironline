@@ -18,6 +18,8 @@ var _ambient: float = 0.95
 var _glow: float = 0.5
 var _cover: float = 0.0 # smoothed sun cover
 var _t0: float = 0.0
+## Per-map look (colours of the gradient, range of the cloud cover, weather speed). Empty = the shader defaults (Mesa).
+var preset: Dictionary = {}
 
 
 func _ready() -> void:
@@ -34,6 +36,9 @@ func _ready() -> void:
 	_glow = _env.glow_intensity
 	_mat = ShaderMaterial.new()
 	_mat.shader = load(SHADER)
+	for k in preset.get("colors", {}):
+		var c: Color = preset["colors"][k]
+		_mat.set_shader_parameter(k, Vector3(c.r, c.g, c.b))
 	var sky := Sky.new()
 	sky.sky_material = _mat
 	sky.radiance_size = Sky.RADIANCE_SIZE_128
@@ -53,7 +58,8 @@ func _process(delta: float) -> void:
 func _update(delta: float) -> void:
 	var tt := _t + _t0
 	var weather := 0.5 + 0.5 * (0.7 * sin(tt * 0.021) + 0.3 * sin(tt * 0.047 + 1.3)) # 0..1
-	var cloud_cover := lerpf(0.3, 0.72, weather)
+	var cover_range: Vector2 = preset.get("cover", Vector2(0.3, 0.72))
+	var cloud_cover := lerpf(cover_range.x, cover_range.y, weather)
 	# a cloud reaches the sun when the cover is high enough, and then passes within ~40 s
 	var passing := sin(tt * 0.11) + 0.6 * sin(tt * 0.173 + 0.7) + 0.35 * sin(tt * 0.29 + 2.1)
 	var target := smoothstep(0.35 - 0.6 * (weather - 0.5), 1.15 - 0.6 * (weather - 0.5), passing)

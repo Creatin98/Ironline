@@ -26,7 +26,7 @@ void fragment() {
 	vec2 off = c * crit * 0.018 * smoothstep(0.3, 1.0, d);
 	vec3 col = vec3(texture(screen_tex, uv + off).r, texture(screen_tex, uv).g, texture(screen_tex, uv - off).b);
 	float luma = dot(col, vec3(0.299, 0.587, 0.114));
-	col = mix(col, vec3(luma), crit * 0.55 + low * 0.12);
+	col = mix(col, vec3(luma), crit * 0.62 + low * 0.3);
 	// tunnel vision / darker outer area, breathing with the pulse
 	float tunnel = smoothstep(0.42, 1.2, d);
 	col *= 1.0 - tunnel * (crit * 0.6 * (0.88 + 0.18 * beat) + low * 0.2);
@@ -41,9 +41,11 @@ void fragment() {
 	// gritty grime over the whole picture: mottled red-black stains (also towards the middle, but weaker), blood-spray
 	// grain and pale dust specks, so nothing stands alone like a single mark
 	float mott = vnoise(uv * vec2(3.2, 2.4) + 4.7) * 0.5 + vnoise(uv * vec2(9.0, 7.0) + 1.3) * 0.3 + vnoise(uv * vec2(26.0, 22.0)) * 0.2;
-	float grime_amt = clamp(hit * 0.55 + low * 0.55 + crit * 0.4, 0.0, 1.0) * (0.3 + 0.7 * smoothstep(0.2, 0.95, d));
+	float grime_amt = clamp(hit * 0.6 + low * 0.7 + crit * 0.5, 0.0, 1.0) * (0.3 + 0.7 * smoothstep(0.2, 0.95, d));
 	float stain = smoothstep(0.5, 0.72, mott) * grime_amt;
-	col = mix(col, mix(vec3(0.3, 0.012, 0.01), vec3(0.04, 0.0, 0.0), smoothstep(0.55, 0.85, mott)), stain * 0.62);
+	col = mix(col, mix(vec3(0.26, 0.012, 0.01), vec3(0.03, 0.0, 0.0), smoothstep(0.55, 0.85, mott)), stain * 0.72);
+	// dark vignette smoke: the picture closes in, greyish-black with a red cast
+	col *= 1.0 - smoothstep(0.55, 1.15, d) * (low * 0.32 + crit * 0.3);
 	float grain = vnoise(uv * vec2(190.0, 230.0));
 	col = mix(col, vec3(0.2, 0.01, 0.008), smoothstep(0.74, 0.9, grain) * grime_amt * 0.7);
 	float dust = vnoise(uv * vec2(140.0, 170.0) + 9.0);

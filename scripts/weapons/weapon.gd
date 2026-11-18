@@ -329,6 +329,7 @@ func try_fire(is_aiming: bool, move_ratio: float, in_air: bool, crouching: bool)
 		# window glass on the bullet's way (host only): the pane is damaged, the bullet flies on
 		var glass_end: Vector3 = result["position"] if not result.is_empty() else origin + dir * data.max_range
 		GlassField.on_shot(player.get_tree(), player.get_world_3d().direct_space_state, origin, glass_end, data.damage_at_distance(origin.distance_to(glass_end)))
+		_spawn_bullet(glass_end)
 		if result.is_empty():
 			continue
 		var collider: Object = result["collider"]
@@ -361,6 +362,7 @@ func try_fire(is_aiming: bool, move_ratio: float, in_air: bool, crouching: bool)
 	if hit_enemy:
 		player.hit_flag |= HitFeedback.BODY | (HitFeedback.HEAD if headshot_any else 0) | (HitFeedback.KILL if killed_any else 0)
 	_play_shot_feedback()
+	_eject_casing()
 	_apply_recoil(is_aiming, crouching)
 	if is_local and hit_enemy:
 		GameEvents.local_player_hit_enemy.emit(headshot_any, killed_any)
@@ -451,12 +453,34 @@ func play_remote_shot(impacts: Array) -> void:
 	last_fire_msec = Time.get_ticks_msec()
 	player.shot_flag = true
 	_play_shot_feedback()
+	_eject_casing()
+	if impacts.is_empty():
+		_spawn_bullet(player.get_eye_position() + player.head.get_aim_direction() * 70.0)
 	for entry in impacts:
 		if typeof(entry) == TYPE_ARRAY and entry.size() >= 3:
+			_spawn_bullet(entry[0])
 			_spawn_impact(entry[0], entry[1], bool(entry[2]))
 			if entry.size() >= 4:
 				player.hit_flag |= int(entry[3]) # killcam: the hitmarker of this shot
 	GameEvents.shot_fired.emit(player.participant_id, player.get_eye_position())
+
+
+func _effects_parent() -> Node:
+	var parent := player.get_tree().get_first_node_in_group("effects_container")
+	return parent if parent != null else player.get_tree().current_scene
+
+
+func _spawn_bullet(to: Vector3) -> void:
+	var from := muzzle.global_position if muzzle != null else player.get_eye_position()
+	BulletFx.fire(_effects_parent(), from, to)
+
+
+## Brass leaves the ejection port to the right of the weapon (shotguns and the bolt rifle eject at the cycle instead).
+func _eject_casing() -> void:
+	if data.pellets > 1 or data.scoped or muzzle == null:
+		return
+	var xf := muzzle.global_transform
+	BulletFx.eject_casing(_effects_parent(), xf * Vector3(0.05, -0.02, 0.35), xf.basis.x, xf.basis.y)
 
 
 func _spawn_impact(pos: Vector3, normal: Vector3, blood: bool) -> void:

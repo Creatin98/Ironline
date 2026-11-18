@@ -590,14 +590,16 @@ func _update_arms(w: Weapon) -> void:
 				_flash_hand_active = true
 				_flash_hand_rest = left_hand.position
 				_flash_hand_rot_rest = left_hand.rotation
-			var target_world := to_global(Vector3(0.10, 0.03, -0.40))
+			var tm := Time.get_ticks_msec() / 1000.0
+			var jit := Vector3(sin(tm * 46.0) * 0.007, sin(tm * 58.0 + 1.0) * 0.006, sin(tm * 37.0) * 0.004) * cover # the arm trembles
+			var target_world := to_global(Vector3(0.05, -0.01, -0.30) + jit)
 			left_hand.position = _flash_hand_rest.lerp(w.model.to_local(target_world), cover)
-			left_hand.rotation = _flash_hand_rot_rest + Vector3(-0.6, 0.0, 0.9) * cover
+			left_hand.rotation = _flash_hand_rot_rest + Vector3(-0.3, 0.2, 1.4 + sin(tm * 33.0) * 0.12) * cover
 		elif _flash_hand_active:
 			_flash_hand_active = false
 			left_hand.position = _flash_hand_rest
 			left_hand.rotation = _flash_hand_rot_rest
-	_fp_arms.update(_wrist(w.model, "RightHand", Vector3(0.004, -0.028, 0.044)), _wrist(w.model, "LeftHand", Vector3(-0.006, -0.018, 0.040)))
+	_fp_arms.update(_wrist(w.model, "RightHand", Vector3(0.004, -0.028, 0.044)), _wrist(w.model, "LeftHand", Vector3(-0.006, -0.018, 0.040)), cover)
 
 
 func _wrist(model: Node3D, hand_name: String, offset: Vector3) -> Vector3:

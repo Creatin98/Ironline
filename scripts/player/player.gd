@@ -308,6 +308,20 @@ func replay_viewmodel(a: float, cam_xf: Transform3D) -> void:
 	hands.global_transform = cam_xf * Transform3D(rot, pos)
 
 
+## Killcam: wrist positions of this player's weapon hands in the space of the replay camera (for the first-person arms).
+func replay_arm_wrists(cam_xf: Transform3D) -> Array:
+	var idx := weapon_manager.current_index
+	if idx < 0 or idx >= weapon_manager._tp_models.size():
+		return [Vector3.INF, Vector3.INF]
+	var m: Node3D = weapon_manager._tp_models[idx]
+	var inv := cam_xf.affine_inverse()
+	var out: Array = []
+	for pair in [["RightHand", Vector3(0.004, -0.028, 0.044)], ["LeftHand", Vector3(-0.006, -0.018, 0.040)]]:
+		var hand := m.get_node_or_null(pair[0]) as Node3D
+		out.append(Vector3.INF if hand == null or not hand.is_inside_tree() else inv * hand.to_global(pair[1]))
+	return out
+
+
 static func a_smooth(a: float) -> float:
 	return a * a * (3.0 - 2.0 * a)
 

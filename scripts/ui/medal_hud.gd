@@ -39,7 +39,7 @@ func medal(kind: String, title: String, subtitle: String = "", number: int = 0) 
 ## Score next to the crosshair: "+100" in gold with a bloom and the reason in small letters.
 func score(points: int, reason: String) -> void:
 	var k := _k()
-	var gold := Color(1.0, 0.8, 0.32)
+	var gold := Color(0.9, 0.74, 0.42)
 	var box := Control.new()
 	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	box.size = Vector2(300, 60) * k
@@ -47,13 +47,13 @@ func score(points: int, reason: String) -> void:
 	var add := CanvasItemMaterial.new()
 	add.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
 	var num := "+%d" % points
-	var bloom := UITheme.label(num, int(44 * k), Color(gold.r, gold.g, gold.b, 0.5), HORIZONTAL_ALIGNMENT_LEFT)
-	bloom.add_theme_constant_override("outline_size", int(16 * k))
-	bloom.add_theme_color_override("font_outline_color", Color(gold.r, gold.g * 0.8, gold.b * 0.5, 0.22))
+	var bloom := UITheme.label(num, int(34 * k), Color(gold.r, gold.g, gold.b, 0.18), HORIZONTAL_ALIGNMENT_LEFT)
+	bloom.add_theme_constant_override("outline_size", int(8 * k))
+	bloom.add_theme_color_override("font_outline_color", Color(gold.r, gold.g * 0.8, gold.b * 0.5, 0.1))
 	bloom.material = add
 	bloom.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	box.add_child(bloom)
-	var label := UITheme.label(num, int(44 * k), gold, HORIZONTAL_ALIGNMENT_LEFT)
+	var label := UITheme.label(num, int(34 * k), gold, HORIZONTAL_ALIGNMENT_LEFT)
 	label.add_theme_constant_override("outline_size", int(6 * k))
 	label.add_theme_color_override("font_outline_color", Color(0.08, 0.04, 0.0, 0.9))
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -63,11 +63,11 @@ func score(points: int, reason: String) -> void:
 		rcol = Color(0.55, 1.0, 0.62)
 	elif reason == "Assist":
 		rcol = Color(0.55, 0.8, 1.0)
-	var reason_label := UITheme.label(_reason_text(reason), int(18 * k), rcol, HORIZONTAL_ALIGNMENT_LEFT)
+	var reason_label := UITheme.label(_reason_text(reason), int(13 * k), rcol, HORIZONTAL_ALIGNMENT_LEFT)
 	reason_label.add_theme_constant_override("outline_size", int(4 * k))
 	reason_label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.85))
 	reason_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	reason_label.position = Vector2(num.length() * 25.0 * k + 12.0 * k, 18.0 * k)
+	reason_label.position = Vector2(num.length() * 20.0 * k + 12.0 * k, 12.0 * k)
 	box.add_child(reason_label)
 	box.pivot_offset = Vector2(40, 30) * k
 	box.set_meta("age", 0.0)

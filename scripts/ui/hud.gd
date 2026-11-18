@@ -17,6 +17,9 @@ var health_bar_fill: ColorRect
 var health_label: Label
 var ammo_label: Label
 var weapon_label: Label
+var silhouette: WeaponSilhouette
+var _banner: Label
+var _banner_tween: Tween
 var grenade_label: Label
 var _grenade_count: int = 2
 var _flash_count: int = 1
@@ -168,8 +171,10 @@ func _build() -> void:
 	ammo_panel.custom_minimum_size = Vector2(280, 0)
 	var av := UITheme.vbox(2)
 	ammo_panel.add_child(av)
-	weapon_label = UITheme.label("AK-47", 18, UITheme.ACCENT, HORIZONTAL_ALIGNMENT_RIGHT)
+	weapon_label = UITheme.label("AK-47", 16, UITheme.ACCENT, HORIZONTAL_ALIGNMENT_RIGHT)
 	av.add_child(weapon_label)
+	silhouette = WeaponSilhouette.new()
+	av.add_child(silhouette)
 	ammo_label = UITheme.label("30 | 90", 40, UITheme.TEXT, HORIZONTAL_ALIGNMENT_RIGHT)
 	av.add_child(ammo_label)
 	grenade_label = UITheme.label("GRANATEN  2    BLENDGRANATE  1", 16, UITheme.TEXT_DIM, HORIZONTAL_ALIGNMENT_RIGHT)
@@ -653,6 +658,8 @@ func _on_weapon_changed(weapon: Node) -> void:
 	if w == null:
 		return
 	weapon_label.text = w.data.display_name.to_upper()
+	silhouette.set_weapon(w.data.weapon_id)
+	_show_weapon_banner(w.data.display_name)
 	_on_ammo_changed(w.magazine, w.reserve)
 
 
@@ -693,6 +700,29 @@ func _update_reload_hint(delta: float) -> void:
 	reload_hint.scale = Vector2.ONE * (1.0 + 0.3 * maxf(0.0, 1.0 - _hint_age * 5.0)) * maxf(k, 0.5) # pops in
 	reload_hint.position = Vector2(crosshair.size.x * 0.5 - 260.0, crosshair.size.y * 0.66)
 	reload_hint.modulate.a = _hint_alpha * (0.75 + 0.25 * pulse if empty else 0.9)
+
+
+## The weapon name drops in above the ammo panel, stays a moment and slides away again (round start, weapon change).
+func _show_weapon_banner(text: String) -> void:
+	var panel: Control = _blocks["ammo"]["node"]
+	if _banner == null:
+		_banner = UITheme.label("", 22, Color(0.92, 0.92, 0.9), HORIZONTAL_ALIGNMENT_RIGHT)
+		_banner.add_theme_constant_override("outline_size", 5)
+		_banner.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		add_child(_banner)
+	_banner.text = text.to_upper()
+	_banner.size = Vector2(panel.size.x, 30)
+	var rest := panel.global_position - global_position + Vector2(-12, -34)
+	_banner.position = rest + Vector2(0, 26)
+	_banner.modulate.a = 0.0
+	if _banner_tween != null:
+		_banner_tween.kill()
+	_banner_tween = create_tween()
+	_banner_tween.tween_property(_banner, "position:y", rest.y, 0.25).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	_banner_tween.parallel().tween_property(_banner, "modulate:a", 1.0, 0.2)
+	_banner_tween.tween_interval(1.5)
+	_banner_tween.tween_property(_banner, "position:y", rest.y + 22.0, 0.3).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
+	_banner_tween.parallel().tween_property(_banner, "modulate:a", 0.0, 0.3)
 
 
 func _on_ammo_changed(magazine: int, reserve: int) -> void:

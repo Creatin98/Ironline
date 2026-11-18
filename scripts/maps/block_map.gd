@@ -203,6 +203,24 @@ static func header(center: Vector3, width: float, height_from: float, height_to:
 
 # ----------------------------------------------------------------------------- building
 
+## Per-map sky look for the dynamic sky (Mesa builds its own with the shader defaults).
+const SKY_PRESETS := {
+	"Harbor": {"colors": {"zenith": Color(0.1, 0.22, 0.45), "mid_sky": Color(0.32, 0.45, 0.62), "horizon": Color(0.74, 0.78, 0.82), "ground": Color(0.36, 0.38, 0.4), "sun_tint": Color(1.0, 0.95, 0.85)}, "cover": Vector2(0.5, 0.85)},
+	"Frontier": {"colors": {"zenith": Color(0.14, 0.3, 0.62), "mid_sky": Color(0.5, 0.6, 0.76), "horizon": Color(0.95, 0.8, 0.6), "ground": Color(0.5, 0.4, 0.3), "sun_tint": Color(1.0, 0.82, 0.55)}, "cover": Vector2(0.25, 0.6)},
+	"Suburb": {"colors": {"zenith": Color(0.14, 0.34, 0.7), "mid_sky": Color(0.4, 0.58, 0.82), "horizon": Color(0.9, 0.86, 0.8), "ground": Color(0.4, 0.4, 0.36), "sun_tint": Color(1.0, 0.92, 0.78)}, "cover": Vector2(0.35, 0.75)},
+	"Test Arena": {"colors": {"zenith": Color(0.12, 0.3, 0.7), "mid_sky": Color(0.4, 0.56, 0.8), "horizon": Color(0.85, 0.88, 0.92), "ground": Color(0.4, 0.42, 0.44)}, "cover": Vector2(0.3, 0.6)},
+}
+
+
+func _add_sky() -> void:
+	if get_node_or_null("MesaSky") != null:
+		return
+	var sky := MesaSky.new()
+	sky.name = "MesaSky"
+	sky.preset = SKY_PRESETS.get(map_display_name, SKY_PRESETS["Test Arena"])
+	add_child(sky)
+
+
 func _build_geometry() -> void:
 	# geometry lives under the navigation region so the bake can parse it
 	nav_region = NavigationRegion3D.new()
@@ -220,6 +238,7 @@ func _build_geometry() -> void:
 	detail.build(blocks)
 	build_detail(detail)
 	detail.flush(geometry_root)
+	_add_sky()
 	# breakable glass in every window opening (state is decided by the host, see GlassField)
 	var glass := GlassField.new()
 	glass.name = "Glass"

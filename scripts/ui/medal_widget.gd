@@ -58,7 +58,7 @@ func _ready() -> void:
 	_glow.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_glow.modulate = Color(accent.r, accent.g, accent.b, 0.0)
 	add_child(_glow)
-	_glow_title = UITheme.label(title.to_upper(), 30, Color(accent.r, accent.g, accent.b, 0.45), HORIZONTAL_ALIGNMENT_CENTER)
+	_glow_title = UITheme.label(title.to_upper(), 26, Color(accent.r, accent.g, accent.b, 0.0), HORIZONTAL_ALIGNMENT_CENTER)
 	_glow_title.add_theme_constant_override("outline_size", 14)
 	_glow_title.add_theme_color_override("font_outline_color", Color(accent.r, accent.g, accent.b, 0.2))
 	_glow_title.material = add.duplicate()
@@ -66,14 +66,14 @@ func _ready() -> void:
 	_glow_title.size = Vector2(SIZE.x, 40)
 	_glow_title.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_glow_title)
-	_title_label = UITheme.label(title.to_upper(), 30, Color(0.97, 0.97, 0.95), HORIZONTAL_ALIGNMENT_CENTER)
+	_title_label = UITheme.label(title.to_upper(), 24, Color(0.9, 0.9, 0.88), HORIZONTAL_ALIGNMENT_CENTER)
 	_title_label.add_theme_constant_override("outline_size", 6)
 	_title_label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.85))
 	_title_label.position = Vector2(0, 144)
 	_title_label.size = Vector2(SIZE.x, 40)
 	_title_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_title_label)
-	_sub_label = UITheme.label(subtitle, 17, Color(0.78, 0.8, 0.82, 0.9), HORIZONTAL_ALIGNMENT_CENTER)
+	_sub_label = UITheme.label(subtitle.to_upper(), 12, Color(accent.r, accent.g, accent.b, 0.85), HORIZONTAL_ALIGNMENT_CENTER)
 	_sub_label.add_theme_constant_override("outline_size", 4)
 	_sub_label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.8))
 	_sub_label.position = Vector2(0, 182)
@@ -89,12 +89,12 @@ func _process(delta: float) -> void:
 		return
 	var pop := clampf(age / 0.2, 0.0, 1.0)
 	var back := 1.0 - pow(1.0 - pop, 3.0)
-	var s := lerpf(1.9, 1.0, back) + 0.05 * sin(clampf((age - 0.2) / 0.3, 0.0, 1.0) * PI)
+	var s := lerpf(1.35, 1.0, back)
 	scale = Vector2(s, s) * scale_base
 	var fade_in := clampf(age / 0.07, 0.0, 1.0)
 	var fade_out := clampf((LIFE - age) / 0.5, 0.0, 1.0)
 	modulate.a = fade_in * fade_out
-	_glow.modulate.a = (0.62 * (1.0 - pow(clampf(age / 1.6, 0.0, 1.0), 2.0)) + 0.1 * sin(age * 6.0)) * (1.0 if age > 0.04 else 0.0)
+	_glow.modulate.a = 0.22 * (1.0 - pow(clampf(age / 1.4, 0.0, 1.0), 2.0)) * (1.0 if age > 0.04 else 0.0)
 	queue_redraw()
 
 
@@ -102,43 +102,57 @@ var scale_base: float = 1.0
 
 
 func _draw() -> void:
+	# heraldic crest: angular dark steel plate with chamfered corners, a thin accent line, wing blades at the sides
 	var c := Vector2(SIZE.x * 0.5, 72.0)
-	var w := 104.0
-	var h := 124.0
+	var w := 92.0
+	var h := 118.0
 	var pts := _shield(c, w, h)
 	var shadow := PackedVector2Array()
 	for p in pts:
-		shadow.append(p + Vector2(0, 5))
-	draw_colored_polygon(shadow, Color(0, 0, 0, 0.55))
-	# bevelled rim: light at the top, dark at the bottom
+		shadow.append(p + Vector2(0, 6))
+	draw_colored_polygon(shadow, Color(0, 0, 0, 0.6))
+	# wing blades (three tapering plates on each side)
+	for side in [-1.0, 1.0]:
+		for i in 3:
+			var y := c.y - 18.0 + float(i) * 11.0
+			var len := 52.0 - float(i) * 12.0
+			var x0: float = c.x + side * (w * 0.5 - 2.0)
+			var blade := PackedVector2Array([Vector2(x0, y), Vector2(x0 + side * len, y - 7.0 + float(i) * 2.0), Vector2(x0 + side * (len - 8.0), y + 3.0), Vector2(x0, y + 5.0)])
+			draw_colored_polygon(blade, Color(0.1, 0.11, 0.12, 0.95))
+			draw_polyline(PackedVector2Array([blade[0], blade[1], blade[2]]), Color(accent.r, accent.g, accent.b, 0.55 - 0.12 * float(i)), 1.0, true)
 	var rim_cols := PackedColorArray()
 	for p in pts:
 		var t := clampf((p.y - (c.y - h * 0.5)) / h, 0.0, 1.0)
-		rim_cols.append(Color(0.62, 0.64, 0.66).lerp(Color(0.16, 0.17, 0.19), t))
+		rim_cols.append(Color(0.3, 0.31, 0.33).lerp(Color(0.07, 0.075, 0.085), t))
 	draw_polygon(pts, rim_cols)
-	draw_polyline(_closed(pts), Color(0, 0, 0, 0.9), 2.0, true)
-	var inner := _shield(c + Vector2(0, 2), w * 0.8, h * 0.82)
-	draw_colored_polygon(inner, Color(0.06, 0.07, 0.08))
-	var top_tint := PackedColorArray()
+	draw_polyline(_closed(pts), Color(0, 0, 0, 0.95), 2.0, true)
+	var inner := _shield(c + Vector2(0, 2), w * 0.82, h * 0.84)
+	draw_colored_polygon(inner, Color(0.035, 0.04, 0.045))
+	# fine brushed lines in the plate
+	for i in 9:
+		var y := c.y - h * 0.38 + float(i) * 9.0
+		draw_line(Vector2(c.x - w * 0.36, y), Vector2(c.x + w * 0.36, y), Color(1, 1, 1, 0.025), 1.0)
+	var tint := PackedColorArray()
 	for p in inner:
 		var t := clampf((p.y - (c.y - h * 0.4)) / (h * 0.8), 0.0, 1.0)
-		top_tint.append(Color(accent.r, accent.g, accent.b, lerpf(0.26, 0.0, t)))
-	draw_polygon(inner, top_tint)
-	draw_polyline(_closed(inner), Color(accent.r, accent.g, accent.b, 0.85), 2.0, true)
-	draw_polyline(_closed(_shield(c + Vector2(0, 2), w * 0.88, h * 0.9)), Color(accent.r, accent.g, accent.b, 0.22), 1.0, true)
-	_icon(c + Vector2(0, 2))
-	# pop flash
-	var flash := clampf(1.0 - age / 0.22, 0.0, 1.0)
+		tint.append(Color(accent.r, accent.g, accent.b, lerpf(0.16, 0.0, t)))
+	draw_polygon(inner, tint)
+	draw_polyline(_closed(inner), Color(accent.r, accent.g, accent.b, 0.75), 1.5, true)
+	# crown notch and bottom spike marks
+	draw_line(Vector2(c.x - 9, c.y - h * 0.5 + 5), Vector2(c.x + 9, c.y - h * 0.5 + 5), Color(accent.r, accent.g, accent.b, 0.8), 1.5)
+	draw_line(Vector2(c.x, c.y + h * 0.5 - 14), Vector2(c.x, c.y + h * 0.5 - 4), Color(accent.r, accent.g, accent.b, 0.6), 1.5)
+	_icon(c + Vector2(0, 1))
+	var flash := clampf(1.0 - age / 0.18, 0.0, 1.0)
 	if flash > 0.0:
-		draw_colored_polygon(pts, Color(1, 1, 1, 0.55 * flash))
+		draw_colored_polygon(pts, Color(1, 1, 1, 0.4 * flash))
 
 
 func _shield(c: Vector2, w: float, h: float) -> PackedVector2Array:
 	var hw := w * 0.5
 	var hh := h * 0.5
 	return PackedVector2Array([
-		c + Vector2(-hw, -hh * 0.78), c + Vector2(-hw * 0.18, -hh * 0.78), c + Vector2(0, -hh), c + Vector2(hw * 0.18, -hh * 0.78), c + Vector2(hw, -hh * 0.78),
-		c + Vector2(hw, hh * 0.18), c + Vector2(0, hh), c + Vector2(-hw, hh * 0.18),
+		c + Vector2(-hw, -hh * 0.62), c + Vector2(-hw * 0.5, -hh * 0.62), c + Vector2(0, -hh), c + Vector2(hw * 0.5, -hh * 0.62), c + Vector2(hw, -hh * 0.62),
+		c + Vector2(hw, hh * 0.3), c + Vector2(hw * 0.4, hh * 0.78), c + Vector2(0, hh), c + Vector2(-hw * 0.4, hh * 0.78), c + Vector2(-hw, hh * 0.3),
 	])
 
 
@@ -151,8 +165,6 @@ func _closed(pts: PackedVector2Array) -> PackedVector2Array:
 func _icon(c: Vector2) -> void:
 	var bone := Color(0.9, 0.96, 0.88)
 	var dark := Color(0.04, 0.05, 0.05)
-	for i in 3: # soft glow behind the icon
-		draw_circle(c, 34.0 - float(i) * 9.0, Color(accent.r, accent.g, accent.b, 0.08))
 	match kind:
 		"headshot":
 			draw_circle(c + Vector2(0, -8), 20.0, bone)
