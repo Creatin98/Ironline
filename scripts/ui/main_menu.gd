@@ -222,7 +222,7 @@ func _build_classes() -> void:
 		title.add_child(swatch)
 		title.add_child(UITheme.label(data.display_name, 24, UITheme.TEXT))
 		cv.add_child(title)
-		cv.add_child(UITheme.label("Primär: %s   •   Sekundär: %s   •   Granaten: %d" % [data.primary.display_name, data.secondary.display_name, data.grenades], 16, UITheme.ACCENT_DIM))
+		cv.add_child(UITheme.label("Primär: %s   •   Sekundär: %s   •   Granaten: %d   •   Blendgranate: %d" % [data.primary.display_name, data.secondary.display_name, data.grenades, data.flashbangs], 16, UITheme.ACCENT_DIM))
 		var desc := UITheme.label(data.description, 16, UITheme.TEXT_DIM)
 		desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		desc.custom_minimum_size = Vector2(500, 0)

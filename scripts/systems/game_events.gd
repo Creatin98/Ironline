@@ -24,9 +24,12 @@ signal local_player_scored(points: int, reason: String)
 signal local_weapon_changed(weapon: Node)
 signal local_ammo_changed(magazine: int, reserve: int)
 signal local_grenades_changed(count: int)
+signal local_flashbangs_changed(count: int)
 signal local_health_changed(health: float, max_health: float)
 signal local_camera_shake(strength: float)
 
 # World
 signal explosion_at(position: Vector3, radius: float)
+## A flashbang went off at `position` (emitted on every machine; the local player and the bots work out their own blinding).
+signal flashbang_exploded(position: Vector3, thrower_id: int)
 signal shot_fired(shooter_id: int, position: Vector3)

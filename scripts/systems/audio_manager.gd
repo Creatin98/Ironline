@@ -21,6 +21,15 @@ var _music_index := 0
 var _music_wanted := false
 var _music_tween: Tween
 
+## Flashbang: everything but the player's own body sounds becomes quiet and dull while the ringing whistle is heard.
+## The filters sit on the category buses (not on SFX/Master: the tinnitus and the damage sounds stay clear).
+const MUFFLE_BUSES: Array[String] = ["Weapons", "Grenades", "Reload", "Handling", "Movement", "Hitmarker", "Headshot", "Kill", "Ambience", "Music"]
+const MUFFLE_CUTOFF_MIN := 420.0
+const MUFFLE_DROP_DB := -14.0
+var _muffle_fx: Dictionary = {} # bus name -> [AudioEffectLowPassFilter, AudioEffectAmplify, index of the filter]
+var _flash_level: float = 0.0
+var _ring_player: AudioStreamPlayer
+
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
@@ -39,6 +48,9 @@ func _ready() -> void:
 		p2.bus = "SFX"
 		add_child(p2)
 		_pool_2d.append(p2)
+	_ring_player = AudioStreamPlayer.new()
+	_ring_player.bus = "HitOther"
+	add_child(_ring_player)
 	_music_player = AudioStreamPlayer.new()
 	_music_player.bus = "Music"
 	_music_player.finished.connect(_on_music_finished)
@@ -162,8 +174,68 @@ func play_ui(sfx_name: String, volume_db: float = 0.0) -> void:
 	play_2d(sfx_name, volume_db, 0.0, "UI")
 
 
+## 0..1 = how deaf the player is (1 = completely muffled). Smooth callers ramp it; 0 switches everything off again.
+func set_flash_effect(level: float) -> void:
+	level = clampf(level, 0.0, 1.0)
+	if level <= 0.0 and _flash_level <= 0.0:
+		return
+	if _muffle_fx.is_empty():
+		_build_muffle()
+	_flash_level = level
+	var cutoff := lerpf(20500.0, MUFFLE_CUTOFF_MIN, pow(level, 0.55))
+	for bus in _muffle_fx:
+		var idx := AudioServer.get_bus_index(bus)
+		if idx < 0:
+			continue
+		var fx: Array = _muffle_fx[bus]
+		(fx[0] as AudioEffectLowPassFilter).cutoff_hz = cutoff
+		(fx[1] as AudioEffectAmplify).volume_db = MUFFLE_DROP_DB * level
+		var on := level > 0.003
+		AudioServer.set_bus_effect_enabled(idx, int(fx[2]), on)
+		AudioServer.set_bus_effect_enabled(idx, int(fx[2]) + 1, on)
+	# the ringing follows the same level
+	if level < 0.01:
+		if _ring_player.playing:
+			_ring_player.stop()
+	else:
+		if not _ring_player.playing and _ring_player.stream != null:
+			_ring_player.play()
+		_ring_player.volume_db = lerpf(-40.0, -9.0, pow(level, 0.7))
+
+
+func get_flash_effect() -> float:
+	return _flash_level
+
+
+## A new flashbang hit us: the ringing starts again from its beginning.
+func restart_flash_ring() -> void:
+	if _ring_player.stream == null:
+		_ring_player.stream = get_stream("flash_ring")
+	if _ring_player.stream != null:
+		_ring_player.volume_db = -40.0
+		_ring_player.play()
+
+
+func _build_muffle() -> void:
+	for bus in MUFFLE_BUSES:
+		var idx := AudioServer.get_bus_index(bus)
+		if idx < 0:
+			continue
+		var lp := AudioEffectLowPassFilter.new()
+		lp.cutoff_hz = 20500.0
+		lp.db = AudioEffectFilter.FILTER_24DB
+		AudioServer.add_bus_effect(idx, lp)
+		var lp_idx := AudioServer.get_bus_effect_count(idx) - 1
+		var amp := AudioEffectAmplify.new()
+		AudioServer.add_bus_effect(idx, amp)
+		AudioServer.set_bus_effect_enabled(idx, lp_idx, false)
+		AudioServer.set_bus_effect_enabled(idx, lp_idx + 1, false)
+		_muffle_fx[bus] = [lp, amp, lp_idx]
+
+
 ## Stops every pooled player (scene change, quit, tests).
 func stop_all() -> void:
+	set_flash_effect(0.0)
 	for p in _pool_3d:
 		p.stop()
 	for p2 in _pool_2d:

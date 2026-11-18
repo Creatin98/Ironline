@@ -13,7 +13,7 @@ extends Node
 
 enum Mode { OFFLINE, HOST, CLIENT }
 
-const PROTOCOL_VERSION := 6
+const PROTOCOL_VERSION := 7
 const DEFAULT_PORT := 7777
 const MAX_PEERS := 12
 const SNAPSHOT_EVERY_TICKS := 3 # 20 Hz at 60 physics ticks
@@ -28,6 +28,7 @@ const HELD_CROUCH := 2
 const HELD_AIM := 4
 const HELD_FIRE := 8
 const HELD_GRENADE := 16
+const HELD_FLASH := 32
 # one-shot action bits (client -> server, reliable, only when pressed)
 const ACT_FIRE := 1
 const ACT_JUMP := 2
@@ -36,6 +37,7 @@ const ACT_GRENADE := 8
 const ACT_SWITCH := 16
 const ACT_PRIMARY := 32
 const ACT_SECONDARY := 64
+const ACT_FLASH := 128
 # snapshot flags (server -> clients)
 const SNAP_CROUCH := 1
 const SNAP_SPRINT := 2
@@ -674,17 +676,17 @@ func _send_owner_states() -> void:
 		var w := pl.weapon_manager.get_current_weapon()
 		var mag := w.magazine if w else 0
 		var reserve := w.reserve if w else 0
-		_rpc_owner_state.rpc_id(id, pl.health.health, mag, reserve, pl.weapon_manager.grenades, pl.weapon_manager.current_index)
+		_rpc_owner_state.rpc_id(id, pl.health.health, mag, reserve, pl.weapon_manager.grenades, pl.weapon_manager.current_index, pl.weapon_manager.flashbangs)
 
 
 @rpc("authority", "call_remote", "unreliable_ordered", 1)
-func _rpc_owner_state(health: float, magazine: int, reserve: int, grenades: int, weapon_index: int) -> void:
+func _rpc_owner_state(health: float, magazine: int, reserve: int, grenades: int, weapon_index: int, flashbangs: int) -> void:
 	if mode != Mode.CLIENT:
 		return
 	var pl := _player_of(local_peer_id())
 	if pl == null:
 		return
-	pl.apply_owner_state(health, magazine, reserve, grenades, weapon_index)
+	pl.apply_owner_state(health, magazine, reserve, grenades, weapon_index, flashbangs)
 
 
 ## Server: a remote human took damage -> feedback on its machine.
@@ -757,7 +759,7 @@ func _rpc_weapon_event(owner_id: int, event: String) -> void:
 # ----------------------------------------------------------------------------- grenades
 
 ## Server: registers the authoritative grenade and mirrors it to the clients.
-func register_grenade(grenade: Node, thrower_id: int, team: int, origin: Vector3, velocity: Vector3) -> void:
+func register_grenade(grenade: Node, thrower_id: int, team: int, origin: Vector3, velocity: Vector3, kind: int = 0) -> void:
 	if mode != Mode.HOST:
 		return
 	var gid := _next_grenade_id
@@ -765,14 +767,14 @@ func register_grenade(grenade: Node, thrower_id: int, team: int, origin: Vector3
 	grenade.net_id = gid
 	_grenades[gid] = grenade
 	if multiplayer.get_peers().size() > 0:
-		_rpc_grenade_spawn.rpc(gid, thrower_id, team, origin, velocity)
+		_rpc_grenade_spawn.rpc(gid, thrower_id, team, origin, velocity, kind)
 
 
 @rpc("authority", "call_remote", "reliable")
-func _rpc_grenade_spawn(gid: int, thrower_id: int, team: int, origin: Vector3, velocity: Vector3) -> void:
+func _rpc_grenade_spawn(gid: int, thrower_id: int, team: int, origin: Vector3, velocity: Vector3, kind: int) -> void:
 	if mode != Mode.CLIENT or game == null:
 		return
-	var grenade: Node = game.spawn_visual_grenade(thrower_id, team, origin, velocity)
+	var grenade: Node = game.spawn_visual_grenade(thrower_id, team, origin, velocity, kind)
 	# the spoon flies off at the moment of the throw (the time of the release is known only now, the hold may last)
 	if thrower_id != MatchManager.local_participant_id:
 		AudioManager.play_3d("grenade_lever", origin, -10.0, 0.04, 25.0)
@@ -781,14 +783,14 @@ func _rpc_grenade_spawn(gid: int, thrower_id: int, team: int, origin: Vector3, v
 		_grenades[gid] = grenade
 
 
-func broadcast_grenade_explosion(gid: int, center: Vector3) -> void:
+func broadcast_grenade_explosion(gid: int, center: Vector3, kind: int = 0) -> void:
 	_grenades.erase(gid)
 	if mode == Mode.HOST and multiplayer.get_peers().size() > 0:
-		_rpc_grenade_explode.rpc(gid, center)
+		_rpc_grenade_explode.rpc(gid, center, kind)
 
 
 @rpc("authority", "call_remote", "reliable")
-func _rpc_grenade_explode(gid: int, center: Vector3) -> void:
+func _rpc_grenade_explode(gid: int, center: Vector3, kind: int) -> void:
 	if mode != Mode.CLIENT:
 		return
 	var grenade = _grenades.get(gid)
@@ -796,7 +798,7 @@ func _rpc_grenade_explode(gid: int, center: Vector3) -> void:
 	if grenade != null and is_instance_valid(grenade):
 		grenade.explode_visual_at(center)
 	elif game != null:
-		game.play_explosion_at(center)
+		game.play_explosion_at(center, kind)
 
 
 # ----------------------------------------------------------------------------- respawn skip

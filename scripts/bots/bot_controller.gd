@@ -60,6 +60,8 @@ var _retreat_cover: Vector3 = Vector3.ZERO
 var _desired_yaw: float = 0.0
 var _desired_pitch: float = 0.0
 var _has_look_target: bool = false
+## Seconds this bot is still blinded by a flashbang: it sees no enemies and does not shoot.
+var _blind_left: float = 0.0
 
 
 func setup(new_player: Player, new_participant: Participant) -> void:
@@ -72,6 +74,7 @@ func setup(new_player: Player, new_participant: Participant) -> void:
 	player.respawned.connect(_on_respawned)
 	GameEvents.shot_fired.connect(_on_shot_heard)
 	GameEvents.explosion_at.connect(_on_explosion_heard)
+	GameEvents.flashbang_exploded.connect(_on_flashbang)
 
 
 func _ready() -> void:
@@ -90,8 +93,21 @@ func _on_respawned() -> void:
 	path = PackedVector3Array()
 	_spawn_wait = randf_range(0.3, 0.9)
 	_grenade_cooldown = randf_range(6.0, 14.0)
+	_blind_left = 0.0
 	_last_pos = player.global_position
 	_stuck_timer = 0.0
+
+
+## A flashbang went off: a bot that looks into it (and has no wall in between) is blinded for a while.
+func _on_flashbang(center: Vector3, _thrower_id: int) -> void:
+	if player == null or not player.alive or not MatchManager.is_authority():
+		return
+	var i := FlashMath.intensity(player.get_world_3d().direct_space_state, center, player.get_eye_position(), player.head.get_aim_direction())
+	if i < 0.15:
+		return
+	_blind_left = maxf(_blind_left, FlashMath.blind_time(i) + FlashMath.fade_time(i) * 0.5)
+	target_visible = false
+	_burst_timer = 0.0
 
 
 # ----------------------------------------------------------------------------- main loop
@@ -111,6 +127,7 @@ func _physics_process(delta: float) -> void:
 	_spawn_wait = maxf(0.0, _spawn_wait - delta)
 	_grenade_cooldown = maxf(0.0, _grenade_cooldown - delta)
 	_grenade_lob_timer = maxf(0.0, _grenade_lob_timer - delta)
+	_blind_left = maxf(0.0, _blind_left - delta)
 	_update_perception(delta)
 	_update_state(delta)
 	if _spawn_wait > 0.0:
@@ -126,6 +143,9 @@ func _physics_process(delta: float) -> void:
 func _update_perception(delta: float) -> void:
 	time_since_seen += delta
 	reaction_timer = maxf(0.0, reaction_timer - delta)
+	if _blind_left > 0.0:
+		target_visible = false # blinded: no enemy is seen
+		return
 	_perception_timer -= delta
 	if _perception_timer > 0.0:
 		return

@@ -9,7 +9,7 @@ const BLOOD_LIFETIME := 7.0
 const KILLFEED_MAX := 6
 const WEAPON_LABELS := {
 	"ak47": "AK-47", "mp5": "MP5", "shotgun": "Shotgun", "pistol": "Pistole",
-	"grenade": "Granate", "world": "Umgebung",
+	"grenade": "Granate", "flashbang": "Blendgranate", "world": "Umgebung",
 }
 
 var crosshair: Control
@@ -18,6 +18,8 @@ var health_label: Label
 var ammo_label: Label
 var weapon_label: Label
 var grenade_label: Label
+var _grenade_count: int = 2
+var _flash_count: int = 1
 var score_box: VBoxContainer
 var timer_label: Label
 var killfeed_box: VBoxContainer
@@ -65,6 +67,7 @@ func _ready() -> void:
 	GameEvents.local_weapon_changed.connect(_on_weapon_changed)
 	GameEvents.local_ammo_changed.connect(_on_ammo_changed)
 	GameEvents.local_grenades_changed.connect(_on_grenades_changed)
+	GameEvents.local_flashbangs_changed.connect(_on_flashbangs_changed)
 	GameEvents.local_health_changed.connect(_on_health_changed)
 	GameEvents.participant_killed.connect(_on_participant_killed)
 	GameEvents.scores_changed.connect(_refresh_score)
@@ -170,7 +173,7 @@ func _build() -> void:
 	av.add_child(weapon_label)
 	ammo_label = UITheme.label("30 | 90", 40, UITheme.TEXT, HORIZONTAL_ALIGNMENT_RIGHT)
 	av.add_child(ammo_label)
-	grenade_label = UITheme.label("GRANATEN  2", 16, UITheme.TEXT_DIM, HORIZONTAL_ALIGNMENT_RIGHT)
+	grenade_label = UITheme.label("GRANATEN  2    BLENDGRANATE  1", 16, UITheme.TEXT_DIM, HORIZONTAL_ALIGNMENT_RIGHT)
 	av.add_child(grenade_label)
 	add_child(ammo_panel)
 	_blocks["ammo"] = {"node": ammo_panel, "corner": Vector2(1, 1), "label": "Munition"}
@@ -530,7 +533,7 @@ func _on_match_state_changed(state: int) -> void:
 			_warmup = true
 			center_label.text = "Match beginnt in %d" % int(ceil(MatchManager.warmup_left))
 			sub_label.text = "%s  •  %s" % [MatchManager.mode.display_name, GameDirector.get_map_info(MatchManager.config.map_id)["name"]]
-			hint_label.text = "WASD Bewegen  •  Shift Sprint  •  Strg Ducken  •  RMT Zielen  •  R Nachladen  •  Q/1/2 Waffe  •  G Granate  •  Tab Punkte"
+			hint_label.text = "WASD Bewegen  •  Shift Sprint  •  Strg Ducken  •  RMT Zielen  •  R Nachladen  •  Q/1/2 Waffe  •  G Granate  •  F Blendgranate  •  Tab Punkte"
 		MatchManager.State.RUNNING:
 			_warmup = false
 			center_label.text = "KAMPF!"
@@ -565,6 +568,7 @@ func _on_local_spawned(player: Node) -> void:
 	_on_health_changed(_player.health.max_health, _player.health.max_health)
 	_on_weapon_changed(_player.weapon_manager.get_current_weapon())
 	_on_grenades_changed(_player.weapon_manager.grenades)
+	_on_flashbangs_changed(_player.weapon_manager.flashbangs)
 
 
 func _on_local_died(killer_id: int, respawn_delay: float) -> void:
@@ -744,7 +748,17 @@ func _on_ammo_changed(magazine: int, reserve: int) -> void:
 
 
 func _on_grenades_changed(count: int) -> void:
-	grenade_label.text = "GRANATEN  %d" % count
+	_grenade_count = count
+	_refresh_grenade_label()
+
+
+func _on_flashbangs_changed(count: int) -> void:
+	_flash_count = count
+	_refresh_grenade_label()
+
+
+func _refresh_grenade_label() -> void:
+	grenade_label.text = "GRANATEN  %d    BLENDGRANATE  %d" % [_grenade_count, _flash_count]
 
 
 func _on_participant_killed(victim_id: int, killer_id: int, weapon_id: String, headshot: bool) -> void:
@@ -775,5 +789,5 @@ func _on_participant_killed(victim_id: int, killer_id: int, weapon_id: String, h
 		var old: Dictionary = _killfeed_entries.pop_front()
 		(old["node"] as Node).queue_free()
 	# weapon kills already played their confirmation via the hit feedback; grenades did not
-	if killer_id == MatchManager.local_participant_id and victim_id != killer_id and weapon_id == "grenade":
+	if killer_id == MatchManager.local_participant_id and victim_id != killer_id and weapon_id in ["grenade", "flashbang"]:
 		AudioManager.play_2d("kill_confirm", -4.0)

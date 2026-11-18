@@ -31,6 +31,7 @@ func _ready() -> void:
 	await _simulate_reloads()
 	_check_spread_values()
 	await _check_shotgun_interrupt()
+	await _check_flashbang()
 	await _simulate_cams()
 	await _simulate_steps()
 	await _simulate_slide()
@@ -277,6 +278,185 @@ func _check_shotgun_interrupt() -> void:
 	game.free()
 	await get_tree().process_frame
 	print("Schrotflinte: Schuss unterbricht das Nachladen (eingelegte Patrone zaehlt, sanfter Abbruch, genau ein Schuss)")
+
+
+## Flashbang: own slot, the same throw behaviour as the frag grenade, blinding by distance / view direction / walls,
+## the white-out with muffled sound, blinded bots, and a grenade that hits an enemy hurts a little (hitmarker).
+func _check_flashbang() -> void:
+	var cfg := MatchConfig.new()
+	cfg.mode_id = MatchConfig.MODE_FFA
+	cfg.map_id = "test_arena"
+	cfg.bots_enabled = true
+	cfg.bot_count = 1
+	cfg.time_limit = 0.0
+	MatchManager.prepare_match(cfg)
+	var game: Node = (load("res://scenes/game/game.tscn") as PackedScene).instantiate()
+	add_child(game)
+	await get_tree().process_frame
+	MatchManager.warmup_left = 0.05
+	var waited := 0.0
+	while MatchManager.state != MatchManager.State.RUNNING and waited < 6.0:
+		await get_tree().process_frame
+		waited += get_process_delta_time()
+	var me := MatchManager.get_local_participant()
+	var local: Player = me.node as Player
+	local.human_controller.deactivate()
+	var bot: Participant = null
+	for p in MatchManager.participants.values():
+		if p.is_bot:
+			bot = p
+	var bot_node: Player = bot.node as Player
+	var bot_ctrl := bot_node.get_node("BotController") as Node
+	bot_ctrl.set_physics_process(false)
+	for i in 70:
+		await get_tree().physics_frame
+	var wm := local.weapon_manager
+	if wm.flashbangs != 1 or wm.grenades != 2:
+		_fail("Ausruestung: 2 Granaten + 1 Blendgranate erwartet (%d / %d)" % [wm.grenades, wm.flashbangs])
+	var flashes := {"n": 0}
+	var on_flash := func(_c: Vector3, _t: int) -> void: flashes["n"] += 1
+	GameEvents.flashbang_exploded.connect(on_flash)
+	# --- throw with the own key: pin, held ready while the key is down, thrown on release, goes off after its fuse
+	local.input.flash_pressed = true
+	await get_tree().physics_frame
+	if wm.flashbangs != 0 or wm.grenades != 2 or wm._grenade_kind != Grenade.KIND_FLASH:
+		_fail("Blendgranate: Taste F zieht keine Blendgranate (Blend %d, Granaten %d)" % [wm.flashbangs, wm.grenades])
+	if not game.hud.grenade_label.text.ends_with("BLENDGRANATE  0"):
+		_fail("HUD zeigt die Blendgranaten nicht (%s)" % game.hud.grenade_label.text)
+	local.input.flash_held = true
+	for i in 80:
+		await get_tree().physics_frame
+	var in_flight := 0
+	for c in game.projectiles_container.get_children():
+		if c is Grenade:
+			in_flight += 1
+	if not wm.grenade_holding or in_flight != 0:
+		_fail("Blendgranate wird nicht wurfbereit gehalten (halten %s, in der Luft %d)" % [str(wm.grenade_holding), in_flight])
+	local.input.flash_held = false
+	for i in 40:
+		await get_tree().physics_frame
+	var thrown: Grenade = null
+	for c in game.projectiles_container.get_children():
+		if c is Grenade:
+			thrown = c
+	if thrown == null or thrown.kind != Grenade.KIND_FLASH:
+		_fail("Beim Loslassen wurde keine Blendgranate geworfen")
+	var fuse_wait := 0
+	while int(flashes["n"]) == 0 and fuse_wait < 200:
+		await get_tree().physics_frame
+		fuse_wait += 1
+	if int(flashes["n"]) != 1:
+		_fail("Blendgranate zuendet nicht genau einmal (%d)" % int(flashes["n"]))
+	GameEvents.flashbang_exploded.disconnect(on_flash)
+	game.flash_overlay.clear()
+	# --- strength: facing it / sideways / away / far away / behind a wall (high above the map, nothing else around)
+	var space := local.get_world_3d().direct_space_state
+	var eye := Vector3(0.0, 90.0, 0.0)
+	var fwd := Vector3(0.0, 0.0, -1.0)
+	var spot := eye + Vector3(0.0, 0.0, -4.0)
+	var facing := FlashMath.intensity(space, spot, eye, fwd)
+	var side := FlashMath.intensity(space, spot, eye, Vector3.RIGHT)
+	var away := FlashMath.intensity(space, spot, eye, -fwd)
+	var far := FlashMath.intensity(space, eye + Vector3(0.0, 0.0, -40.0), eye, fwd)
+	if facing < 0.9 or not (away < side and side < facing) or away > 0.2 or far != 0.0:
+		_fail("Blendstaerke: nach vorn %.2f, seitlich %.2f, abgewandt %.2f, weit weg %.2f" % [facing, side, away, far])
+	var wall := StaticBody3D.new()
+	var shape := CollisionShape3D.new()
+	var box := BoxShape3D.new()
+	box.size = Vector3(8.0, 8.0, 0.4)
+	shape.shape = box
+	wall.add_child(shape)
+	wall.collision_layer = 1
+	game.add_child(wall)
+	wall.global_position = eye + Vector3(0.0, 0.0, -2.0)
+	await get_tree().physics_frame
+	await get_tree().physics_frame
+	var blocked := FlashMath.intensity(space, spot, eye, fwd)
+	wall.free()
+	if blocked > 0.05:
+		_fail("Blendgranate hinter einer Wand blendet trotzdem (%.2f)" % blocked)
+	var blind_full := FlashMath.blind_time(1.0)
+	var total_full := blind_full + FlashMath.fade_time(1.0)
+	if blind_full < 1.4 or blind_full > 2.4 or total_full < 4.5 or total_full > 6.5 or FlashMath.blind_time(0.3) > 0.5:
+		_fail("Blenddauer unpassend (Weiss %.1f s, gesamt %.1f s)" % [blind_full, total_full])
+	# --- white-out, muffled sound, ringing; a weaker flash never shortens a stronger one; everything switches off again
+	var ov: FlashOverlay = game.flash_overlay
+	ov.trigger(1.0)
+	for i in 4:
+		await get_tree().process_frame
+	if not ov.is_active() or not ov.rect.visible or ov.level_at(0.5) < 0.999 or ov.level_at(blind_full + FlashMath.fade_time(1.0) + 0.1) != 0.0:
+		_fail("Weissblende laeuft nicht wie geplant")
+	if AudioManager.get_flash_effect() < 0.5 or not _bus_muffled("Weapons") or not _bus_muffled("Ambience"):
+		_fail("Waehrend der Blendung sind die Geraeusche nicht gedaempft (%.2f)" % AudioManager.get_flash_effect())
+	if _bus_muffled("HitOther") or _bus_muffled("UI"):
+		_fail("Tinnitus/Oberflaeche duerfen nicht gedaempft werden")
+	ov.trigger(0.2)
+	if ov.intensity < 0.99:
+		_fail("Ein schwaecherer Blitz hat den staerkeren ersetzt")
+	ov.clear()
+	if ov.rect.visible or AudioManager.get_flash_effect() != 0.0 or _bus_muffled("Weapons"):
+		_fail("Blendung wird nicht sauber beendet")
+	# --- bots: blinded when looking into it, unaffected with the back to it
+	bot_node.global_position = Vector3(40.0, 90.0, 0.0) # free air: nothing in the line of sight
+	bot_node.rotation.y = 0.0
+	bot_node.head.set_pitch(0.0)
+	var bot_spot := bot_node.get_eye_position() + bot_node.head.get_aim_direction() * 3.0
+	bot_ctrl._on_flashbang(bot_spot, 0)
+	if float(bot_ctrl._blind_left) < 1.0:
+		_fail("Bot wird von einer Blendgranate vor seinen Augen nicht geblendet (%.2f s)" % float(bot_ctrl._blind_left))
+	bot_ctrl._blind_left = 0.0
+	bot_node.rotation.y = PI
+	bot_ctrl._on_flashbang(bot_spot, 0)
+	if float(bot_ctrl._blind_left) > 0.0:
+		_fail("Bot mit dem Ruecken zur Blendgranate wird geblendet")
+	# --- a grenade that hits an enemy: 5 damage and a hitmarker, once; the thrower is not hurt
+	var hits := {"n": 0}
+	var on_hit := func(_head: bool, _killed: bool) -> void: hits["n"] += 1
+	GameEvents.local_player_hit_enemy.connect(on_hit)
+	for kind in [Grenade.KIND_FRAG, Grenade.KIND_FLASH]:
+		var g: Grenade = (load("res://scenes/weapons/grenade.tscn") as PackedScene).instantiate()
+		g.kind = kind
+		g.thrower_id = me.id
+		g.thrower_team = me.team
+		game.projectiles_container.add_child(g)
+		g.global_position = Vector3(0.0, 95.0, 0.0)
+		g.linear_velocity = Vector3(0.0, 0.0, -12.0)
+		var hp := bot_node.health.health
+		var own_hp := local.health.health
+		local.hit_flag = 0
+		g._direct_hit(bot_node)
+		g._direct_hit(bot_node)
+		g._direct_hit(local)
+		if absf((hp - bot_node.health.health) - Grenade.DIRECT_HIT_DAMAGE) > 0.01:
+			_fail("Direkttreffer mit der Granate (Art %d): Schaden %.1f statt %.1f" % [kind, hp - bot_node.health.health, Grenade.DIRECT_HIT_DAMAGE])
+		if local.health.health < own_hp:
+			_fail("Die eigene Granate verletzt den Werfer")
+		if local.hit_flag & HitFeedback.BODY == 0:
+			_fail("Direkttreffer setzt kein Trefferflag fuer die Killcam")
+		g.free()
+	GameEvents.local_player_hit_enemy.disconnect(on_hit)
+	if int(hits["n"]) != 2:
+		_fail("Direkttreffer: je Granate genau ein Hitmarker erwartet (%d bei 2 Granaten)" % int(hits["n"]))
+	# --- dying ends the flash at once (killcam is clear)
+	ov.trigger(1.0)
+	local.take_damage(9999.0, bot.id, "ak47", local.get_center(), false, bot_node.global_position)
+	for i in 3:
+		await get_tree().process_frame
+	if ov.is_active() or AudioManager.get_flash_effect() != 0.0:
+		_fail("Nach dem Tod bleibt die Blendung aktiv")
+	print("Blendgranate: eigener Slot, Halten/Werfen, Staerke nach Blick/Wand/Abstand, Weissblende mit Daempfung, Bots, Direkttreffer OK")
+	game.free()
+	await get_tree().process_frame
+
+
+func _bus_muffled(bus: String) -> bool:
+	var idx := AudioServer.get_bus_index(bus)
+	if idx < 0:
+		return false
+	for e in AudioServer.get_bus_effect_count(idx):
+		if AudioServer.get_bus_effect(idx, e) is AudioEffectLowPassFilter and AudioServer.is_bus_effect_enabled(idx, e):
+			return true
+	return false
 
 
 ## Reload animation: every weapon fires its sounds in order, moves its parts and returns to the rest pose.
@@ -937,7 +1117,7 @@ func _simulate_cams() -> void:
 	await get_tree().physics_frame
 	await get_tree().physics_frame
 	var remote_probe := bot_node.weapon_manager.get_current_weapon()
-	remote_probe.play_remote_shot([[Vector3.ZERO, Vector3.UP, true, HitFeedback.BODY | HitFeedback.HEAD]])
+	remote_probe.play_remote_shot([[Vector3(0, 1, 0), Vector3.RIGHT, true, HitFeedback.BODY | HitFeedback.HEAD]])
 	if bot_node.hit_flag != HitFeedback.BODY | HitFeedback.HEAD:
 		_fail("Fremdschuss uebernimmt den Trefferstatus des Servers nicht (hit_flag=%d)" % bot_node.hit_flag)
 	# --- killcam: we die, the view switches to the killer and can be skipped after 1.5 s

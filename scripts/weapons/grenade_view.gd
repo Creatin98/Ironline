@@ -2,11 +2,14 @@ class_name GrenadeView
 extends Node3D
 ## First-person grenade throw: the right hand brings up the grenade, the left hand pulls the pin
 ## (ring and pin come away with it), the right arm winds up and throws, then both hands leave.
-## Procedural boxes (same gloves/sleeves as the weapon models), driven by `apply(t)` with t = 0..1.
+## Procedural boxes (bare hands/arms in the skin tone of the player), driven by `apply(t)` with t = 0..1.
+## Two grenades: the green round frag grenade and the silver flashbang can (same throw, same pin).
 ## Space: camera space (x right, y up, -z forward).
 
-const GLOVE := Color(0.13, 0.13, 0.14)
+const SKIN := Color(0.88, 0.72, 0.58)
 const SLEEVE := Color(0.17, 0.20, 0.14)
+const CAN := Color(0.74, 0.76, 0.80)
+const CAN_DARK := Color(0.09, 0.09, 0.10)
 const BODY := Color(0.24, 0.29, 0.17)
 const STEEL := Color(0.62, 0.64, 0.66)
 
@@ -19,6 +22,10 @@ var _left: Node3D
 var _grenade: Node3D
 var _ring: Node3D
 var _lever: Node3D
+var _flash_can: Node3D
+var _flash_lever: Node3D
+var _skin_mat: StandardMaterial3D
+var _kind: int = Grenade.KIND_FRAG
 
 const R_POS := [
 	[0.00, Vector3(0.30, -0.52, -0.30)], [0.20, Vector3(0.11, -0.14, -0.40)], [0.46, Vector3(0.11, -0.13, -0.40)],
@@ -70,8 +77,9 @@ func _forearm(parent: Node3D, from: Vector3, to: Vector3, w: float, h: float, ma
 
 
 func _build() -> void:
-	var glove := _mat(GLOVE)
-	var sleeve := _mat(SLEEVE)
+	_skin_mat = _mat(SKIN)
+	var glove := _skin_mat # bare hands and forearms
+	var sleeve := _skin_mat
 	var steel := _mat(STEEL, 0.6)
 	var body := _mat(BODY)
 	# --- right hand holding the grenade
@@ -103,6 +111,29 @@ func _build() -> void:
 	_lever.position = Vector3(0.034, 0.05, 0)
 	_grenade.add_child(_lever)
 	_box(_lever, Vector3(0.008, 0.095, 0.024), Vector3(0.0, -0.04, 0), steel) # spoon along the body
+	# --- the flashbang: silver can, dark caps and band, straight lever
+	_flash_can = Node3D.new()
+	_flash_can.position = _grenade.position
+	_right.add_child(_flash_can)
+	var can_mat := _mat(CAN, 0.75)
+	var dark_mat := _mat(CAN_DARK, 0.3)
+	for part in [[0.0, 0.100, 0.030, can_mat], [0.056, 0.024, 0.0315, dark_mat], [-0.056, 0.024, 0.0315, dark_mat], [0.004, 0.014, 0.0308, dark_mat]]:
+		var cm2 := CylinderMesh.new()
+		cm2.top_radius = float(part[2])
+		cm2.bottom_radius = float(part[2])
+		cm2.height = float(part[1])
+		cm2.radial_segments = 10
+		var cy := MeshInstance3D.new()
+		cy.mesh = cm2
+		cy.material_override = part[3]
+		cy.position = Vector3(0.0, float(part[0]), 0.0)
+		cy.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		_flash_can.add_child(cy)
+	_flash_lever = Node3D.new()
+	_flash_lever.position = Vector3(0.031, 0.05, 0.0)
+	_flash_can.add_child(_flash_lever)
+	_box(_flash_lever, Vector3(0.007, 0.108, 0.022), Vector3(0.0, -0.045, 0.0), dark_mat)
+	_flash_can.visible = false
 	# --- pin ring (travels with the left hand once pulled)
 	_ring = Node3D.new()
 	add_child(_ring)
@@ -137,6 +168,17 @@ static func _key(keys: Array, t: float) -> Variant:
 	return keys[keys.size() - 1][1]
 
 
+## Which grenade is in the hand (before a throw).
+func set_kind(kind: int) -> void:
+	_kind = kind
+
+
+## Skin tone of the player (hands and forearms), like the first-person arms.
+func set_colors(skin: Color) -> void:
+	if _skin_mat != null:
+		_skin_mat.albedo_color = skin
+
+
 ## t = 0..1 over the whole throw. The view hides itself before 0 and after 1.
 func apply(t: float, hold_time: float = 0.0) -> void:
 	visible = t > 0.0 and t < 1.0
@@ -153,9 +195,11 @@ func apply(t: float, hold_time: float = 0.0) -> void:
 	var lp: Vector3 = _key(L_POS, t)
 	_left.position = lp
 	_left.visible = t > 0.2 and t < 0.6
-	_grenade.visible = t < RELEASE_T
+	_grenade.visible = t < RELEASE_T and _kind == Grenade.KIND_FRAG
+	_flash_can.visible = t < RELEASE_T and _kind == Grenade.KIND_FLASH
 	# the spoon flips away when the grenade is let go
 	_lever.rotation.z = -0.9 * clampf((t - RELEASE_T) / 0.05, 0.0, 1.0)
+	_flash_lever.rotation.z = _lever.rotation.z
 	# ring: on the grenade until the pin is pulled, then in the left hand
 	if t < PIN_T:
 		_ring.position = rp + Basis.from_euler(_right.rotation) * ((_grenade.position + Vector3(0.0, 0.07, 0.0)) * HAND_SCALE)

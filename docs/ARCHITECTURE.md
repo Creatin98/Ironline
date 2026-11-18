@@ -361,3 +361,10 @@ Python-Skripten in `tools/` erzeugt – keine Fremdinhalte, alles reproduzierbar
 * **Hände:** nackte Hände mit Fingergliedern, Knöcheln und Nägeln (`tools/generate_weapon_models.py`: `support_hand`/`grip_hand`); die Materialien `skin`/`skin_shade`/`nail` werden je Modell
   per `ReloadRig.apply_skin` auf den Hautton des Spielers gesetzt (gleich wie Ego-Arm und Figur).
 * **Regler-Ton:** jeder Lautstärkeregler spielt `AudioManager.play_preview` = leises `kill_confirm` (−27 dB) auf dem Bus der Kategorie.
+* **Nachladen (Magazinwaffen):** Hand- und Magazinbewegungen als „Snap“-Flicks, Rucke beim Herausreißen/Einschlagen des Magazins und beim Durchladen (`ReloadRig._pose_rifle/_pose_pistol`),
+  Kamera-/Waffenstoß bei den harten Momenten (`Weapon.RELOAD_JOLTS`); Nachladezeiten AK 2.2 s, MP5 1.75 s, Pistole 1.5 s.
+* **Blendgranate:** Taste F (`flashbang`, `HELD_FLASH`/`ACT_FLASH`, `PlayerInputState.flash_*`), gleiche Wurflogik wie die Granate (Splint, Halten, Loslassen) über
+  `WeaponManager._grenade_kind`; `ClassData.flashbangs` (1). `Grenade.kind` (`KIND_FLASH`: Silberdose, Zünder 1.6 s); alle Maschinen spielen `Grenade.spawn_flash_fx` und feuern
+  `GameEvents.flashbang_exploded`. `FlashMath` (Abstand 6–24 m, Blickrichtung, Sichtlinie gegen Wände) bestimmt die Stärke für den lokalen Spieler (`FlashOverlay`) und für Bots
+  (`BotController._blind_left`: sehen und schießen nichts). `FlashOverlay`: Weißblende (max. 1.8 s) → unscharfes, aufgehelltes Bild + dunkles Nachbild (`assets/shaders/flash_blind.gdshader`),
+  zusammen ca. 5.5 s; `AudioManager.set_flash_effect`: Tiefpass + Absenkung auf den Kategorie-Bussen (nicht HitOther/UI), Tinnitus `flash_ring`. Direkttreffer jeder Granate: 5 Schaden + Hitmarker (einmal pro Granate).

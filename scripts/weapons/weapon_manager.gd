@@ -21,6 +21,8 @@ var weapons: Array[Weapon] = []
 var current_index: int = 0
 var grenades: int = 2
 var max_grenades: int = 2
+var flashbangs: int = 1
+var max_flashbangs: int = 1
 
 @onready var holder: Node3D = $Holder
 
@@ -37,6 +39,7 @@ var _lower_blend: float = 0.0
 var _walk_amp: float = 0.0
 var _grenade_timer: float = 0.0
 var _grenade_thrown: bool = true
+var _grenade_kind: int = Grenade.KIND_FRAG # which grenade is being thrown (frag / flashbang)
 var _tp_models: Array[Node3D] = []
 var _tp_rigs: Array = [] # ReloadRig per third-person model
 var _tp_reload_progress: float = -1.0 # in cycles; < 0 = idle
@@ -82,6 +85,8 @@ func setup(new_player: Player, class_data: ClassData, local: bool) -> void:
 	_tp_flashes.clear()
 	max_grenades = class_data.grenades
 	grenades = max_grenades
+	max_flashbangs = class_data.flashbangs
+	flashbangs = max_flashbangs
 	for data in [class_data.primary, class_data.secondary]:
 		var weapon := Weapon.new()
 		weapon.name = data.weapon_id
@@ -119,6 +124,7 @@ func _apply_hand_skin() -> void:
 
 func reset_for_spawn() -> void:
 	grenades = max_grenades
+	flashbangs = max_flashbangs
 	for w in weapons:
 		w.fill_ammo()
 		w.holster()
@@ -198,6 +204,7 @@ func _emit_local_state() -> void:
 		GameEvents.local_weapon_changed.emit(w)
 		GameEvents.local_ammo_changed.emit(w.magazine, w.reserve)
 	GameEvents.local_grenades_changed.emit(grenades)
+	GameEvents.local_flashbangs_changed.emit(flashbangs)
 
 
 # ----------------------------------------------------------------------------- input
@@ -207,7 +214,7 @@ func process_input(input: PlayerInputState, delta: float) -> void:
 	if w == null:
 		return
 	_update_switch(delta)
-	_update_grenade(delta, input.grenade_held)
+	_update_grenade(delta, input.flash_held if _grenade_kind == Grenade.KIND_FLASH else input.grenade_held)
 	w.update(delta)
 
 	# switching cancels a grenade that has not been thrown yet, and may interrupt the raise (spam switching)
@@ -215,7 +222,10 @@ func process_input(input: PlayerInputState, delta: float) -> void:
 		cancel_grenade(true)
 	if _grenade_timer <= 0.0 and (_switch_state == SwitchState.READY or _switch_state == SwitchState.RAISING):
 		if _switch_state == SwitchState.READY and input.grenade_pressed and grenades > 0 and not w.is_reloading():
-			_begin_grenade()
+			_begin_grenade(Grenade.KIND_FRAG)
+			return
+		if _switch_state == SwitchState.READY and input.flash_pressed and flashbangs > 0 and not w.is_reloading():
+			_begin_grenade(Grenade.KIND_FLASH)
 			return
 		if input.select_primary and current_index != 0:
 			begin_switch(0)
@@ -293,9 +303,14 @@ func cancel_for_sprint() -> void:
 ## Ends the throw animation; a grenade that was not thrown yet is given back.
 func cancel_grenade(refund: bool) -> void:
 	if refund and not _grenade_thrown:
-		grenades += 1
-		if is_local:
-			GameEvents.local_grenades_changed.emit(grenades)
+		if _grenade_kind == Grenade.KIND_FLASH:
+			flashbangs += 1
+			if is_local:
+				GameEvents.local_flashbangs_changed.emit(flashbangs)
+		else:
+			grenades += 1
+			if is_local:
+				GameEvents.local_grenades_changed.emit(grenades)
 	_grenade_timer = 0.0
 	_grenade_thrown = true
 	grenade_holding = false
@@ -304,16 +319,23 @@ func cancel_grenade(refund: bool) -> void:
 		_grenade_view.apply(0.0)
 
 
-func _begin_grenade() -> void:
-	grenades -= 1
+func _begin_grenade(kind: int) -> void:
+	_grenade_kind = kind
+	if kind == Grenade.KIND_FLASH:
+		flashbangs -= 1
+	else:
+		grenades -= 1
 	_grenade_timer = GRENADE_TOTAL_TIME
 	_grenade_thrown = false
 	get_current_weapon().cancel_actions()
 	if NetworkManager.is_host():
-		NetworkManager.broadcast_weapon_event(player.participant_id, "grenade")
+		NetworkManager.broadcast_weapon_event(player.participant_id, "flash" if kind == Grenade.KIND_FLASH else "grenade")
 	_grenade_sound_idx = 0
+	if _grenade_view != null:
+		_grenade_view.set_kind(kind)
 	if is_local:
 		GameEvents.local_grenades_changed.emit(grenades)
+		GameEvents.local_flashbangs_changed.emit(flashbangs)
 
 
 func _update_grenade(delta: float, held: bool) -> void:
@@ -354,6 +376,7 @@ func _spawn_grenade() -> void:
 	if container == null:
 		container = get_tree().current_scene
 	var grenade: Grenade = GRENADE_SCENE.instantiate()
+	grenade.kind = _grenade_kind # before it enters the tree: the flashbang builds its own look
 	var origin := player.head.get_aim_origin()
 	var dir := player.head.get_aim_direction()
 	grenade.thrower_id = player.participant_id
@@ -362,7 +385,7 @@ func _spawn_grenade() -> void:
 	grenade.global_position = origin + dir * 0.6 + Vector3(0.0, -0.1, 0.0)
 	var launch_velocity := dir * GRENADE_SPEED + Vector3(0.0, 2.5, 0.0) + player.velocity * 0.5
 	grenade.launch(launch_velocity)
-	NetworkManager.register_grenade(grenade, player.participant_id, player.team, grenade.global_position, launch_velocity)
+	NetworkManager.register_grenade(grenade, player.participant_id, player.team, grenade.global_position, launch_velocity, _grenade_kind)
 	if is_local:
 		AudioManager.play_2d("grenade_throw", 1.0)
 	else:
@@ -532,6 +555,8 @@ func set_arm_colors(skin: Color, shirt: Color) -> void:
 	_apply_hand_skin()
 	if _fp_arms != null:
 		_fp_arms.set_colors(skin, shirt)
+	if _grenade_view != null:
+		_grenade_view.set_colors(skin)
 
 
 # ----------------------------------------------------------------------------- network (client side)
@@ -569,13 +594,13 @@ func play_remote_event(event: String) -> void:
 			begin_tp_reload(false, 3 if w != null and w.data.reload_single_shells else 1)
 		"switch":
 			AudioManager.play_3d("weapon_switch", pos, -10.0)
-		"grenade":
+		"grenade", "flash":
 			_tp_grenade_t = 0.0
 			_grenade_sound_idx = 0
 
 
 ## Local client: take the server's ammo values when we are not in the middle of an action.
-func apply_server_ammo(weapon_index: int, magazine: int, reserve: int, new_grenades: int) -> void:
+func apply_server_ammo(weapon_index: int, magazine: int, reserve: int, new_grenades: int, new_flashbangs: int = -1) -> void:
 	var w := get_current_weapon()
 	if w and weapon_index == current_index and w.state == Weapon.State.IDLE and Time.get_ticks_msec() - w.last_fire_msec > 500:
 		w.magazine = magazine
@@ -584,6 +609,10 @@ func apply_server_ammo(weapon_index: int, magazine: int, reserve: int, new_grena
 		grenades = new_grenades
 		if is_local:
 			GameEvents.local_grenades_changed.emit(grenades)
+	if _grenade_timer <= 0.0 and new_flashbangs >= 0 and new_flashbangs != flashbangs:
+		flashbangs = new_flashbangs
+		if is_local:
+			GameEvents.local_flashbangs_changed.emit(flashbangs)
 
 
 func apply_kick(amount: float) -> void:

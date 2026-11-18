@@ -40,7 +40,7 @@ Einstellungen unter „Killcam“ abschalten. Maps und Klassen werden im Menü, 
 mit Vorschaubildern gewählt.
 
 Steuerung: WASD bewegen, Maus zielen, Shift sprinten, Strg/C ducken (halten = Duckgang), Shift-Sprint + Ducken = Knie-Slide (ca. 1,5 m; Leertaste = aufstehen, zweimal = springen), Leertaste springen,
-LMT schießen, RMT zielen (ADS), R nachladen, Q / 1 / 2 Waffe wechseln, G Granate (gedrückt halten = wurfbereit, loslassen = werfen), Tab Scoreboard, Esc Pause.
+LMT schießen, RMT zielen (ADS), R nachladen, Q / 1 / 2 Waffe wechseln, G Granate und F Blendgranate (gedrückt halten = wurfbereit, loslassen = werfen), Tab Scoreboard, Esc Pause.
 
 ## Online spielen
 

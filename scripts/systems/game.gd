@@ -32,6 +32,7 @@ var _respawn_queue: Dictionary = {}
 var _paused: bool = false
 
 var recorder: ReplayRecorder
+var flash_overlay: FlashOverlay
 var _cam: Camera3D # shared by killcam and last-kill replay
 var _killcam_active: bool = false
 var _dead_elapsed: float = 0.0
@@ -103,6 +104,9 @@ func _ready() -> void:
 	GameEvents.participant_killed.connect(recorder.note_kill)
 	GameEvents.participant_killed.connect(_on_participant_killed_skull)
 	_build_cam_overlay()
+	flash_overlay = FlashOverlay.new()
+	flash_overlay.name = "FlashOverlay"
+	add_child(flash_overlay)
 	AudioManager.play_2d("round_start", -2.0)
 
 	if GameDirector.is_loading():
@@ -720,8 +724,9 @@ func remove_player_node(id: int) -> void:
 
 
 ## Client: a grenade thrown on the server (flies visually, explodes on command).
-func spawn_visual_grenade(thrower_id: int, team: int, origin: Vector3, velocity: Vector3) -> Node:
+func spawn_visual_grenade(thrower_id: int, team: int, origin: Vector3, velocity: Vector3, kind: int = 0) -> Node:
 	var grenade: Grenade = GRENADE_SCENE.instantiate()
+	grenade.kind = kind
 	grenade.thrower_id = thrower_id
 	grenade.thrower_team = team
 	grenade.visual_only = true
@@ -731,8 +736,11 @@ func spawn_visual_grenade(thrower_id: int, team: int, origin: Vector3, velocity:
 	return grenade
 
 
-func play_explosion_at(center: Vector3) -> void:
-	Grenade.spawn_explosion_fx(get_tree(), center)
+func play_explosion_at(center: Vector3, kind: int = 0) -> void:
+	if kind == Grenade.KIND_FLASH:
+		Grenade.spawn_flash_fx(get_tree(), center, 0)
+	else:
+		Grenade.spawn_explosion_fx(get_tree(), center)
 
 
 # ----------------------------------------------------------------------------- match end / pause

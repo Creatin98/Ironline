@@ -787,6 +787,7 @@ func _apply_remote_input() -> void:
 	input.aim = held & NetworkManager.HELD_AIM != 0
 	input.fire_held = held & NetworkManager.HELD_FIRE != 0
 	input.grenade_held = held & NetworkManager.HELD_GRENADE != 0
+	input.flash_held = held & NetworkManager.HELD_FLASH != 0
 	rotation.y = _remote_yaw
 	head.set_pitch(_remote_pitch)
 	var a := _remote_actions
@@ -799,6 +800,8 @@ func _apply_remote_input() -> void:
 		input.reload_pressed = true
 	if a & NetworkManager.ACT_GRENADE:
 		input.grenade_pressed = true
+	if a & NetworkManager.ACT_FLASH:
+		input.flash_pressed = true
 	if a & NetworkManager.ACT_SWITCH:
 		input.switch_pressed = true
 	if a & NetworkManager.ACT_PRIMARY:
@@ -863,11 +866,11 @@ func reconcile_with_server(seq: int, server_pos: Vector3, server_vel: Vector3) -
 
 
 ## Client: health/ammo values owned by the server (10 Hz).
-func apply_owner_state(new_health: float, magazine: int, reserve: int, grenades: int, weapon_index: int) -> void:
+func apply_owner_state(new_health: float, magazine: int, reserve: int, grenades: int, weapon_index: int, flashbangs: int = -1) -> void:
 	if not alive:
 		return
 	health.set_remote_health(new_health)
-	weapon_manager.apply_server_ammo(weapon_index, magazine, reserve, grenades)
+	weapon_manager.apply_server_ammo(weapon_index, magazine, reserve, grenades, flashbangs)
 
 
 ## Client: the server says we took damage (feedback only, health comes from the server).

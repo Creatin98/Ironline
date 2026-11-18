@@ -8,6 +8,11 @@ extends Node3D
 enum State { HOLSTERED, DRAWING, IDLE, RELOADING, PUMPING, RELOAD_EXIT }
 
 const RELOAD_EXIT_TIME := 0.2
+## Sound event of a reload -> [weapon kick, camera shake]
+const RELOAD_JOLTS := {
+	"reload_mag_in": [0.035, 0.12], "reload_bolt": [0.028, 0.10], "reload_slap": [0.012, 0.05],
+	"reload_pistol_in": [0.028, 0.09], "reload_slide": [0.02, 0.07],
+}
 const ADS_BLOOM := 0.5 # share of the spread bloom (spread_bonus) that applies while aiming down the sights
 const HIT_MASK := 1 | 2 # World + Players
 const IMPACT_SCENE := preload("res://scenes/effects/bullet_impact.tscn")
@@ -400,6 +405,10 @@ func _update_reload(delta: float) -> void:
 	if rig:
 		for ev in rig.apply(t, tilt):
 			_play_mech_sound(ev)
+			if is_local and RELOAD_JOLTS.has(ev):
+				var jolt: Array = RELOAD_JOLTS[ev] # the hard moments of a magazine change shake the picture a little
+				player.weapon_manager.apply_kick(float(jolt[0]))
+				player.head.add_shake(float(jolt[1]))
 		anim_offset = rig.holder_offset
 		anim_rotation = rig.holder_rotation
 	# the shell counts the moment it is pushed in (not at the end of the cycle): an interrupted reload keeps it

@@ -58,6 +58,9 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif event.is_action_pressed("grenade"):
 		player.input.grenade_pressed = true
 		_pending_actions |= NetworkManager.ACT_GRENADE
+	elif event.is_action_pressed("flashbang"):
+		player.input.flash_pressed = true
+		_pending_actions |= NetworkManager.ACT_FLASH
 	elif event.is_action_pressed("switch_weapon"):
 		player.input.switch_pressed = true
 		_pending_actions |= NetworkManager.ACT_SWITCH
@@ -83,6 +86,7 @@ func _physics_process(_delta: float) -> void:
 		inp.aim = Input.is_action_pressed("aim")
 		inp.fire_held = Input.is_action_pressed("fire")
 		inp.grenade_held = Input.is_action_pressed("grenade")
+		inp.flash_held = Input.is_action_pressed("flashbang")
 	else:
 		inp.clear_all()
 		_pending_actions = 0
@@ -107,6 +111,8 @@ func send_to_server() -> void:
 		held |= NetworkManager.HELD_FIRE
 	if inp.grenade_held:
 		held |= NetworkManager.HELD_GRENADE
+	if inp.flash_held:
+		held |= NetworkManager.HELD_FLASH
 	var actions := _pending_actions
 	if inp.fire_pressed:
 		actions |= NetworkManager.ACT_FIRE
@@ -116,6 +122,8 @@ func send_to_server() -> void:
 		actions |= NetworkManager.ACT_RELOAD
 	if inp.grenade_pressed:
 		actions |= NetworkManager.ACT_GRENADE
+	if inp.flash_pressed:
+		actions |= NetworkManager.ACT_FLASH
 	if inp.switch_pressed:
 		actions |= NetworkManager.ACT_SWITCH
 	if inp.select_primary:

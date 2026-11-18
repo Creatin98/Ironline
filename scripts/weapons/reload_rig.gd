@@ -291,14 +291,14 @@ func _pose_rifle(t: float, cfg: Dictionary) -> void:
 		[0.845, hh + Vector3(0, 0.02, 0.02)], [0.87, hh + Vector3(0, 0.01, float(cfg["handle_pull"]))],
 		[0.90, hh + Vector3(0, 0.01, 0)], [0.93, Vector3(side_x, hh.y + 0.01, hh.z - 0.05)],
 		[0.965, Vector3(side_x + 0.02, lh0.y + 0.05, lh0.z + 0.04)], [1.00, lh0],
-	], t)
+	], t, true) # snap: every move is a quick flick (a magazine change in the middle of a fight)
 	# while the hand crosses over the weapon its sleeve shrinks away (a sleeve in the line of the weapon would clip through it)
 	left_arm_slim = 1.0 - (_smooth(_seg(t, 0.79, 0.815)) - _smooth(_seg(t, 0.94, 0.97)))
 	var mag_pos: Vector3 = _key([
 		[0.00, mag0], [0.17, mag0], [0.24, mag0 + Vector3(0, -0.02, 0.008)], [0.32, mag0 + pull],
 		[0.46, belt + off], [0.50, belt + off],
 		[0.64, mag0 + pull], [0.74, mag0 + Vector3(0, -0.008, 0)], [0.78, mag0],
-	], t)
+	], t, true)
 	var mag_rot: float = _key([[0.00, 0.0], [0.17, 0.0], [0.24, 0.20], [0.32, 0.22], [0.46, 0.30], [0.50, 0.30], [0.64, 0.22], [0.74, 0.02], [0.78, 0.0]], t)
 	if _left != null:
 		_left.position = lh
@@ -309,10 +309,12 @@ func _pose_rifle(t: float, cfg: Dictionary) -> void:
 	if _handle != null:
 		var h := float(_key([[0.82, 0.0], [0.86, 1.0], [0.905, 0.0]], t))
 		_handle.position = _rest_pos(_handle) + Vector3(0, 0, float(cfg["handle_pull"]) * h)
-	var tilt := _smooth(_seg(t, 0.0, 0.13)) - _smooth(_seg(t, 0.90, 1.0))
-	var seat := exp(-pow((t - 0.74) * 28.0, 2.0)) # a small jolt when the magazine seats
-	holder_offset = Vector3(-0.075, 0.0, 0.07) * tilt
-	holder_rotation = Vector3(0.22 + seat * 0.05, -0.08, -0.58) * tilt
+	var tilt := _smooth(_seg(t, 0.0, 0.10)) - _smooth(_seg(t, 0.92, 1.0))
+	var seat := exp(-pow((t - 0.74) * 26.0, 2.0)) # the new magazine is slammed home
+	var yank := exp(-pow((t - 0.24) * 24.0, 2.0)) # the old one is torn out
+	var rack := exp(-pow((t - 0.885) * 24.0, 2.0)) # the charging handle is slapped forward
+	holder_offset = (Vector3(-0.075, 0.0, 0.07) + Vector3(0.0, -0.014, 0.035) * seat + Vector3(0.0, 0.012, 0.02) * yank + Vector3(0.0, 0.0, -0.015) * rack) * tilt
+	holder_rotation = Vector3(0.22 + seat * 0.16 - yank * 0.08 - rack * 0.05, -0.08 + seat * 0.05 - yank * 0.05, -0.58 + yank * 0.06 - seat * 0.04) * tilt
 
 
 # ----------------------------------------------------------------------------- pistol
@@ -329,12 +331,12 @@ func _pose_pistol(t: float) -> void:
 		[0.44, belt], [0.48, belt],
 		[0.62, grip + pulled], [0.72, grip + Vector3(0, -0.008, 0)], [0.76, grip + Vector3(0, 0.005, 0)],
 		[0.84, lh0 + Vector3(0, -0.01, 0.01)], [1.00, lh0],
-	], t)
+	], t, true)
 	var mag_pos: Vector3 = _key([
 		[0.00, mag0], [0.17, mag0], [0.26, mag0 + Vector3(0, -0.06, 0.005)], [0.34, mag0 + pulled],
 		[0.44, belt + off], [0.48, belt + off],
 		[0.62, mag0 + pulled], [0.72, mag0 + Vector3(0, -0.008, 0)], [0.76, mag0],
-	], t)
+	], t, true)
 	if _left != null:
 		_left.position = lh
 	if _mag != null:
@@ -345,9 +347,12 @@ func _pose_pistol(t: float) -> void:
 		# the slide is released: it snaps back a little and forward again
 		var kick := float(_key([[0.80, 0.0], [0.82, 1.0], [0.86, 0.0]], t))
 		_slide.position = _rest_pos(_slide) + Vector3(0, 0, 0.034 * kick)
-	var tilt := _smooth(_seg(t, 0.0, 0.13)) - _smooth(_seg(t, 0.90, 1.0))
-	holder_offset = Vector3(-0.065, 0.02, 0.05) * tilt
-	holder_rotation = Vector3(0.30, -0.08, -0.62) * tilt
+	var tilt := _smooth(_seg(t, 0.0, 0.10)) - _smooth(_seg(t, 0.92, 1.0))
+	var seat := exp(-pow((t - 0.72) * 26.0, 2.0)) # the magazine is slammed in
+	var yank := exp(-pow((t - 0.26) * 24.0, 2.0)) # the old one is ripped out
+	var slap := exp(-pow((t - 0.81) * 28.0, 2.0)) # slide release
+	holder_offset = (Vector3(-0.065, 0.02, 0.05) + Vector3(0.0, -0.012, 0.03) * seat + Vector3(0.0, 0.010, 0.015) * yank + Vector3(0.0, 0.0, -0.012) * slap) * tilt
+	holder_rotation = Vector3(0.30 + seat * 0.14 - yank * 0.07 - slap * 0.05, -0.08 + seat * 0.05, -0.62 + yank * 0.05 - seat * 0.04) * tilt
 
 
 # ----------------------------------------------------------------------------- shotgun

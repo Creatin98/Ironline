@@ -591,6 +591,43 @@ def make_reload_sounds():
     write_wav("shell_insert", seq((0.0, ratsch_in), (0.145, ratsch_latch)), 0.85)
 
 
+def make_flash_sounds():
+    """Flashbang: a hard, bright crack with a deep thump and a metallic ring-out, and the tinnitus that follows it
+    (a long fine whistle, its volume is driven by the game). Own random generator: the other sounds stay identical."""
+    local = random.Random(4242)
+
+    def nz(seconds):
+        return [local.uniform(-1, 1) for _ in range(int(seconds * SR))]
+
+    length = 1.1
+    crack = env_exp(highpass(nz(length), 1400), 0.022)
+    air = env_exp(nz(length), 0.012) # the first few milliseconds are pure noise
+    thump = mix(env_exp(sweep(190, 42, length), 0.16), env_exp(sine(60, length), 0.2))
+    ring = [0.0] * int(length * SR)
+    for f, d, g in ((3200, 0.20, 0.30), (5400, 0.14, 0.22), (7900, 0.10, 0.16)):
+        for k, v in enumerate(env_exp(sine(f, length), d)):
+            ring[k] += v * g
+    tail = mix(gain(env_exp(lowpass(nz(length), 2400), 0.30), 0.55), gain(env_exp(lowpass(nz(length), 650), 0.45), 0.6))
+    bang = soft_clip(mix(gain(crack, 1.1), gain(air, 0.8), gain(thump, 1.2), ring, tail), 2.4)
+    write_wav("flashbang_bang", bang, 0.96)
+
+    # tinnitus: a high whistle with a second, slightly detuned one, a faint third and a slow wobble
+    dur = 7.5
+    n = int(dur * SR)
+    out = []
+    for i in range(n):
+        t = i / SR
+        wob = 1.0 + 0.0035 * math.sin(2 * math.pi * 0.7 * t)
+        a = math.sin(2 * math.pi * 6300 * wob * t) * 0.50
+        b = math.sin(2 * math.pi * 3150 * 1.0012 * t) * 0.24
+        c = math.sin(2 * math.pi * 9100 * t) * 0.10
+        trem = 1.0 + 0.08 * math.sin(2 * math.pi * 2.3 * t) * math.sin(2 * math.pi * 0.31 * t)
+        fade_in = min(1.0, t / 0.25)
+        fade_out = min(1.0, (dur - t) / 0.6)
+        out.append((a + b + c) * trem * fade_in * fade_out)
+    write_wav("flash_ring", out, 0.55)
+
+
 def make_ui():
     write_wav("ui_click", mix(env_exp(sine(1800, 0.05), 0.012), env_exp(highpass(noise(0.05), 2000), 0.006)), 0.5)
     write_wav("ui_hover", env_exp(sine(1400, 0.04), 0.01), 0.3)
@@ -624,6 +661,9 @@ if __name__ == "__main__":
     if "hits" in sys.argv[1:]:
         make_hit_feedback() # only the hit/kill confirmation sounds
         sys.exit(0)
+    if "flash" in sys.argv[1:]:
+        make_flash_sounds()
+        sys.exit(0)
     make_guns()
     make_mechanical()
     make_reload_sounds()
@@ -634,3 +674,4 @@ if __name__ == "__main__":
     make_movement()
     make_feedback()
     make_ui()
+    make_flash_sounds()

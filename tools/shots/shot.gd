@@ -364,8 +364,19 @@ func _game_ui(state: String) -> void:
 		wm.grenade_holding = int(state.substr(7)) == 58
 		game.hud.crosshair.queue_redraw()
 		get_tree().paused = true
+		if "--flash=1" in OS.get_cmdline_user_args():
+			wm._grenade_view.set_kind(Grenade.KIND_FLASH)
 		wm._grenade_view.apply(gt)
 		wm._grenade_view.visible = true
+		await get_tree().process_frame
+	if state.begins_with("flashfx"):
+		# flashed: flashfx<percent of the whole effect>, e.g. flashfx5 (white-out), flashfx40, flashfx70
+		var ov: FlashOverlay = game.flash_overlay
+		ov.trigger(1.0, Vector2(0.55, 0.42))
+		var total := ov.blind_time + ov.fade_time * 1.3
+		ov.elapsed = total * float(int(state.substr(7))) / 100.0
+		get_tree().paused = true
+		ov.update_visuals()
 		await get_tree().process_frame
 	if state == "humanoids":
 		# five figures in a row: stand, run, crouch, slide, jump (poses driven directly)

@@ -15,6 +15,8 @@ var jump_pressed: bool = false
 var reload_pressed: bool = false
 var grenade_pressed: bool = false
 var grenade_held: bool = false         # key still down: a pulled grenade is held ready until it is released
+var flash_pressed: bool = false        # flashbang (second grenade slot, same behaviour as the frag grenade)
+var flash_held: bool = false
 var switch_pressed: bool = false
 var select_primary: bool = false
 var select_secondary: bool = false
@@ -27,6 +29,7 @@ func clear_one_shot() -> void:
 	jump_pressed = false
 	reload_pressed = false
 	grenade_pressed = false
+	flash_pressed = false
 	switch_pressed = false
 	select_primary = false
 	select_secondary = false
@@ -39,4 +42,5 @@ func clear_all() -> void:
 	crouch = false
 	aim = false
 	grenade_held = false
+	flash_held = false
 	fire_held = false

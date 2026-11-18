@@ -42,7 +42,7 @@ const EXACT_SOUNDS := {
 	"hitmarker": "hitmarker", "hitmarker_headshot": "headshot",
 	"kill_confirm": "kill", "kill_headshot": "kill",
 	"bullet_impact": "hit_other", "ricochet": "hit_other", "hurt": "hit_other", "death": "hit_other",
-	"explosion": "grenades",
+	"explosion": "grenades", "flashbang_bang": "grenades", "flash_ring": "hit_other",
 	"respawn": "ui", "round_start": "ui", "round_win": "ui", "round_lose": "ui",
 	"amb_wind": "wind", "amb_water": "water", "amb_plane": "distant", "amb_gull": "birds",
 }
