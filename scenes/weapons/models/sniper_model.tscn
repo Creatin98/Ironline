@@ -177,23 +177,23 @@ size = Vector3(0.0240, 0.0260, 0.0260)
 
 [sub_resource type="BoxMesh" id="mesh_17"]
 material = SubResource("mat_steel")
-size = Vector3(0.0360, 0.0280, 0.0320)
+size = Vector3(0.0360, 0.0425, 0.0320)
 
 [sub_resource type="BoxMesh" id="mesh_18"]
 material = SubResource("mat_steel")
-size = Vector3(0.0360, 0.0280, 0.0320)
+size = Vector3(0.0360, 0.0425, 0.0320)
 
 [sub_resource type="BoxMesh" id="mesh_19"]
 material = SubResource("mat_steel_light")
-size = Vector3(0.0220, 0.0220, 0.1300)
+size = Vector3(0.0240, 0.0240, 0.1400)
 
 [sub_resource type="BoxMesh" id="mesh_20"]
 material = SubResource("mat_steel_light")
-size = Vector3(0.1000, 0.0120, 0.0120)
+size = Vector3(0.1120, 0.0140, 0.0140)
 
 [sub_resource type="BoxMesh" id="mesh_21"]
 material = SubResource("mat_polymer_grey")
-size = Vector3(0.0280, 0.0280, 0.0280)
+size = Vector3(0.0360, 0.0340, 0.0340)
 
 [sub_resource type="BoxMesh" id="mesh_22"]
 material = SubResource("mat_steel")
@@ -536,44 +536,44 @@ position = Vector3(0.0000, -0.0450, -0.2600)
 mesh = SubResource("mesh_9")
 
 [node name="ScopeTube" type="MeshInstance3D" parent="."]
-position = Vector3(0.0000, 0.0820, -0.0200)
+position = Vector3(0.0000, 0.0940, -0.0200)
 rotation = Vector3(1.5708, 0.0000, 0.0000)
 mesh = SubResource("mesh_10")
 
 [node name="ScopeObjective" type="MeshInstance3D" parent="."]
-position = Vector3(0.0000, 0.0820, -0.2050)
+position = Vector3(0.0000, 0.0940, -0.2050)
 rotation = Vector3(1.5708, 0.0000, 0.0000)
 mesh = SubResource("mesh_11")
 
 [node name="ScopeOcular" type="MeshInstance3D" parent="."]
-position = Vector3(0.0000, 0.0820, 0.1750)
+position = Vector3(0.0000, 0.0940, 0.1750)
 rotation = Vector3(1.5708, 0.0000, 0.0000)
 mesh = SubResource("mesh_12")
 
 [node name="ScopeLensFront" type="MeshInstance3D" parent="."]
-position = Vector3(0.0000, 0.0820, -0.2515)
+position = Vector3(0.0000, 0.0940, -0.2515)
 rotation = Vector3(1.5708, 0.0000, 0.0000)
 mesh = SubResource("mesh_13")
 
 [node name="ScopeLensRear" type="MeshInstance3D" parent="."]
-position = Vector3(0.0000, 0.0820, 0.2105)
+position = Vector3(0.0000, 0.0940, 0.2105)
 rotation = Vector3(1.5708, 0.0000, 0.0000)
 mesh = SubResource("mesh_14")
 
 [node name="ScopeTurretTop" type="MeshInstance3D" parent="."]
-position = Vector3(0.0000, 0.1075, -0.0200)
+position = Vector3(0.0000, 0.1195, -0.0200)
 mesh = SubResource("mesh_15")
 
 [node name="ScopeTurretSide" type="MeshInstance3D" parent="."]
-position = Vector3(0.0345, 0.0820, -0.0200)
+position = Vector3(0.0345, 0.0940, -0.0200)
 mesh = SubResource("mesh_16")
 
 [node name="ScopeRingFront" type="MeshInstance3D" parent="."]
-position = Vector3(0.0000, 0.0580, -0.0900)
+position = Vector3(0.0000, 0.0585, -0.0900)
 mesh = SubResource("mesh_17")
 
 [node name="ScopeRingRear" type="MeshInstance3D" parent="."]
-position = Vector3(0.0000, 0.0580, 0.0950)
+position = Vector3(0.0000, 0.0585, 0.0950)
 mesh = SubResource("mesh_18")
 
 [node name="Bolt" type="Node3D" parent="."]
@@ -583,15 +583,15 @@ position = Vector3(0.0000, 0.0140, 0.0700)
 mesh = SubResource("mesh_19")
 
 [node name="BoltRod" type="MeshInstance3D" parent="Bolt"]
-position = Vector3(0.0600, 0.0000, 0.0400)
+position = Vector3(0.0660, 0.0000, 0.0400)
 mesh = SubResource("mesh_20")
 
 [node name="BoltKnob" type="MeshInstance3D" parent="Bolt"]
-position = Vector3(0.1180, 0.0000, 0.0400)
+position = Vector3(0.1380, 0.0000, 0.0400)
 mesh = SubResource("mesh_21")
 
 [node name="BoltGrip" type="Node3D" parent="Bolt"]
-position = Vector3(0.1180, 0.0000, 0.0400)
+position = Vector3(0.1380, 0.0000, 0.0400)
 
 [node name="TriggerGuardBottom" type="MeshInstance3D" parent="."]
 position = Vector3(0.0000, -0.0400, 0.0600)

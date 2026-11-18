@@ -515,6 +515,30 @@ func _game_ui(state: String) -> void:
 		get_tree().paused = true
 		ov.update_visuals()
 		await get_tree().process_frame
+	if state == "flashanim" or state == "flashbang":
+		# flashanim: the first-person arm in front of the eyes and a flashed bot; flashbang: the detonation seen from a few metres
+		var lp := me.node as Player
+		lp.human_controller.deactivate()
+		if state == "flashanim":
+			for pp in MatchManager.participants.values():
+				if pp.is_bot:
+					var bn := pp.node as Player
+					bn.set_process(false)
+					(bn.get_node("BotController") as Node).set_physics_process(false)
+					bn.global_position = lp.global_position + Vector3(2.2, 0.0, 7.0)
+					bn.flash_react(1.0)
+			lp.flash_react(1.0)
+			for i in 40:
+				await get_tree().physics_frame
+		else:
+			Grenade.spawn_flash_fx(get_tree(), lp.global_position + Vector3(0.5, 1.2, 9.0), 0)
+			Engine.time_scale = 0.6 # software rendering is slow: the effect has to stay young
+			for i in 3:
+				await get_tree().process_frame
+			Engine.time_scale = 1.0
+			game.flash_overlay.clear() # watching only: no whiteout in the picture
+		get_tree().paused = true
+		await get_tree().process_frame
 	if state == "ragdoll":
 		# ragdoll of a shotgun headshot, a figure winding up a grenade throw, one flinching from a headshot, one aiming
 		var bs: Array = []

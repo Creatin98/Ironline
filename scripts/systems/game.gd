@@ -85,6 +85,7 @@ func _ready() -> void:
 	MatchManager.local_participant_id = multiplayer.get_unique_id()
 	GameEvents.match_state_changed.connect(_on_match_state_changed)
 	GameEvents.match_ended.connect(_on_match_ended)
+	GameEvents.flashbang_exploded.connect(_on_flash_for_animation)
 	match_end.next_round_requested.connect(_on_next_round)
 	match_end.lobby_requested.connect(_on_back_to_lobby)
 	match_end.map_chosen.connect(_on_map_chosen)
@@ -356,6 +357,18 @@ func _on_player_died(victim_id: int, killer_id: int, weapon_id: String, headshot
 			_death_sequence(killer_id)
 		else:
 			_death_camera(killer_id)
+
+
+## A flashbang went off: everybody who looks into it (and has no wall in between) raises an arm in front of the face.
+func _on_flash_for_animation(center: Vector3, _thrower: int) -> void:
+	var space := get_world_3d().direct_space_state
+	for node in get_tree().get_nodes_in_group("players"):
+		var pl := node as Player
+		if pl == null or not pl.alive or pl.replay_mode:
+			continue
+		var i := FlashMath.intensity(space, center, pl.get_eye_position(), pl.head.get_aim_direction())
+		if i >= 0.15:
+			pl.flash_react(i)
 
 
 # ----------------------------------------------------------------------------- weapons on the floor

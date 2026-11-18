@@ -391,8 +391,8 @@ func try_fire(is_aiming: bool, move_ratio: float, in_air: bool, crouching: bool)
 ## pushes it forward, locks it down and returns to the grip; two sounds at the hard moments.
 const RELOAD_COMMIT := 0.86 # the magazine counts at this point of the animation; the rest can be cancelled (Call of Duty)
 const BOLT_REST := -0.55 # the handle hangs down to the right at rest (clearly visible)
-const BOLT_LIFT := 0.85 # radians it is turned up from there (stays clear of the scope)
-const BOLT_TRAVEL := 0.075 # metres the bolt slides back
+const BOLT_LIFT := 1.25 # radians it is turned up from there (stays clear of the scope)
+const BOLT_TRAVEL := 0.11 # metres the bolt slides back
 const BOLT_SOUNDS := [[0.16, "sniper_bolt_open"], [0.56, "sniper_bolt_close"]]
 
 
@@ -411,7 +411,10 @@ func _update_bolt(t: float) -> void:
 	anim_offset = Vector3(0.01 * s, -0.012 * s, 0.02 * s)
 	anim_rotation = Vector3(0.06 * s, -0.05 * s, 0.14 * s)
 	while _bolt_sound_idx < BOLT_SOUNDS.size() and t >= float(BOLT_SOUNDS[_bolt_sound_idx][0]):
-		_play_mech_sound(String(BOLT_SOUNDS[_bolt_sound_idx][1]), -3.0)
+		_play_mech_sound(String(BOLT_SOUNDS[_bolt_sound_idx][1]), -1.0)
+		if is_local: # heavy rifle: the hard moments of the bolt shake the picture and jerk the weapon
+			player.weapon_manager.apply_kick(0.09)
+			player.head.add_shake(0.42)
 		_bolt_sound_idx += 1
 
 

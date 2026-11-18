@@ -41,6 +41,8 @@ var _parts: Array[MeshInstance3D] = []
 var _outline_mat: ShaderMaterial
 var _outline_color: Color = Color(-1, 0, 0)
 
+## Flashbang: 0..1, the left arm covers the face.
+var flash_cover: float = 0.0
 var _phase: float = 0.0
 var _time: float = 0.0
 var _crouch: float = 0.0
@@ -504,8 +506,18 @@ func animate(delta: float, vel_local: Vector3, on_floor: bool, crouching: bool, 
 		right_target = _blend_target(right_target, rs + _throw_hand(p), _throw_w)
 		left_target = _blend_target(left_target, ls + _throw_left(p), _throw_w)
 	_nade.visible = _throw_w > 0.5 and throw_progress >= 0.0 and throw_progress < 0.62
+	if flash_cover > 0.001:
+		var face_local := to_local(face_cover_point())
+		left_target = face_local if left_target == Vector3.INF else left_target.lerp(face_local, flash_cover)
+		# the other arm lets go of the grip a little and the upper body shrinks away from the light
+		_spine_lean = lerpf(_spine_lean, -0.18, minf(1.0, flash_cover * 0.5))
 	_solve_arm(0, right_target, Vector3(0.45, -1.0, 0.25))
-	_solve_arm(1, left_target, Vector3(-0.45, -1.0, 0.25))
+	_solve_arm(1, left_target, Vector3(-0.45, -1.0, 0.25) if flash_cover < 0.001 else Vector3(-0.6, -0.2, 0.9))
+
+
+## World position in front of the face where the covering hand goes (a bit to the left, forearm across the eyes).
+func face_cover_point() -> Vector3:
+	return _head.to_global(Vector3(-0.07, 0.15, -0.2))
 
 
 func _shoulder(side: int) -> Vector3:

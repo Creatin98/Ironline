@@ -655,8 +655,11 @@ def make_flash_sounds():
         for k, v in enumerate(env_exp(sine(f, length), d)):
             ring[k] += v * g
     tail = mix(gain(env_exp(lowpass(nz(length), 2400), 0.30), 0.55), gain(env_exp(lowpass(nz(length), 650), 0.45), 0.6))
-    bang = soft_clip(mix(gain(crack, 1.1), gain(air, 0.8), gain(thump, 1.2), ring, tail), 2.4)
-    write_wav("flashbang_bang", bang, 0.96)
+    # PENG: a hard, loud transient right at the start (a pop that sweeps down + a clipped noise click), then the crack
+    pop = env_exp(sweep(3400, 140, length), 0.014)
+    click = env_exp(nz(length), 0.0022)
+    bang = soft_clip(mix(gain(crack, 1.7), gain(air, 1.2), gain(thump, 1.3), gain(pop, 1.6), gain(click, 2.2), ring, tail), 3.4)
+    write_wav("flashbang_bang", bang, 0.99)
 
     # tinnitus: a high whistle with a second, slightly detuned one, a faint third and a slow wobble
     dur = 7.5

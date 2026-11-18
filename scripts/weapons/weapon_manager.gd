@@ -61,6 +61,8 @@ var _flinch_side: float = 0.0
 var _flinch_amp: float = 0.0
 var _last_mag: int = -1
 var _last_reserve: int = -1
+var _flash_hand_active: bool = false
+var _flash_hand_rest: Vector3 = Vector3.ZERO
 
 
 func setup(new_player: Player, class_data: ClassData, local: bool) -> void:
@@ -533,6 +535,10 @@ func _process(delta: float) -> void:
 		var fe := exp(-_flinch_t * 11.0) * _flinch_amp
 		pos += Vector3(_flinch_side * 0.03, -0.012, 0.05) * fe
 		rot += Vector3(0.16, -_flinch_side * 0.14, -_flinch_side * 0.18) * fe
+	# flashbang: the weapon dips and tilts while one arm shields the eyes
+	var cover := player.flash_cover
+	pos += Vector3(0.04, -0.10, 0.04) * cover
+	rot += Vector3(-0.35, 0.0, 0.12) * cover
 	# lowered (switch / grenade)
 	pos += Vector3(0.05, -0.38, 0.05) * _lower_blend
 	rot += Vector3(-0.8, 0.0, 0.0) * _lower_blend
@@ -573,6 +579,19 @@ func _update_arms(w: Weapon) -> void:
 	_fp_arms.visible = not throwing and not (w.data.scoped and _ads_blend > SCOPE_HIDE_AT)
 	if throwing or w.model == null:
 		return
+	var cover := player.flash_cover
+	var left_hand := w.model.get_node_or_null("LeftHand") as Node3D
+	if left_hand != null:
+		# flashbang: the supporting hand (and with it the forearm) goes up in front of the eyes
+		if cover > 0.001:
+			if not _flash_hand_active:
+				_flash_hand_active = true
+				_flash_hand_rest = left_hand.position
+			var target_world := to_global(Vector3(-0.05, 0.05, -0.22))
+			left_hand.position = _flash_hand_rest.lerp(w.model.to_local(target_world), cover)
+		elif _flash_hand_active:
+			_flash_hand_active = false
+			left_hand.position = _flash_hand_rest
 	_fp_arms.update(_wrist(w.model, "RightHand", Vector3(0.004, -0.028, 0.044)), _wrist(w.model, "LeftHand", Vector3(-0.006, -0.018, 0.040)))
 
 

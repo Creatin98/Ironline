@@ -168,35 +168,67 @@ static func spawn_flash_fx(tree: SceneTree, center: Vector3, thrower: int) -> vo
 	var root := Node3D.new()
 	parent.add_child(root)
 	root.global_position = center
+	# the light: a hard, very bright flash that drops quickly
 	var light := OmniLight3D.new()
-	light.light_energy = 18.0
-	light.omni_range = 18.0
+	light.light_energy = 70.0
+	light.omni_range = 26.0
 	light.light_color = Color(1.0, 0.97, 0.9)
 	root.add_child(light)
 	var glow := StandardMaterial3D.new()
 	glow.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	glow.albedo_color = Color(1.0, 1.0, 1.0, 1.0)
 	glow.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	glow.cull_mode = BaseMaterial3D.CULL_DISABLED
 	var ball := MeshInstance3D.new()
 	var sphere := SphereMesh.new()
-	sphere.radius = 0.35
-	sphere.height = 0.7
+	sphere.radius = 0.5
+	sphere.height = 1.0
 	sphere.material = glow
 	ball.mesh = sphere
 	ball.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	root.add_child(ball)
+	# a large, faint halo and the shock wave (a thin shell that races outwards)
+	var halo_mat := StandardMaterial3D.new()
+	halo_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	halo_mat.albedo_color = Color(1.0, 0.97, 0.88, 0.45)
+	halo_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	halo_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	var halo := MeshInstance3D.new()
+	var hs := SphereMesh.new()
+	hs.radius = 0.5
+	hs.height = 1.0
+	hs.material = halo_mat
+	halo.mesh = hs
+	halo.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	root.add_child(halo)
+	var shock_mat := StandardMaterial3D.new()
+	shock_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	shock_mat.albedo_color = Color(1.0, 0.98, 0.92, 0.5)
+	shock_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	shock_mat.cull_mode = BaseMaterial3D.CULL_FRONT
+	var shock := MeshInstance3D.new()
+	var ss := SphereMesh.new()
+	ss.radius = 0.5
+	ss.height = 1.0
+	ss.radial_segments = 24
+	ss.rings = 12
+	ss.material = shock_mat
+	shock.mesh = ss
+	shock.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	root.add_child(shock)
+	# sparks
 	var sparks := CPUParticles3D.new()
-	sparks.amount = 32
-	sparks.lifetime = 0.45
+	sparks.amount = 56
+	sparks.lifetime = 0.55
 	sparks.one_shot = true
 	sparks.explosiveness = 1.0
 	sparks.direction = Vector3.UP
 	sparks.spread = 180.0
-	sparks.initial_velocity_min = 4.0
-	sparks.initial_velocity_max = 10.0
+	sparks.initial_velocity_min = 6.0
+	sparks.initial_velocity_max = 15.0
 	sparks.gravity = Vector3(0.0, -9.0, 0.0)
 	var spark_mesh := BoxMesh.new()
-	spark_mesh.size = Vector3(0.03, 0.03, 0.12)
+	spark_mesh.size = Vector3(0.03, 0.03, 0.16)
 	var spark_mat := StandardMaterial3D.new()
 	spark_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	spark_mat.albedo_color = Color(1.0, 0.96, 0.82)
@@ -204,13 +236,57 @@ static func spawn_flash_fx(tree: SceneTree, center: Vector3, thrower: int) -> vo
 	sparks.mesh = spark_mesh
 	root.add_child(sparks)
 	sparks.emitting = true
+	# black, sooty smoke: dark puffs that boil outwards, slow down and rise
+	var smoke := CPUParticles3D.new()
+	smoke.amount = 16
+	smoke.lifetime = 1.7
+	smoke.one_shot = true
+	smoke.explosiveness = 0.9
+	smoke.direction = Vector3.UP
+	smoke.spread = 180.0
+	smoke.initial_velocity_min = 2.0
+	smoke.initial_velocity_max = 5.0
+	smoke.damping_min = 2.2
+	smoke.damping_max = 3.0
+	smoke.gravity = Vector3(0.0, 0.7, 0.0)
+	smoke.scale_amount_min = 0.9
+	smoke.scale_amount_max = 1.6
+	var sm_curve := Curve.new()
+	sm_curve.add_point(Vector2(0.0, 0.35))
+	sm_curve.add_point(Vector2(0.35, 1.0))
+	sm_curve.add_point(Vector2(1.0, 1.5))
+	smoke.scale_amount_curve = sm_curve
+	var ramp := Gradient.new()
+	ramp.colors = PackedColorArray([Color(0.02, 0.02, 0.02, 0.9), Color(0.1, 0.095, 0.09, 0.8), Color(0.22, 0.21, 0.2, 0.0)])
+	ramp.offsets = PackedFloat32Array([0.0, 0.4, 1.0])
+	smoke.color_ramp = ramp
+	var puff := SphereMesh.new()
+	puff.radius = 0.32
+	puff.height = 0.64
+	puff.radial_segments = 8
+	puff.rings = 4
+	var puff_mat := StandardMaterial3D.new()
+	puff_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	puff_mat.vertex_color_use_as_albedo = true
+	puff_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	puff.material = puff_mat
+	smoke.mesh = puff
+	root.add_child(smoke)
+	smoke.emitting = true
 	var tw := root.create_tween().set_parallel(true)
-	tw.tween_property(light, "light_energy", 0.0, 0.4).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
-	tw.tween_property(ball, "scale", Vector3.ONE * 3.2, 0.3).set_trans(Tween.TRANS_EXPO).set_ease(Tween.EASE_OUT)
-	tw.tween_property(glow, "albedo_color:a", 0.0, 0.3)
-	tw.chain().tween_interval(0.3)
+	tw.tween_property(light, "light_energy", 0.0, 0.35).set_trans(Tween.TRANS_EXPO).set_ease(Tween.EASE_OUT)
+	ball.scale = Vector3.ONE * 0.6
+	tw.tween_property(ball, "scale", Vector3.ONE * 3.8, 0.07).set_trans(Tween.TRANS_EXPO).set_ease(Tween.EASE_OUT)
+	tw.tween_property(glow, "albedo_color:a", 0.0, 0.22).set_delay(0.05)
+	halo.scale = Vector3.ONE * 1.5
+	tw.tween_property(halo, "scale", Vector3.ONE * 9.0, 0.16).set_trans(Tween.TRANS_EXPO).set_ease(Tween.EASE_OUT)
+	tw.tween_property(halo_mat, "albedo_color:a", 0.0, 0.22)
+	shock.scale = Vector3.ONE * 1.0
+	tw.tween_property(shock, "scale", Vector3.ONE * 15.0, 0.28).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	tw.tween_property(shock_mat, "albedo_color:a", 0.0, 0.28)
+	tw.chain().tween_interval(1.9)
 	tw.chain().tween_callback(root.queue_free)
-	AudioManager.play_3d("flashbang_bang", center, 4.0, 0.02, 160.0)
+	AudioManager.play_3d("flashbang_bang", center, 7.0, 0.02, 220.0)
 	GameEvents.flashbang_exploded.emit(center, thrower)
 
 

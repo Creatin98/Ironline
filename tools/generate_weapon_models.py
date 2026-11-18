@@ -448,22 +448,22 @@ def sniper():
     # chassis forend with a bottom rail
     s.box("Forend", (0, -0.016, -0.260), (0.056, 0.052, 0.340), "polymer_grey")
     s.box("ForendRail", (0, -0.045, -0.260), (0.020, 0.010, 0.300), "steel")
-    # scope: tube, bells with glass, turrets, rings
-    s.cyl("ScopeTube", (0, 0.082, -0.020), 0.0215, 0.300, "polymer")
-    s.cyl("ScopeObjective", (0, 0.082, -0.205), 0.033, 0.090, "polymer")
-    s.cyl("ScopeOcular", (0, 0.082, 0.175), 0.0285, 0.070, "polymer")
-    s.cyl("ScopeLensFront", (0, 0.082, -0.2515), 0.0305, 0.004, "lens")
-    s.cyl("ScopeLensRear", (0, 0.082, 0.2105), 0.0250, 0.004, "lens")
-    s.box("ScopeTurretTop", (0, 0.1075, -0.020), (0.026, 0.024, 0.026), "polymer")
-    s.box("ScopeTurretSide", (0.0345, 0.082, -0.020), (0.024, 0.026, 0.026), "polymer")
-    s.box("ScopeRingFront", (0, 0.058, -0.090), (0.036, 0.028, 0.032), "steel")
-    s.box("ScopeRingRear", (0, 0.058, 0.095), (0.036, 0.028, 0.032), "steel")
-    # bolt (group: axis along z, the handle sticks out to the right and turns up when it is worked)
+    # scope: tube, bells with glass, turrets, rings (mounted ~1.2 cm higher, on taller rings, so it clearly sits above the rail)
+    s.cyl("ScopeTube", (0, 0.094, -0.020), 0.0215, 0.300, "polymer")
+    s.cyl("ScopeObjective", (0, 0.094, -0.205), 0.033, 0.090, "polymer")
+    s.cyl("ScopeOcular", (0, 0.094, 0.175), 0.0285, 0.070, "polymer")
+    s.cyl("ScopeLensFront", (0, 0.094, -0.2515), 0.0305, 0.004, "lens")
+    s.cyl("ScopeLensRear", (0, 0.094, 0.2105), 0.0250, 0.004, "lens")
+    s.box("ScopeTurretTop", (0, 0.1195, -0.020), (0.026, 0.024, 0.026), "polymer")
+    s.box("ScopeTurretSide", (0.0345, 0.094, -0.020), (0.024, 0.026, 0.026), "polymer")
+    s.box("ScopeRingFront", (0, 0.0585, -0.090), (0.036, 0.0425, 0.032), "steel")
+    s.box("ScopeRingRear", (0, 0.0585, 0.095), (0.036, 0.0425, 0.032), "steel")
+    # bolt (group: axis along z, the heavy handle sticks out to the right and turns up when it is worked)
     bolt = s.group("Bolt", (0, 0.014, 0.070))
-    s.box("BoltBody", (0, 0, 0), (0.022, 0.022, 0.130), "steel_light", parent=bolt)
-    s.box("BoltRod", (0.060, 0, 0.040), (0.100, 0.012, 0.012), "steel_light", parent=bolt)
-    s.box("BoltKnob", (0.118, 0, 0.040), (0.028, 0.028, 0.028), "polymer_grey", parent=bolt)
-    s.marker("BoltGrip", (0.118, 0, 0.040), parent=bolt)
+    s.box("BoltBody", (0, 0, 0), (0.024, 0.024, 0.140), "steel_light", parent=bolt)
+    s.box("BoltRod", (0.066, 0, 0.040), (0.112, 0.014, 0.014), "steel_light", parent=bolt)
+    s.box("BoltKnob", (0.138, 0, 0.040), (0.036, 0.034, 0.034), "polymer_grey", parent=bolt)
+    s.marker("BoltGrip", (0.138, 0, 0.040), parent=bolt)
     # trigger group, grip, stock
     s.box("TriggerGuardBottom", (0, -0.040, 0.060), (0.008, 0.008, 0.075), "steel")
     s.box("TriggerGuardFront", (0, -0.024, 0.024), (0.008, 0.030, 0.008), "steel")
@@ -536,7 +536,7 @@ WEAPONS = {
     "shotgun": (shotgun, 0.0645, 0.040, 0.30, (0.20, -0.20, -0.42), 58.0),
     "pistol": (pistol, 0.0585, 0.050, 0.32, (0.17, -0.17, -0.34), 60.0),
     # sight_y = the scope axis, rear_z = the rear lens: the eye sits 0.10 m behind it
-    "sniper": (sniper, 0.082, 0.2125, 0.10, (0.22, -0.22, -0.50), 60.0),
+    "sniper": (sniper, 0.094, 0.2125, 0.10, (0.22, -0.22, -0.50), 60.0),
 }
 
 

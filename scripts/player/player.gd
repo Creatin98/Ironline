@@ -107,6 +107,11 @@ var _sprint_block_timer: float = 0.0
 var _team_material: StandardMaterial3D
 var rig: HumanoidRig
 var _coyote: float = 0.0
+## Flashbang reaction (0..1): the arm goes up in front of the face (visible for everybody, drives the first-person arm too).
+var flash_cover: float = 0.0
+var _flash_t: float = -1.0
+var _flash_hold: float = 0.0
+var _flash_hand_rest: Dictionary = {}
 var _replay_aiming: bool = false
 var _replay_kick: float = 0.0
 var _replay_kick_ms: int = 0
@@ -593,10 +598,51 @@ func _animate_body(delta: float) -> void:
 		hands.position = rig.weapon_anchor()
 	if (not is_local or replay_mode) and alive:
 		hands.visible = rig.throw_progress < 0.0 # the weapon is out of the way during a grenade throw
+	_update_flash_cover(delta)
 	rig.animate(delta, vel_local, grounded, is_crouching, is_sliding, is_sprinting, head.pitch, _hand_target(true), _hand_target(false))
 
 
 ## World hand position of the held weapon (wrist end of the forearm) in rig space, or INF without weapon.
+## A flashbang went off in view: the arm shoots up in front of the face, stays for a while and goes down again.
+func flash_react(i: float) -> void:
+	_flash_t = 0.0
+	_flash_hold = 0.4 + 1.5 * clampf(i, 0.0, 1.0)
+
+
+func _update_flash_cover(delta: float) -> void:
+	if not alive:
+		_flash_t = -1.0
+	if _flash_t < 0.0:
+		flash_cover = move_toward(flash_cover, 0.0, delta * 4.0)
+	else:
+		_flash_t += delta
+		const UP := 0.14
+		const DOWN := 0.55
+		if _flash_t < UP:
+			flash_cover = smoothstep(0.0, 1.0, _flash_t / UP)
+		elif _flash_t < UP + _flash_hold:
+			flash_cover = 1.0
+		elif _flash_t < UP + _flash_hold + DOWN:
+			flash_cover = 1.0 - smoothstep(0.0, 1.0, (_flash_t - UP - _flash_hold) / DOWN)
+		else:
+			_flash_t = -1.0
+			flash_cover = 0.0
+	rig.flash_cover = flash_cover
+	# third-person copy of the weapon: the supporting hand goes to the face with the arm
+	var idx := weapon_manager.current_index
+	if not is_local and idx >= 0 and idx < weapon_manager._tp_models.size():
+		var hand := weapon_manager._tp_models[idx].get_node_or_null("LeftHand") as Node3D
+		if hand != null:
+			if flash_cover > 0.001:
+				if not _flash_hand_rest.has(idx):
+					_flash_hand_rest[idx] = hand.position
+				var face := rig.face_cover_point()
+				hand.global_position = (hand.get_parent() as Node3D).to_global(_flash_hand_rest[idx]).lerp(face, flash_cover)
+			elif _flash_hand_rest.has(idx):
+				hand.position = _flash_hand_rest[idx]
+				_flash_hand_rest.erase(idx)
+
+
 func _hand_target(right: bool) -> Vector3:
 	var idx := weapon_manager.current_index
 	if idx < 0 or idx >= weapon_manager._tp_models.size():
