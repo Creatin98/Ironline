@@ -52,6 +52,7 @@ var is_crouching: bool = false
 var is_sliding: bool = false
 var _slide_len: float = SLIDE_TIME
 var spectating: bool = false
+var death_ragdoll: Ragdoll # our own corpse (the third-person death camera watches it)
 ## Natural lean at corners: -1 = left .. +1 = right (computed on every machine from the geometry, so everybody sees it).
 var lean: float = 0.0
 var _lean_target: float = 0.0
@@ -481,7 +482,7 @@ func _play_death_animation(attacker_id: int = 0, weapon_id: String = "", headsho
 		BloodFx.burst(get_parent(), get_center(), push, 1.5) # a heavy kill: extra spray
 	var gore := _pick_gore(weapon_id, headshot)
 	last_death = {"push": push, "strength": float(DEATH_PUSH.get(weapon_id, 1.0)), "headshot": headshot, "gore": gore}
-	Ragdoll.spawn(rig, get_parent(), _est_vel, push, float(DEATH_PUSH.get(weapon_id, 1.0)), headshot, gore)
+	death_ragdoll = Ragdoll.spawn(rig, get_parent(), _est_vel, push, float(DEATH_PUSH.get(weapon_id, 1.0)), headshot, gore)
 	body.hide()
 
 

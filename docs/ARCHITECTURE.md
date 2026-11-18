@@ -462,3 +462,5 @@ Python-Skripten in `tools/` erzeugt – keine Fremdinhalte, alles reproduzierbar
 * **Movement:** Ducken beginnt nur am Boden; ein Druck kurz vor der Landung (0,28 s) startet beim Aufsetzen den Slide eines Sprint-Sprungs.
 * **Kritisches Leben:** Herzschlag (`heartbeat`) und leicht gedämpftes Gehör (`DamageFx._update_dazed`, schwächer als Flashbang).
 * **Mesa-Himmel:** große Wolkenmassen und wandernde Wolkenschatten (Decals in `MesaSky`).
+
+* **Todeskamera:** Stirbt der lokale Spieler, hebt sich die Kamera 1,3 s lang (`DEATH_CAM_TIME`) aus dem Kopf und zieht in der Third Person zurück, beobachtet den fallenden/zerreißenden Körper (`Player.death_ragdoll` → `Ragdoll.focus_point`) und prallt nicht durch Wände. Danach folgt die Killcam; ohne Killcam bleibt die Todeskamera bis zum Respawn. `HUMAN_RESPAWN_DELAY` = 7,3 s (vorher 6), `KILLCAM_SKIP_AFTER` = 1,6 s.

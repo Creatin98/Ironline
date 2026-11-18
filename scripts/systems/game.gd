@@ -9,12 +9,13 @@ const PLAYER_SCENE := preload("res://scenes/player/player.tscn")
 const GRENADE_SCENE := preload("res://scenes/weapons/grenade.tscn")
 const BotControllerScript := preload("res://scripts/bots/bot_controller.gd")
 ## Humans wait this long after dying (killcam); Space skips after KILLCAM_SKIP_AFTER seconds.
-const HUMAN_RESPAWN_DELAY := 6.0
+const DEATH_CAM_TIME := 1.3 # third-person look at our own body falling apart, before the killcam
+const HUMAN_RESPAWN_DELAY := 7.3
 const KILLCAM_SECONDS_BEFORE := 5.0 # how much of the killer's view leads up to our death
 const KILLCAM_SECONDS_AFTER := 0.9
 const OUTRO_TIME := 3.2 # the camera leaves the last-kill scene and rises over the map
 const OUTRO_RESULTS_DELAY := 1.6 # the scoreboard fades in while the camera is still moving
-const KILLCAM_SKIP_AFTER := 0.5 # fall (~0.4 s) + fade, then Space skips at once
+const KILLCAM_SKIP_AFTER := 1.6 # death camera (1.3 s) + fade, then Space skips at once
 
 @onready var map_container: Node3D = $MapContainer
 @onready var players_container: Node3D = $Players
@@ -426,7 +427,7 @@ func _on_player_died(victim_id: int, killer_id: int, weapon_id: String, headshot
 		if _killcam_possible(killer_id):
 			_death_sequence(killer_id)
 		else:
-			_death_camera(killer_id)
+			_start_death_cam() # no killcam (suicide, off): the death camera keeps watching the body
 
 
 ## A flashbang went off: everybody who looks into it (and has no wall in between) raises an arm in front of the face.
@@ -813,11 +814,67 @@ func _killcam_possible(killer_id: int) -> bool:
 	return MatchManager.get_participant(killer_id) != null and not recorder.find_kill(MatchManager.local_participant_id, killer_id).is_empty()
 
 
-## Fall of the camera, short fade to black, then the killcam fades in (total ~0.5 s).
+var _death_cam: Camera3D
+var _death_cam_t: float = -1.0
+var _death_cam_from: Vector3
+var _death_cam_dir: Vector3 = Vector3.BACK
+
+
+## Third-person death camera: the view lifts out of our head and pulls back to look at our body while it flies apart.
+func _start_death_cam() -> void:
+	if local_player == null or not is_instance_valid(local_player):
+		return
+	if _death_cam == null:
+		_death_cam = Camera3D.new()
+		_death_cam.name = "DeathCamera"
+		_death_cam.near = 0.05
+		_death_cam.far = 600.0
+		add_child(_death_cam)
+	_death_cam_t = 0.0
+	_death_cam_from = local_player.get_eye_position()
+	var fwd := -local_player.global_transform.basis.z
+	# pulls back behind where we were looking, slightly from the side
+	_death_cam_dir = (-fwd).rotated(Vector3.UP, deg_to_rad(randf_range(25.0, 50.0) * (1.0 if randf() < 0.5 else -1.0))).normalized()
+	_death_cam.fov = GameSettings.fov
+	_death_cam.global_position = _death_cam_from
+	_death_cam.current = true
+
+
+func _stop_death_cam() -> void:
+	_death_cam_t = -1.0
+	if _death_cam != null and is_instance_valid(_death_cam):
+		_death_cam.current = false
+		if local_player != null and is_instance_valid(local_player) and not _killcam_active:
+			local_player.camera.current = true
+
+
+func _update_death_cam(delta: float) -> void:
+	if _death_cam_t < 0.0 or local_player == null or not is_instance_valid(local_player):
+		return
+	_death_cam_t += delta
+	var focus := local_player.death_ragdoll.focus_point() if local_player.death_ragdoll != null and is_instance_valid(local_player.death_ragdoll) else local_player.global_position + Vector3(0, 0.6, 0)
+	var k := clampf(_death_cam_t / DEATH_CAM_TIME, 0.0, 1.0)
+	var e := 1.0 - pow(1.0 - k, 3.0)
+	var orbit := _death_cam_dir.rotated(Vector3.UP, deg_to_rad(18.0) * _death_cam_t)
+	var dist := lerpf(0.3, 3.6, e)
+	var want := focus + orbit * dist + Vector3(0, lerpf(0.0, 1.5, e), 0)
+	# the camera does not go through walls
+	var q := PhysicsRayQueryParameters3D.create(focus + Vector3(0, 0.3, 0), want, 1)
+	var hit := get_world_3d().direct_space_state.intersect_ray(q)
+	if not hit.is_empty():
+		want = (hit["position"] as Vector3).lerp(focus + Vector3(0, 0.3, 0), 0.1)
+	var start := _death_cam_from.lerp(want, clampf(e * 1.6, 0.0, 1.0))
+	_death_cam.global_position = start
+	_death_cam.look_at(focus + Vector3(0, 0.15, 0), Vector3.UP)
+	_death_cam.fov = lerpf(GameSettings.fov, 62.0, e)
+
+
+## Death camera (1.3 s), short fade to black, then the killcam fades in.
 func _death_sequence(killer_id: int) -> void:
 	_death_seq += 1
 	var seq := _death_seq
-	await get_tree().create_timer(Player.DEATH_FALL_TIME - 0.04, true, false, true).timeout
+	_start_death_cam()
+	await get_tree().create_timer(DEATH_CAM_TIME, true, false, true).timeout
 	if not _death_seq_valid(seq):
 		return
 	var t := create_tween()
@@ -825,6 +882,7 @@ func _death_sequence(killer_id: int) -> void:
 	await t.finished
 	if not _death_seq_valid(seq):
 		return
+	_stop_death_cam()
 	if not _start_killcam(killer_id):
 		_death_camera(killer_id)
 	var t2 := create_tween()
@@ -856,6 +914,7 @@ func _start_killcam(killer_id: int) -> bool:
 
 
 func _end_killcam() -> void:
+	_stop_death_cam()
 	_dead_elapsed = 0.0
 	_death_seq += 1
 	_fade.color.a = 0.0
@@ -902,6 +961,7 @@ func _on_replay_hit(headshot: bool, killed: bool) -> void:
 
 
 func _update_killcam(delta: float) -> void:
+	_update_death_cam(delta)
 	_update_bars(delta)
 	if _cam_hit_left > 0.0:
 		_cam_hit_left = maxf(0.0, _cam_hit_left - delta / maxf(Engine.time_scale, 0.05)) # real time, also in slow motion

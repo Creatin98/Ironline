@@ -431,6 +431,17 @@ func _game_ui(state: String) -> void:
 				for i in 50:
 					await get_tree().physics_frame # the replayed body falls apart
 			get_tree().paused = true # software rendering is slow: freeze the moment
+		"deathcam":
+			for i in 30:
+				await get_tree().physics_frame
+			local.take_damage(9999.0, bot.id, "shotgun", local.get_center(), false, bot_node.global_position)
+			for i in 14:
+				await get_tree().physics_frame
+			game._death_seq += 1 # (software rendering is slow: keep the death camera)
+			game._start_death_cam()
+			game._death_cam_t = 0.9
+			game._update_death_cam(0.0)
+			get_tree().paused = true
 		"outro":
 			bot_node.health.max_health = 100000.0 # survives the shots until the explicit kill
 			bot_node.health.health = 100000.0

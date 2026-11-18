@@ -31,6 +31,11 @@ var _chunk_n: int = 0
 var _events: Array = [] # delayed effects, run from _physics_process (no lambdas that could outlive this node)
 
 
+## Centre of the body (torso) for a camera that watches it.
+func focus_point() -> Vector3:
+	return _bodies[1].global_position if _bodies.size() > 1 and is_instance_valid(_bodies[1]) else global_position
+
+
 ## All corpses go away (a killcam replays the past: no bodies of the present may lie around).
 static func clear_all() -> void:
 	for r in _alive:
