@@ -121,6 +121,7 @@ var rig: HumanoidRig
 var _coyote: float = 0.0
 ## Flashbang reaction (0..1): the arm goes up in front of the face (visible for everybody, drives the first-person arm too).
 var flash_cover: float = 0.0
+var flash_daze: float = 0.0 # dazed vision (own view): follows the arm cover but fades out more slowly
 var _flash_t: float = -1.0
 var _flash_hold: float = 0.0
 var _flash_hand_rest: Dictionary = {}
@@ -790,6 +791,7 @@ func _update_flash_cover(delta: float) -> void:
 			_flash_t = -1.0
 			flash_cover = 0.0
 	rig.flash_cover = flash_cover
+	flash_daze = maxf(flash_cover, move_toward(flash_daze, 0.0, delta * 0.35))
 	# third-person copy of the weapon: the supporting hand goes to the face with the arm
 	var idx := weapon_manager.current_index
 	if not is_local and idx >= 0 and idx < weapon_manager._tp_models.size():

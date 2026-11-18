@@ -564,9 +564,11 @@ func _process(delta: float) -> void:
 	if GameSettings.weapon_sway and sprint_s > 0.01:
 		var sp := player.head.get_bob_phase()
 		var a2 := sprint_s * _walk_amp
+		# long strides: the swing from side to side takes two steps (half phase) and is wide, the vertical bob is small
 		var half := cos(sp * 0.5)
-		pos += Vector3(half * 0.03, sin(sp) * 0.022, sin(sp + 0.9) * 0.012) * a2
-		rot += Vector3(sin(sp + 0.6) * 0.045, half * 0.08, half * 0.07) * a2
+		var half_s := sin(sp * 0.5)
+		pos += Vector3(half * 0.058, cos(sp) * 0.012, half_s * 0.016) * a2
+		rot += Vector3(half_s * 0.05, half * 0.16, half * 0.12) * a2
 	# weapon kick: strongly damped while aiming so the iron sight stays in view
 	var kick_scale := lerpf(1.0, w.data.ads_kick_scale, _ads_blend)
 	pos += Vector3(0.0, _kick * 0.25, _kick) * kick_scale
@@ -599,10 +601,10 @@ func _update_arms(w: Weapon) -> void:
 				_flash_hand_rest = left_hand.position
 				_flash_hand_rot_rest = left_hand.rotation
 			var tm := Time.get_ticks_msec() / 1000.0
-			var jit := Vector3(sin(tm * 46.0) * 0.007, sin(tm * 58.0 + 1.0) * 0.006, sin(tm * 37.0) * 0.004) * cover # the arm trembles
+			var jit := Vector3(sin(tm * 6.5) * 0.006, sin(tm * 8.5 + 1.0) * 0.005, sin(tm * 5.0) * 0.003) * cover # the arm sways slowly, unsteadily
 			var target_world := to_global(Vector3(0.05, -0.01, -0.30) + jit)
 			left_hand.position = _flash_hand_rest.lerp(w.model.to_local(target_world), cover)
-			left_hand.rotation = _flash_hand_rot_rest + Vector3(-0.3, 0.2, 1.4 + sin(tm * 33.0) * 0.12) * cover
+			left_hand.rotation = _flash_hand_rot_rest + Vector3(-0.3, 0.2, 1.4 + sin(tm * 4.5) * 0.08) * cover
 		elif _flash_hand_active:
 			_flash_hand_active = false
 			left_hand.position = _flash_hand_rest

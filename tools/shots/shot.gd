@@ -406,9 +406,20 @@ func _game_ui(state: String) -> void:
 				if other.is_bot and other != bot and me.is_enemy_of(other):
 					local.take_damage(60.0, other.id, "mp5", local.get_center(), false, bot_node.global_position) # an assist
 					break
+			if "--pistol=1" in OS.get_cmdline_user_args():
+				bot_node.swap_primary("pistol", 12, 50)
+				bot_node.weapon_manager.current_index = 0
+				bot_node.weapon_manager._show_weapon(0, true)
+				for i in 6:
+					await get_tree().physics_frame
 			local.take_damage(9999.0, bot.id, "ak47", local.get_center(), true, bot_node.global_position)
 			for i in 20:
 				await get_tree().physics_frame
+			game._death_seq += 1 # (the death camera sequence takes 1.3 s real time: start the killcam directly)
+			game._stop_death_cam()
+			game._fade.color.a = 0.0
+			if not game._killcam_active:
+				game._start_killcam(bot.id)
 			var rec: ReplayRecorder = game.recorder
 			rec._cursor = float(rec.kill["t"]) - 0.3 # shortly before the fatal shot
 			rec._prev_cursor = rec._cursor
@@ -608,6 +619,7 @@ func _game_ui(state: String) -> void:
 			for i in 40:
 				await get_tree().physics_frame
 			game.flash_overlay.clear() # watching only: no whiteout in the picture
+			game.daze_overlay.set_amount(0.9, 0.5)
 		else:
 			Grenade.spawn_flash_fx(get_tree(), lp.global_position + Vector3(0.5, 1.2, 9.0), 0)
 			Engine.time_scale = 0.6 # software rendering is slow: the effect has to stay young

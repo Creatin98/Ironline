@@ -524,7 +524,7 @@ func animate(delta: float, vel_local: Vector3, on_floor: bool, crouching: bool, 
 
 ## World position in front of the face where the covering hand goes (right of the face: the left forearm crosses the eyes diagonally from lower left to upper right).
 func face_cover_point() -> Vector3:
-	var jit := Vector3(sin(_time * 44.0) * 0.008, sin(_time * 57.0) * 0.007, sin(_time * 35.0) * 0.004) * flash_cover
+	var jit := Vector3(sin(_time * 6.0) * 0.007, sin(_time * 8.0) * 0.006, sin(_time * 5.0) * 0.003) * flash_cover
 	return _head.to_global(Vector3(0.13, 0.17, -0.20) + jit)
 
 
