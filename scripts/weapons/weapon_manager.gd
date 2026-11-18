@@ -238,10 +238,10 @@ func process_input(input: PlayerInputState, delta: float) -> void:
 	if _grenade_timer > 0.0 and not _grenade_thrown and (input.select_primary or input.select_secondary or input.switch_pressed):
 		cancel_grenade(true)
 	if _grenade_timer <= 0.0 and (_switch_state == SwitchState.READY or _switch_state == SwitchState.RAISING):
-		if _switch_state == SwitchState.READY and input.grenade_pressed and grenades > 0 and not w.is_reloading():
+		if _switch_state == SwitchState.READY and input.grenade_pressed and grenades > 0:
 			_begin_grenade(Grenade.KIND_FRAG)
 			return
-		if _switch_state == SwitchState.READY and input.flash_pressed and flashbangs > 0 and not w.is_reloading():
+		if _switch_state == SwitchState.READY and input.flash_pressed and flashbangs > 0:
 			_begin_grenade(Grenade.KIND_FLASH)
 			return
 		if input.select_primary and current_index != 0:
@@ -355,7 +355,8 @@ func _begin_grenade(kind: int) -> void:
 		grenades -= 1
 	_grenade_timer = GRENADE_TOTAL_TIME
 	_grenade_thrown = false
-	get_current_weapon().cancel_actions()
+	get_current_weapon().cancel_actions() # a throw cancels a running reload
+	_stop_tp_reload()
 	if NetworkManager.is_host():
 		NetworkManager.broadcast_weapon_event(player.participant_id, "flash" if kind == Grenade.KIND_FLASH else "grenade")
 	_grenade_sound_idx = 0

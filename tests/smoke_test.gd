@@ -41,6 +41,7 @@ func _ready() -> void:
 	await _simulate_steps()
 	await _simulate_slide()
 	_check_ak_handle_and_stairs()
+	await _check_reload_cancel_and_coyote()
 	await _check_maps()
 	await _check_glass()
 	await _simulate_bots()
@@ -1604,8 +1605,8 @@ func _simulate_cams() -> void:
 		_fail("Killcam-Kamera ist nicht aktiv")
 	if not game.recorder.playing or not game.recorder.ghost_mode:
 		_fail("Die Killcam spielt keinen Replay (Geister-Spieler) ab")
-	if game._cam_name.text != bot.display_name:
-		_fail("Killcam zeigt den Namen des Moerders nicht (%s statt %s)" % [game._cam_name.text, bot.display_name])
+	if game._plate_name.text != bot.display_name:
+		_fail("Killcam zeigt den Namen des Moerders nicht (%s statt %s)" % [game._plate_name.text, bot.display_name])
 	# jump the replay to the moment of the kill: the recorded hit of the killer shows up as hitmarker
 	var kill_t: float = game.recorder.kill["t"]
 	game.recorder._prev_cursor = kill_t - 0.6
@@ -2206,3 +2207,57 @@ func _check_ak_handle_and_stairs() -> void:
 	var small := BlockMap.ramp(Vector3(0, 0, 0), Vector3(0, 0.3, 3), 3.0, "concrete")
 	if small.get("stairs", false):
 		_fail("Niedrige Rampen bleiben Rampen")
+
+
+## Reload: the ammo counts shortly before the animation ends and the rest can be cancelled by firing; a grenade throw
+## cancels a reload; a jump shortly after leaving an edge still works.
+func _check_reload_cancel_and_coyote() -> void:
+	var cfg := MatchConfig.new()
+	cfg.mode_id = MatchConfig.MODE_FFA
+	cfg.map_id = "test_arena"
+	cfg.bots_enabled = false
+	cfg.time_limit = 0.0
+	MatchManager.prepare_match(cfg)
+	var game: Node = (load("res://scenes/game/game.tscn") as PackedScene).instantiate()
+	add_child(game)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	MatchManager.warmup_left = 0.05
+	for i in 30:
+		await get_tree().physics_frame
+	var me := MatchManager.get_local_participant()
+	var pl := me.node as Player
+	pl.human_controller.deactivate()
+	var w := pl.weapon_manager.get_current_weapon()
+	w.magazine = 5
+	var reserve0 := w.reserve
+	w.start_reload()
+	var guard := 0
+	while w.magazine < w.data.magazine_size and guard < 600:
+		w.update(1.0 / 60.0)
+		guard += 1
+	if w.magazine != w.data.magazine_size or not w.is_reloading():
+		_fail("Reload: die Munition muss gutgeschrieben sein, solange die Animation noch laeuft (Mag %d, laedt %s)" % [w.magazine, str(w.is_reloading())])
+	if w.reserve != reserve0 - (w.data.magazine_size - 5):
+		_fail("Reload: Reserve falsch abgezogen")
+	w.cancel_actions()
+	if w.is_reloading() or w.magazine != w.data.magazine_size:
+		_fail("Reload: nach dem Abbruch muss die Waffe bereit sein und die volle Munition behalten")
+	# a cancel before the ammo counts gives nothing
+	w.magazine = 5
+	w.reserve = reserve0
+	w.start_reload()
+	for i in 10:
+		w.update(1.0 / 60.0)
+	w.cancel_actions()
+	if w.magazine != 5:
+		_fail("Reload: ein frueher Abbruch darf keine Munition geben")
+	# a grenade throw cancels a running reload
+	w.start_reload()
+	pl.weapon_manager.grenades = 2
+	pl.input.grenade_pressed = true
+	pl.weapon_manager.process_input(pl.input, 1.0 / 60.0)
+	if w.is_reloading():
+		_fail("Eine Granate muss das Nachladen abbrechen")
+	game.free()
+	await get_tree().process_frame

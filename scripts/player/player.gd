@@ -11,6 +11,7 @@ const WALK_SPEED := 5.6
 const SPRINT_SPEED := 7.7
 const CROUCH_SPEED := 2.9
 const JUMP_VELOCITY := 5.6
+const COYOTE_TIME := 0.08 # seconds after leaving an edge in which a jump still works
 const GRAVITY := 15.0
 const GROUND_ACCEL := 14.0
 const GROUND_DECEL := 16.0
@@ -105,6 +106,7 @@ var _step_distance: float = 0.0
 var _sprint_block_timer: float = 0.0
 var _team_material: StandardMaterial3D
 var rig: HumanoidRig
+var _coyote: float = 0.0
 var _replay_aiming: bool = false
 var _replay_kick: float = 0.0
 var _replay_kick_ms: int = 0
@@ -708,7 +710,14 @@ func _move(delta: float) -> void:
 		velocity.y -= GRAVITY * delta
 	velocity.x = horizontal.x
 	velocity.z = horizontal.z
-	if on_floor and input.jump_pressed:
+	# Coyote time: a jump just after running off an edge still works (like in Call of Duty: you can leave the
+	# ground "one pixel" later than the surface actually ends)
+	if on_floor:
+		_coyote = COYOTE_TIME
+	else:
+		_coyote = maxf(0.0, _coyote - delta)
+	if (on_floor or (_coyote > 0.0 and velocity.y <= 0.5)) and input.jump_pressed:
+		_coyote = 0.0
 		velocity.y = JUMP_VELOCITY
 		if is_local:
 			AudioManager.play_2d("jump", -8.0)

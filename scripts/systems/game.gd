@@ -54,6 +54,8 @@ var _plate_stripe: ColorRect
 var _plate_name: Label
 var _plate_detail: Label
 var _plate_assist: Label
+var _plate_hint: Label
+var _bar_title: Label
 var _death_seq: int = 0 # invalidates a running death sequence (respawn, round end)
 var _replay_active: bool = false
 var _cam_ui: Control
@@ -461,7 +463,8 @@ func _build_bars() -> void:
 	title_row.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	for side in 3:
 		if side == 1:
-			title_row.add_child(UITheme.label("LETZTER ABSCHUSS", 56, UITheme.ACCENT, HORIZONTAL_ALIGNMENT_CENTER))
+			_bar_title = UITheme.label("LETZTER ABSCHUSS", 56, UITheme.ACCENT, HORIZONTAL_ALIGNMENT_CENTER)
+			title_row.add_child(_bar_title)
 		else:
 			var rule := ColorRect.new()
 			rule.color = Color(0.97, 0.63, 0.16, 0.7)
@@ -496,14 +499,19 @@ func _build_bars() -> void:
 	col.add_child(_plate_detail)
 	_plate_assist = UITheme.label("", 17, Color(0.5, 0.78, 1.0))
 	col.add_child(_plate_assist)
+	_plate_hint = UITheme.label("", 17, UITheme.TEXT_DIM)
+	col.add_child(_plate_hint)
 
 
 ## Last kill cam vs. killcam: which labels are shown.
 func _set_cam_mode(last_kill: bool) -> void:
-	_bars.visible = last_kill
+	# both cams use the cinema bars with the plate of the shooter; only the title differs
+	_bars.visible = true
 	for l in [_cam_title, _cam_name, _cam_detail, _cam_assist, _cam_hint]:
-		l.visible = not last_kill
-	_bars_anim = 0.0 if last_kill else _bars_anim
+		l.visible = false
+	_bar_title.text = "LETZTER ABSCHUSS" if last_kill else "KILLCAM"
+	_plate_hint.text = ""
+	_bars_anim = 0.0
 
 
 func _fill_plate(kill: Dictionary) -> void:
@@ -612,8 +620,7 @@ func _start_killcam(killer_id: int) -> bool:
 	hud.visible = false
 	_cam.fov = GameSettings.fov
 	_set_cam_mode(false)
-	_cam_title.text = "KILLCAM"
-	_fill_cam_info(kill, false)
+	_fill_plate(kill)
 	_cam_hint.text = ""
 	_cam_ui.visible = true
 	return true
@@ -674,7 +681,8 @@ func _update_killcam(delta: float) -> void:
 	else:
 		_dead_elapsed = 0.0
 	if _replay_active and recorder.playing:
-		_cam.fov = recorder.last_kill_fov(lerpf(GameSettings.fov, recorder.killer_ads_fov(), recorder.killer_aim))
+		# no zoom towards the victim: the killer's weapon must look exactly as in the game
+		_cam.fov = lerpf(GameSettings.fov, recorder.killer_ads_fov(), recorder.killer_aim)
 		_cam_cross.queue_redraw()
 	if not _killcam_active:
 		return
@@ -685,6 +693,7 @@ func _update_killcam(delta: float) -> void:
 	if _dead_elapsed >= KILLCAM_SKIP_AFTER:
 		hint += "     •     Leertaste: überspringen"
 	_cam_hint.text = hint
+	_plate_hint.text = hint
 
 
 func _death_camera(killer_id: int) -> void:

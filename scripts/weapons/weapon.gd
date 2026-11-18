@@ -51,6 +51,7 @@ var _cycle_index: int = 0 # shell cycles since the reload started
 var fire_queue_t: float = 0.0
 var _slide_timer: float = 0.0
 var _pump_rest: Vector3 = Vector3.ZERO
+var _reload_committed: bool = false
 var _handle_node: Node3D
 var _handle_rest: Vector3 = Vector3.ZERO
 var _handle_t: float = 0.0 # remaining time of the handle's back-and-forth after a shot
@@ -139,6 +140,7 @@ func holster() -> void:
 
 
 func cancel_actions() -> void:
+	_reload_committed = false
 	if state == State.RELOADING or state == State.PUMPING or state == State.RELOAD_EXIT:
 		_set_state(State.IDLE, 0.0)
 	fire_queue_t = 0.0
@@ -286,6 +288,11 @@ func get_spread_degrees(is_aiming: bool, move_ratio: float, in_air: bool, crouch
 
 
 func try_fire(is_aiming: bool, move_ratio: float, in_air: bool, crouching: bool) -> bool:
+	if state == State.RELOADING and _reload_committed and not data.reload_single_shells:
+		cancel_actions() # the ammo is already in: shooting cancels the rest of the animation
+		if is_local or MatchManager.is_authority():
+			if is_inside_tree() and player.weapon_manager != null:
+				player.weapon_manager.stop_tp_reload()
 	if state == State.RELOADING:
 		# shells are loaded one by one: whatever is already in the tube can be fired, the reload is interrupted
 		if data.reload_single_shells and magazine > 0:
@@ -382,6 +389,7 @@ func try_fire(is_aiming: bool, move_ratio: float, in_air: bool, crouching: bool)
 
 ## Bolt cycle after a shot: the right hand takes the handle, lifts it, pulls the bolt back (the case flies out),
 ## pushes it forward, locks it down and returns to the grip; two sounds at the hard moments.
+const RELOAD_COMMIT := 0.86 # the magazine counts at this point of the animation; the rest can be cancelled (Call of Duty)
 const BOLT_REST := -0.55 # the handle hangs down to the right at rest (clearly visible)
 const BOLT_LIFT := 0.85 # radians it is turned up from there (stays clear of the scope)
 const BOLT_TRAVEL := 0.075 # metres the bolt slides back
@@ -496,6 +504,7 @@ func start_reload() -> bool:
 	if NetworkManager.is_host():
 		NetworkManager.broadcast_weapon_event(player.participant_id, "reload")
 	_shell_inserted = false
+	_reload_committed = false
 	_cycle_index = 0
 	fire_queue_t = 0.0
 	_reload_elapsed = 0.0
@@ -534,6 +543,13 @@ func _update_reload(delta: float) -> void:
 	# the shell counts the moment it is pushed in (not at the end of the cycle): an interrupted reload keeps it
 	if data.reload_single_shells and not _shell_inserted and t >= ReloadRig.SHELL_INSERT_T:
 		_insert_shell()
+	# magazine weapons: the ammo counts shortly BEFORE the animation ends, the last stretch is only show and can be cancelled
+	if not data.reload_single_shells and not _reload_committed and t >= RELOAD_COMMIT:
+		_reload_committed = true
+		var needed0 := data.magazine_size - magazine
+		var taken0 := mini(needed0, reserve)
+		magazine += taken0
+		reserve -= taken0
 	if _state_timer > 0.0:
 		return
 	# cycle complete
@@ -550,11 +566,12 @@ func _update_reload(delta: float) -> void:
 				rig.apply(0.0, tilt) # next shell: restart the cycle
 				rig._last_t = -1.0
 			return
-	else:
+	elif not _reload_committed:
 		var needed := data.magazine_size - magazine
 		var taken := mini(needed, reserve)
 		magazine += taken
 		reserve -= taken
+	_reload_committed = false
 	if rig:
 		rig.reset()
 	anim_offset = Vector3.ZERO
