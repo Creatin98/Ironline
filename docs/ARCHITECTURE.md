@@ -436,6 +436,7 @@ Python-Skripten in `tools/` erzeugt – keine Fremdinhalte, alles reproduzierbar
   und einen Granatenwurf (Granate zünden, Ausholen hinter die Schulter, Wurf; Waffe ist währenddessen weg). Alles aus bereits synchronisierten Zuständen (Snapshot-Flags, Waffen-Events) bzw. dem neuen,
   gedrosselten Event `hit_react` (`NetworkManager.broadcast_hit_react`, Protokoll 9) - keine Animationsframes im Netz.
 * **Ragdoll:** `Ragdoll` ersetzt beim Tod den Körper in derselben Pose durch 11 RigidBodies mit Generic6DOF-Gelenken (Knie/Ellbogen einseitig). Stoß weg vom Schützen je Waffe (`Player.DEATH_PUSH`), Kopfschuss
+  Kopfschuss-Kill: der Kopf wird abgetrennt (ohne Gelenk, springt/rollt, schrumpft nach 5,5 s weg), Halsstumpf am Torso mit Blutfontäne; Granaten schleudern weg vom Explosionszentrum (`_last_damage_source`).
   schlägt den Kopf zurück, Explosionen werfen hoch. Nur Welt-Kollision (Layer 5), nach 4 s eingefroren, nach 9 s ausgeblendet, max. 8 gleichzeitig. Impulse erst nach den ersten Physik-Schritten (Massen).
 * **Nachladehinweis:** `HUD._update_reload_hint` - „R ZUM NACHLADEN“ ab `RELOAD_HINT_FRACTION` (25 %, mind. 2 Schuss) des Magazins; leer = größer, rot, pulsierend; weg beim Nachladen/Wechseln/Granate.
 * **Bot-Verhalten menschlicher (Schwierigkeitswerte unverändert):** Fadenkreuz wandert vom aktuellen Blick zum Gegner (kein Snap), folgt Bewegung mit kleinem Nachlauf, gedrosselte/geglättete Drehung,

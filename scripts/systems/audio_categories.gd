@@ -37,7 +37,7 @@ const ENTRIES: Array[Dictionary] = [
 ## Exact file name -> category id.
 const EXACT_SOUNDS := {
 	"pump": "reload", "shell_insert": "reload",
-	"weapon_switch": "handling", "empty_click": "handling",
+	"weapon_switch": "handling", "empty_click": "handling", "ammo_stow": "handling",
 	"jump": "movement", "land": "movement", "slide": "movement",
 	"hitmarker": "hitmarker", "hitmarker_headshot": "headshot",
 	"kill_confirm": "kill", "kill_headshot": "kill",

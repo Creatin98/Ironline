@@ -111,7 +111,7 @@ static func burst(parent: Node3D, pos: Vector3, dir: Vector3, scale: float = 1.0
 	var space := parent.get_world_3d().direct_space_state
 	var rng := RandomNumberGenerator.new()
 	rng.randomize()
-	var count := 1 + int(round(2.0 * scale))
+	var count := 2 + int(round(3.0 * scale))
 	for i in count:
 		var d := dir
 		var reach := 3.2
@@ -148,12 +148,12 @@ static func _spawn_particles(parent: Node3D, pos: Vector3, dir: Vector3, scale: 
 	p.mesh = _particle_mesh
 	p.one_shot = true
 	p.explosiveness = 0.95
-	p.amount = maxi(4, int(22.0 * scale * GameSettings.effects_scale()))
+	p.amount = maxi(4, int(36.0 * scale * GameSettings.effects_scale()))
 	p.lifetime = 0.7
 	p.direction = dir
 	p.spread = 38.0
 	p.initial_velocity_min = 1.5
-	p.initial_velocity_max = 6.0
+	p.initial_velocity_max = 7.5
 	p.gravity = Vector3(0.0, -11.0, 0.0)
 	p.scale_amount_min = 0.5
 	p.scale_amount_max = 1.8

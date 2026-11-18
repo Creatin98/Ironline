@@ -120,6 +120,7 @@ var _est_vel: Vector3 = Vector3.ZERO
 var _death_tween: Tween
 var _hands_pitch: float = 0.0
 var _last_hit_react_msec: int = 0
+var _last_damage_source: Vector3 = Vector3.INF # where the last damage came from (explosion centre), host/local only
 ## Weapon -> how hard the body is thrown when it dies (ragdoll).
 const DEATH_PUSH := {"pistol": 0.7, "mp5": 0.8, "ak47": 1.0, "shotgun": 1.7, "sniper": 1.8, "grenade": 2.0, "flashbang": 0.6}
 var _walk_phase: float = 0.0
@@ -434,7 +435,12 @@ func _play_death_animation(attacker_id: int = 0, weapon_id: String = "", headsho
 	if killer != null and killer.node != null and is_instance_valid(killer.node) and killer.node != self:
 		from = global_position - (killer.node as Node3D).global_position
 	from.y = 0.0
+	if weapon_id == "grenade" and _last_damage_source != Vector3.INF:
+		from = global_position - _last_damage_source # blown away from the explosion, not from the thrower
+		from.y = 0.0
 	var push := from.normalized() if from.length() > 0.1 else (global_transform.basis * Vector3(0, 0, 1)) # no shooter: falls backwards
+	if weapon_id in ["shotgun", "sniper", "grenade"] or headshot:
+		BloodFx.burst(get_parent(), get_center(), push, 1.5) # a heavy kill: extra spray
 	Ragdoll.spawn(rig, get_parent(), _est_vel, push, float(DEATH_PUSH.get(weapon_id, 1.0)), headshot)
 	body.hide()
 
@@ -478,6 +484,7 @@ func take_damage(amount: float, attacker_id: int, weapon_id: String, hit_positio
 	var me := MatchManager.get_participant(participant_id)
 	if attacker != null and me != null and attacker_id != participant_id and not attacker.is_enemy_of(me):
 		return false # kein Friendly Fire
+	_last_damage_source = source_position
 	var killed := health.apply_damage(amount, attacker_id, weapon_id, headshot)
 	if not killed:
 		_announce_hit_react(source_position, amount, headshot)

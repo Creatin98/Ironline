@@ -11,11 +11,13 @@ const MAX_ALIVE := 8
 const FREEZE_AFTER := 4.0 # the bodies are frozen then (no more cost)
 const LIFETIME := 9.0
 const FADE := 1.0
+const HEAD_LIFETIME := 5.5 # a severed head lies around a little shorter than the body, then shrinks away
 
 static var _alive: Array = []
 
 var _bodies: Array[RigidBody3D] = []
 var _visuals: Array[MeshInstance3D] = []
+var _head_visuals: Array[MeshInstance3D] = []
 var _age: float = 0.0
 var _frozen: bool = false
 var _push: Vector3 = Vector3.ZERO
@@ -42,7 +44,9 @@ func _build(rig: HumanoidRig, velocity: Vector3, push: Vector3, strength: float,
 	var phys := PhysicsMaterial.new()
 	phys.friction = 0.9
 	phys.bounce = 0.05
+	var seg_i := -1
 	for seg in segs:
+		seg_i += 1
 		var node: Node3D = seg["node"]
 		var body := RigidBody3D.new()
 		body.mass = float(seg["mass"])
@@ -51,6 +55,13 @@ func _build(rig: HumanoidRig, velocity: Vector3, push: Vector3, strength: float,
 		body.linear_damp = 0.35
 		body.angular_damp = 2.2
 		body.physics_material_override = phys
+		if headshot and seg_i == 2: # severed head: rolls and bounces
+			var hp := PhysicsMaterial.new()
+			hp.friction = 0.55
+			hp.bounce = 0.3
+			body.physics_material_override = hp
+			body.angular_damp = 0.7
+			body.linear_damp = 0.15
 		body.can_sleep = true
 		add_child(body)
 		body.global_transform = node.global_transform
@@ -71,14 +82,16 @@ func _build(rig: HumanoidRig, velocity: Vector3, push: Vector3, strength: float,
 			copy.transform = mi.transform
 			body.add_child(copy)
 			_visuals.append(copy)
+			if headshot and seg_i == 2:
+				_head_visuals.append(copy)
 		body.linear_velocity = velocity
 		_bodies.append(body)
 	# joints with limits: knees and elbows bend one way only
 	for i in segs.size():
 		var seg: Dictionary = segs[i]
 		var pi: int = seg["parent"]
-		if pi < 0:
-			continue
+		if pi < 0 or (headshot and i == 2):
+			continue # a severed head has no joint any more
 		var a := _bodies[pi]
 		var b := _bodies[i]
 		var joint := Generic6DOFJoint3D.new()
@@ -95,6 +108,57 @@ func _build(rig: HumanoidRig, velocity: Vector3, push: Vector3, strength: float,
 	_push = push
 	_strength = strength
 	_headshot = headshot
+	if headshot:
+		_sever_head()
+
+
+## Headshot kill: a raw neck stump on the torso and fountains of blood from the neck and the flying head.
+func _sever_head() -> void:
+	var torso := _bodies[1]
+	var stump := MeshInstance3D.new()
+	var bm := BoxMesh.new()
+	bm.size = Vector3(0.11, 0.07, 0.11)
+	stump.mesh = bm
+	var m := StandardMaterial3D.new()
+	m.albedo_color = Color(0.32, 0.015, 0.015)
+	m.roughness = 0.35
+	stump.material_override = m
+	stump.position = Vector3(0, 0.55, 0)
+	torso.add_child(stump)
+	_visuals.append(stump)
+	_emit_blood(torso, Vector3(0, 0.57, 0), 1.6, 70)
+	_emit_blood(_bodies[2], Vector3(0, 0.03, 0), 0.8, 36)
+	BloodFx.burst(get_parent(), torso.global_transform * Vector3(0, 0.57, 0), Vector3.UP, 1.8)
+
+
+func _emit_blood(body: Node3D, at: Vector3, seconds: float, amount: int) -> void:
+	var p := CPUParticles3D.new()
+	var mesh := SphereMesh.new()
+	mesh.radius = 0.03
+	mesh.height = 0.06
+	mesh.radial_segments = 6
+	mesh.rings = 3
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color(0.5, 0.02, 0.02)
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mesh.material = mat
+	p.mesh = mesh
+	p.amount = maxi(8, int(float(amount) * GameSettings.effects_scale()))
+	p.lifetime = 0.7
+	p.direction = Vector3.UP
+	p.spread = 28.0
+	p.initial_velocity_min = 1.5
+	p.initial_velocity_max = 4.5
+	p.gravity = Vector3(0.0, -11.0, 0.0)
+	p.scale_amount_min = 0.5
+	p.scale_amount_max = 1.7
+	p.explosiveness = 0.0
+	p.emitting = true
+	body.add_child(p)
+	p.position = at
+	get_tree().create_timer(seconds).timeout.connect(func() -> void:
+		if is_instance_valid(p):
+			p.emitting = false)
 
 
 ## The push (after the first physics step: only then the bodies know their mass, an earlier impulse would act on 1 kg).
@@ -109,10 +173,10 @@ func _apply_push() -> void:
 	if headshot:
 		var head := _bodies[2]
 		head.apply_central_impulse((dir * 5.5 + Vector3.UP * 1.8) * head.mass)
-		head.apply_torque_impulse(Vector3(-dir.z, 0.0, dir.x) * 2.2 * head.mass * 0.1)
+		head.angular_velocity = Vector3(randf_range(-9.0, 9.0), randf_range(-5.0, 5.0), randf_range(-9.0, 9.0))
 		torso.apply_central_impulse(dir * 1.8 * torso.mass)
 	if strength > 1.7: # explosion: thrown up
-		torso.apply_central_impulse(Vector3.UP * 3.0 * torso.mass)
+		torso.apply_central_impulse((Vector3.UP * 4.2 + dir * 2.0) * torso.mass)
 		torso.apply_torque_impulse(Vector3(randf_range(-1, 1), randf_range(-1, 1), randf_range(-1, 1)) * torso.mass * 0.6)
 
 
@@ -142,8 +206,15 @@ func _physics_process(delta: float) -> void:
 		_apply_push()
 	if not _frozen and _age >= FREEZE_AFTER:
 		_frozen = true
-		for b in _bodies:
-			b.freeze = true # lies where it fell, costs nothing any more
+		for bi in _bodies.size():
+			if not (_headshot and bi == 2): # the severed head keeps rolling a little longer
+				_bodies[bi].freeze = true # lies where it fell, costs nothing any more
+	if _headshot and _age >= HEAD_LIFETIME - FADE and _age < LIFETIME:
+		var hk := clampf((HEAD_LIFETIME - _age) / FADE, 0.0, 1.0)
+		for v in _head_visuals:
+			v.scale = Vector3.ONE * maxf(hk, 0.01)
+		if _age >= HEAD_LIFETIME - 0.3:
+			_bodies[2].freeze = true
 	if _age >= LIFETIME - FADE:
 		var k := clampf((LIFETIME - _age) / FADE, 0.0, 1.0)
 		for v in _visuals:

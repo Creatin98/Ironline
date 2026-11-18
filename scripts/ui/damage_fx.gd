@@ -144,8 +144,8 @@ func _spawn_splats(amount: float) -> void:
 			sp["size"] = randf_range(220.0, 420.0) * k
 			sp["rot"] = randf() * TAU
 		else:
-			sp["kind"] = 6 if roll < 0.6 else 2 # sprays only: no lone smears or blobs (they looked like fingerprints)
-			sp["size"] = randf_range(260.0, 560.0) * k
+			sp["kind"] = 6 if roll < 0.8 else 2 # sprays only: no lone smears or blobs (they looked like fingerprints)
+			sp["size"] = randf_range(180.0, 640.0) * k * (1.0 if randf() < 0.7 else 0.55)
 			sp["rot"] = randf() * TAU
 			sp["vy"] = 0.0
 		if int(sp["kind"]) == 1:
@@ -154,7 +154,7 @@ func _spawn_splats(amount: float) -> void:
 	# extra sprays: coarse big drops and sometimes a second small fine mist
 	for extra in 2:
 		splats.append({"kind": 6, "p": _edge_biased(s), "age": 0.0, "vy": randf_range(4.0, 14.0) * k, "size": randf_range(300.0, 600.0) * k, "rot": randf() * TAU})
-	if randf() < 0.7:
+	if randf() < 0.3:
 		splats.append({"kind": 2, "p": _edge_biased(s), "age": 0.0, "vy": randf_range(4.0, 14.0) * k, "size": randf_range(120.0, 200.0) * k, "rot": randf() * TAU})
 	# a few dirt specks and fine scratches on the glass
 	if randf() < 0.9:
