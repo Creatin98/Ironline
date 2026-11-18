@@ -712,7 +712,7 @@ func set_spectator(on: bool) -> void:
 		(_blocks[k]["node"] as Control).visible = not on
 	crosshair.visible = not on
 	if on:
-		hint_label.text = "ZUSCHAUER   WASD fliegen  •  Leertaste hoch  •  Strg runter  •  Shift schnell  •  Mausrad Tempo  •  F1 HUD aus/an  •  F2 Screenshot"
+		hint_label.text = "ZUSCHAUER   WASD fliegen  •  Leertaste hoch  •  Strg runter  •  Shift schnell  •  Mausrad Tempo  •  F1 HUD aus/an"
 		get_tree().create_timer(12.0).timeout.connect(func() -> void: if is_instance_valid(hint_label): hint_label.text = "")
 
 

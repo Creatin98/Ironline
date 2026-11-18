@@ -43,6 +43,7 @@ var _outline_color: Color = Color(-1, 0, 0)
 
 ## Flashbang: 0..1, the left arm covers the face.
 var flash_cover: float = 0.0
+var lean: float = 0.0 # -1 left .. +1 right (corner lean)
 var _phase: float = 0.0
 var _time: float = 0.0
 var _crouch: float = 0.0
@@ -498,7 +499,8 @@ func animate(delta: float, vel_local: Vector3, on_floor: bool, crouching: bool, 
 		var wind := smoothstep(0.35, 0.58, throw_progress) - smoothstep(0.62, 0.78, throw_progress)
 		twist = -0.55 * wind
 	_spine.rotation.x = _spine_lean + _hit.x + 0.06 * _kick
-	_spine.rotation.z = sin(_time * 1.7) * 0.012 + (-vel_local.x * 0.012) + _hit.y
+	_spine.rotation.z = sin(_time * 1.7) * 0.012 + (-vel_local.x * 0.012) + _hit.y - lean * 0.2
+	_pelvis.position.x = lean * 0.07
 	_spine.rotation.y = _hit.z + twist
 	_head.rotation.x = clampf(pitch, -1.2, 1.2) * 0.75 - _spine.rotation.x * 0.7 + _head_snap.x
 	_head.rotation.z = _head_snap.y

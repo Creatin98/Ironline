@@ -144,7 +144,7 @@ tests/         Headless-Smoke-Test
 
 ## Zuschauer-Modus
 
-Im Menü „Training (Offline)“ startet **Zuschauer (freie Kamera)** ein Bot-Match (volle Besetzung), in dem du unsichtbar und unverwundbar frei fliegst: WASD, Leertaste hoch, Strg runter, Shift schnell, Mausrad ändert das Tempo, **F1** blendet das HUD aus/ein, **F2** speichert einen Screenshot (`user://screenshots`, der Pfad wird eingeblendet).
+Im Menü „Training (Offline)“ startet **Zuschauer (freie Kamera)** ein Bot-Match (volle Besetzung), in dem du unsichtbar und unverwundbar frei fliegst: WASD, Leertaste hoch, Strg runter, Shift schnell, Mausrad ändert das Tempo, **F1** blendet das HUD aus/ein.
 
 ## Trainingsarena
 

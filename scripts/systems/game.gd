@@ -247,18 +247,9 @@ func _training_supply(delta: float) -> void:
 	wm._emit_local_state()
 
 
-## Spectator: only the camera is ours. F1 hides the HUD, F2 saves a screenshot (user://screenshots).
+## Spectator: only the camera is ours. F1 hides the HUD.
 func _setup_spectator_ui() -> void:
 	hud.set_spectator(true)
-
-
-func _save_screenshot() -> void:
-	var img := get_viewport().get_texture().get_image()
-	DirAccess.make_dir_recursive_absolute("user://screenshots")
-	var path := "user://screenshots/ironline_%s.png" % Time.get_datetime_string_from_system().replace(":", "-")
-	img.save_png(path)
-	hud.sub_label.text = "Screenshot: %s" % ProjectSettings.globalize_path(path)
-	get_tree().create_timer(4.0).timeout.connect(func() -> void: hud.sub_label.text = "")
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -266,8 +257,6 @@ func _unhandled_input(event: InputEvent) -> void:
 		if event is InputEventKey and event.pressed and not event.echo:
 			if (event as InputEventKey).keycode == KEY_F1:
 				hud.visible = not hud.visible
-			elif (event as InputEventKey).keycode == KEY_F2:
-				_save_screenshot()
 	if event.is_action_pressed("pause") and hud.is_editing():
 		hud.end_edit() # Esc leaves the HUD editor and returns to the pause menu
 		get_viewport().set_input_as_handled()

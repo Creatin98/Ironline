@@ -21,6 +21,7 @@ var recoil_recovery: float = 9.0
 var _bob_time: float = 0.0
 var _bob_roll: float = 0.0
 var _sprint_blend: float = 0.0
+var lean: float = 0.0 # corner lean (-1 left .. +1 right): the head moves sideways and tilts
 
 
 func get_sprint_blend() -> float:
@@ -122,8 +123,8 @@ func update_camera(delta: float, horizontal_speed: float, on_floor: bool, eye_he
 		shake_rot = Vector3(randf_range(-1, 1), randf_range(-1, 1), randf_range(-1, 1)) * _shake * 0.01
 		_shake = maxf(0.0, _shake - delta * 4.0)
 
-	camera.position = _bob_offset + Vector3(0.0, _land_dip, 0.0) + shake_offset
-	camera.rotation = Vector3(deg_to_rad(recoil_offset.x) - 0.3 * fall, deg_to_rad(recoil_offset.y), _bob_roll - 0.04 * slide_s + 1.3 * fall) + shake_rot
+	camera.position = _bob_offset + Vector3(lean * 0.13, _land_dip - absf(lean) * 0.02, 0.0) + shake_offset
+	camera.rotation = Vector3(deg_to_rad(recoil_offset.x) - 0.3 * fall, deg_to_rad(recoil_offset.y), _bob_roll - 0.04 * slide_s + 1.3 * fall - lean * 0.075) + shake_rot
 
 	# --- FOV ---
 	var ads_target := 1.0 if is_aiming else 0.0

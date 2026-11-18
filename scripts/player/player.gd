@@ -52,6 +52,10 @@ var is_crouching: bool = false
 var is_sliding: bool = false
 var _slide_len: float = SLIDE_TIME
 var spectating: bool = false
+## Natural lean at corners: -1 = left .. +1 = right (computed on every machine from the geometry, so everybody sees it).
+var lean: float = 0.0
+var _lean_target: float = 0.0
+var _lean_t: float = 0.0
 var fly_speed: float = 14.0
 var _slide_buffer: float = 0.0
 var _air_sprint: bool = false
@@ -699,9 +703,41 @@ func _process(delta: float) -> void:
 
 ## Cheap procedural animation of the visible body: walking bob, sprint lean,
 ## and the held weapon follows the view pitch.
+## A wall right beside the player whose end is just ahead (a corner): the body leans a little towards the open side, as
+## you do when you peek around a corner while walking. Four short rays (sideways and slightly forward, both sides).
+func _update_lean(delta: float) -> void:
+	_lean_t -= delta
+	var spd := Vector2(_est_vel.x, _est_vel.z).length() # works for remote players, bots and the killcam alike
+	if _lean_t <= 0.0:
+		_lean_t = 0.06
+		_lean_target = 0.0
+		if alive and spd > 0.8 and not is_sliding and not spectating:
+			var space := get_world_3d().direct_space_state
+			var o := global_position + Vector3(0, 1.2, 0)
+			var fwd := -global_transform.basis.z
+			var right := global_transform.basis.x
+			for side in [-1.0, 1.0]:
+				var q_side := PhysicsRayQueryParameters3D.create(o, o + right * side * 1.0, 1)
+				var hit_side := space.intersect_ray(q_side)
+				if hit_side.is_empty():
+					continue
+				var diag: Vector3 = (fwd * 0.94 + right * side * 0.34).normalized()
+				if not space.intersect_ray(PhysicsRayQueryParameters3D.create(o, o + diag * 2.6, 1)).is_empty():
+					continue # the wall goes on ahead: no corner
+				if not space.intersect_ray(PhysicsRayQueryParameters3D.create(o, o + fwd * 1.4, 1)).is_empty():
+					continue
+				var closeness := 1.0 - clampf(o.distance_to(hit_side["position"]) / 1.0, 0.0, 1.0)
+				_lean_target = side * (0.45 + 0.55 * closeness) * clampf(spd / 3.0, 0.4, 1.0)
+				break
+	lean = lerpf(lean, _lean_target, minf(1.0, delta * (5.0 if absf(_lean_target) > absf(lean) else 4.0)))
+	rig.lean = lean
+	head.lean = lean
+
+
 func _animate_body(delta: float) -> void:
 	if delta <= 0.0:
 		return
+	_update_lean(delta)
 	# velocity from the actual movement (works for local, remote, bots and replay ghosts alike)
 	var v := (global_position - _last_pos) / delta
 	_last_pos = global_position

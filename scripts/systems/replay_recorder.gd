@@ -408,5 +408,6 @@ func _apply(t: float, first: bool) -> void:
 		_camera.global_transform = Transform3D(Basis.from_euler(Vector3(kpitch, kyaw, 0.0), EULER_ORDER_YXZ), kpos + Vector3(0.0, eye, 0.0))
 		var kn: Player = _targets[_killer_id]
 		if kn != null and is_instance_valid(kn):
+			_camera.global_transform = _camera.global_transform * Transform3D(Basis(Vector3.BACK, -kn.lean * 0.075), Vector3(kn.lean * 0.13, 0.0, 0.0)) # the killer's corner lean
 			kn.replay_viewmodel(killer_aim, _camera.global_transform)
 			_update_arms(kn)

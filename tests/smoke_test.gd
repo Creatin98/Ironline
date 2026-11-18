@@ -46,6 +46,7 @@ func _ready() -> void:
 	_check_hit_zones()
 	await _check_spectator()
 	await _check_training()
+	await _check_lean()
 	await _check_maps()
 	await _check_glass()
 	await _simulate_bots()
@@ -2433,3 +2434,35 @@ func _check_training() -> void:
 	game.free()
 	await get_tree().process_frame
 	print("Trainingsarena: Dummys, Trefferzonen-Anzeige OK")
+
+
+func _check_lean() -> void:
+	var cfg := MatchConfig.new()
+	cfg.mode_id = MatchConfig.MODE_FFA
+	cfg.map_id = "test_arena"
+	cfg.bots_enabled = false
+	cfg.time_limit = 0.0
+	MatchManager.prepare_match(cfg)
+	var game: Node = (load("res://scenes/game/game.tscn") as PackedScene).instantiate()
+	add_child(game)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	MatchManager.warmup_left = 0.05
+	for i in 40:
+		await get_tree().physics_frame
+	var pl: Player = MatchManager.get_local_participant().node as Player
+	pl.human_controller.deactivate()
+	# the west block of the arena (x -12..-6, z -11.5..-4.5): walk along its south wall past the corner
+	pl.global_position = Vector3(-8.0, 0.1, -3.4)
+	pl.rotation.y = deg_to_rad(90.0) # walking west (-x), the wall is on the right
+	var peak := 0.0
+	for i in 90:
+		pl.input.move = Vector2(0, 1)
+		await get_tree().physics_frame
+		peak = maxf(peak, absf(pl.lean))
+	pl.input.move = Vector2.ZERO
+	if peak < 0.1:
+		_fail("Ecken-Lehnen: kein Lehnen an der Hausecke (max %.2f)" % peak)
+	game.free()
+	await get_tree().process_frame
+	print("Ecken-Lehnen: lehnt an der Hausecke OK")
