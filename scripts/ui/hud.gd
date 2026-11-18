@@ -69,6 +69,7 @@ func _ready() -> void:
 	GameEvents.local_player_scored.connect(_on_scored)
 	GameEvents.local_weapon_changed.connect(_on_weapon_changed)
 	GameEvents.local_ammo_changed.connect(_on_ammo_changed)
+	GameEvents.local_ammo_picked.connect(_on_ammo_picked)
 	GameEvents.local_grenades_changed.connect(_on_grenades_changed)
 	GameEvents.local_flashbangs_changed.connect(_on_flashbangs_changed)
 	GameEvents.local_health_changed.connect(_on_health_changed)
@@ -684,6 +685,16 @@ func _update_reload_hint(delta: float) -> void:
 func _on_ammo_changed(magazine: int, reserve: int) -> void:
 	ammo_label.text = "%d | %d" % [magazine, reserve]
 	ammo_label.add_theme_color_override("font_color", UITheme.DANGER if magazine == 0 else (UITheme.ACCENT if magazine <= 5 else UITheme.TEXT))
+
+
+## Subtle feedback for a picked-up magazine: the ammo display glows briefly in a soft green and pops a little.
+func _on_ammo_picked(_amount: int) -> void:
+	ammo_label.pivot_offset = Vector2(ammo_label.size.x, ammo_label.size.y * 0.5)
+	ammo_label.modulate = Color(0.65, 1.0, 0.75)
+	ammo_label.scale = Vector2(1.1, 1.1)
+	var tw := ammo_label.create_tween().set_parallel(true)
+	tw.tween_property(ammo_label, "modulate", Color.WHITE, 0.7)
+	tw.tween_property(ammo_label, "scale", Vector2.ONE, 0.35).set_trans(Tween.TRANS_SINE)
 
 
 func _on_grenades_changed(count: int) -> void:

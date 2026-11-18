@@ -532,6 +532,17 @@ func _game_ui(state: String) -> void:
 					(c as LensFlare).queue_redraw()
 		get_tree().paused = true
 		await get_tree().process_frame
+	if state == "pickup":
+		# weapons lying on the floor (outline), one still falling
+		var lp2 := me.node as Player
+		lp2.human_controller.deactivate()
+		var base := lp2.global_position + Vector3(0.0, 0.0, 4.0)
+		game.spawn_pickup(901, "ak47", 12, 60, base + Vector3(-0.6, 0, 0), 0.4)
+		game.spawn_pickup(902, "mp5", 20, 60, base + Vector3(0.9, 0, 0.5), -0.8)
+		for i in 60:
+			await get_tree().physics_frame
+		get_tree().paused = true
+		await get_tree().process_frame
 	if state == "flashanim" or state == "flashbang":
 		# flashanim: the first-person arm in front of the eyes and a flashed bot; flashbang: the detonation seen from a few metres
 		var lp := me.node as Player
@@ -547,6 +558,7 @@ func _game_ui(state: String) -> void:
 			lp.flash_react(1.0)
 			for i in 40:
 				await get_tree().physics_frame
+			game.flash_overlay.clear() # watching only: no whiteout in the picture
 		else:
 			Grenade.spawn_flash_fx(get_tree(), lp.global_position + Vector3(0.5, 1.2, 9.0), 0)
 			Engine.time_scale = 0.6 # software rendering is slow: the effect has to stay young

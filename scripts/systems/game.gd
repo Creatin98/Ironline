@@ -270,6 +270,7 @@ func _process(delta: float) -> void:
 	_update_outro(delta)
 	if not MatchManager.is_authority() or MatchManager.state != MatchManager.State.RUNNING:
 		return
+	_check_ammo_pickups(delta)
 	var ids := _respawn_queue.keys()
 	for id in ids:
 		_respawn_queue[id] = float(_respawn_queue[id]) - delta
@@ -472,6 +473,37 @@ func try_pickup(pl: Player) -> void:
 		NetworkManager.broadcast_pickup_spawn(id, old_id, old_mag, old_res, drop_pos, yaw)
 
 
+const AMMO_ONLY := -1 # marker for apply_pickup_take: only one magazine is taken, no weapon swap
+var _ammo_check_t: float = 0.0
+
+
+## Server: walking over a weapon of the same type as the own primary weapon gives one magazine (the weapon is used up).
+func _check_ammo_pickups(delta: float) -> void:
+	_ammo_check_t -= delta
+	if _ammo_check_t > 0.0 or _pickups.is_empty():
+		return
+	_ammo_check_t = 0.1
+	for pk in _pickups.values():
+		var wp := pk as WeaponPickup
+		if wp == null or not is_instance_valid(wp) or wp.age < WeaponPickup.FALL_TIME + 0.2:
+			continue
+		for p in MatchManager.participants.values():
+			if p.node == null or not is_instance_valid(p.node):
+				continue
+			var pl := p.node as Player
+			if pl == null or not pl.alive or pl.weapon_manager.weapons.is_empty():
+				continue
+			var w: Weapon = pl.weapon_manager.weapons[0]
+			if w.data.weapon_id != wp.weapon_id or w.reserve > w.data.reserve_ammo:
+				continue
+			if Vector2(pl.global_position.x - wp.global_position.x, pl.global_position.z - wp.global_position.z).length() > 1.0 \
+					or absf(pl.global_position.y - wp.global_position.y) > 1.5:
+				continue
+			NetworkManager.broadcast_pickup_take(wp.pickup_id, pl.participant_id, wp.weapon_id, AMMO_ONLY, 0)
+			apply_pickup_take(wp.pickup_id, pl.participant_id, wp.weapon_id, AMMO_ONLY, 0)
+			return # the dictionary changed; the next check continues
+
+
 ## Everybody: pickup `id` was taken, the participant now carries `weapon_id` as primary weapon.
 func apply_pickup_take(id: int, participant_id: int, weapon_id: String, mag: int, res: int) -> void:
 	var pk: WeaponPickup = _pickups.get(id)
@@ -481,7 +513,10 @@ func apply_pickup_take(id: int, participant_id: int, weapon_id: String, mag: int
 		pk.queue_free()
 	var p := MatchManager.get_participant(participant_id)
 	if p != null and p.node != null and is_instance_valid(p.node):
-		(p.node as Player).swap_primary(weapon_id, mag, res)
+		if mag == AMMO_ONLY:
+			(p.node as Player).add_primary_magazine()
+		else:
+			(p.node as Player).swap_primary(weapon_id, mag, res)
 
 
 ## Server: the player asks to skip the killcam wait (allowed after KILLCAM_SKIP_AFTER seconds).

@@ -50,6 +50,7 @@ enum Slot { PRIMARY, SECONDARY }
 @export var recoil_horizontal: float = 0.5  # Grad, zufaellig links/rechts
 @export var recoil_kick_back: float = 0.06  # Modellversatz (m)
 @export var recoil_recovery: float = 9.0
+@export var ads_kick_scale: float = 0.15   # Anteil des sichtbaren Waffenrucks beim Zielen (Praezision unberuehrt)
 
 @export_group("ADS")
 @export var ads_fov: float = 60.0

@@ -63,6 +63,7 @@ var _last_mag: int = -1
 var _last_reserve: int = -1
 var _flash_hand_active: bool = false
 var _flash_hand_rest: Vector3 = Vector3.ZERO
+var _flash_hand_rot_rest: Vector3 = Vector3.ZERO
 
 
 func setup(new_player: Player, class_data: ClassData, local: bool) -> void:
@@ -558,7 +559,7 @@ func _process(delta: float) -> void:
 		pos += Vector3(cos(ph * 0.5) * 0.007, -step * step * 0.008, 0.0) * amp
 		rot += Vector3(step * 0.005, cos(ph * 0.5) * 0.010, cos(ph * 0.5) * 0.010) * amp
 	# weapon kick: strongly damped while aiming so the iron sight stays in view
-	var kick_scale := lerpf(1.0, 0.15, _ads_blend)
+	var kick_scale := lerpf(1.0, w.data.ads_kick_scale, _ads_blend)
 	pos += Vector3(0.0, _kick * 0.25, _kick) * kick_scale
 	rot += Vector3(_kick_rot, 0.0, 0.0) * kick_scale
 	# weapon's own animation (reload, pump)
@@ -587,11 +588,14 @@ func _update_arms(w: Weapon) -> void:
 			if not _flash_hand_active:
 				_flash_hand_active = true
 				_flash_hand_rest = left_hand.position
-			var target_world := to_global(Vector3(-0.05, 0.05, -0.22))
+				_flash_hand_rot_rest = left_hand.rotation
+			var target_world := to_global(Vector3(0.10, 0.03, -0.40))
 			left_hand.position = _flash_hand_rest.lerp(w.model.to_local(target_world), cover)
+			left_hand.rotation = _flash_hand_rot_rest + Vector3(-0.6, 0.0, 0.9) * cover
 		elif _flash_hand_active:
 			_flash_hand_active = false
 			left_hand.position = _flash_hand_rest
+			left_hand.rotation = _flash_hand_rot_rest
 	_fp_arms.update(_wrist(w.model, "RightHand", Vector3(0.004, -0.028, 0.044)), _wrist(w.model, "LeftHand", Vector3(-0.006, -0.018, 0.040)))
 
 

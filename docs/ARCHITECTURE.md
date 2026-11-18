@@ -285,7 +285,8 @@ Python-Skripten in `tools/` erzeugt – keine Fremdinhalte, alles reproduzierbar
 
 ## Waffen am Boden
 - Stirbt ein Spieler (oder Bot), legt der Host dessen Hauptwaffe mit Restmunition als `WeaponPickup` ab (`Game._drop_primary_weapon`),
-  bis zu 10 gleichzeitig, 45 s Lebensdauer. Der Pickup liegt auf der Seite, hat Leuchtfleck und Label (`[E] aufnehmen` in 2 m).
+  bis zu 10 gleichzeitig, 45 s Lebensdauer. Der Pickup fällt aus Handhöhe taumelnd zu Boden, liegt flach auf der Seite, hat dezenten weißen Leuchtrand (`material_overlay`) und Label (`[E] aufnehmen` in 2 m).
+- Überlaufen einer Waffe desselben Typs (< 1 m, Reserve ≤ Standardreserve) gibt ein Magazin (`Game._check_ammo_pickups`, nur Host; `apply_pickup_take` mit `mag = AMMO_ONLY`), HUD-Aufleuchten + Sound.
 - **E** (`interact`, Bit `ACT_USE`) tauscht die nächste Waffe in Reichweite gegen die eigene Hauptwaffe (`Game.try_pickup`, nur Host);
   die eigene bleibt mit ihrer Munition liegen. Sekundärwaffe, Granaten und Blendgranaten bleiben unverändert (`Player.swap_primary`).
 - Sync: `_rpc_pickup_spawn`, `_rpc_pickup_take`, späte Lader bekommen alle liegenden Waffen nachgereicht. `PROTOCOL_VERSION` = 11.

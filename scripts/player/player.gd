@@ -306,6 +306,18 @@ func replay_shot() -> void:
 
 ## Picks up a weapon from the floor: the primary weapon becomes `weapon_id` with the given ammo; the secondary weapon,
 ## grenades and flashbangs stay as they are.
+## One more magazine for the primary weapon (picked up by walking over a weapon of the same type).
+func add_primary_magazine() -> void:
+	if weapon_manager.weapons.is_empty():
+		return
+	var w: Weapon = weapon_manager.weapons[0]
+	w.reserve += w.data.magazine_size
+	if is_local:
+		weapon_manager._emit_local_state()
+		GameEvents.local_ammo_picked.emit(w.data.magazine_size)
+		AudioManager.play_2d("reload_mag_in", -8.0, 0.05)
+
+
 func swap_primary(weapon_id: String, mag: int, res: int) -> void:
 	var data := WeaponPickup.weapon_data(weapon_id)
 	if data == null or weapon_manager.weapons.size() < 2:
@@ -606,7 +618,7 @@ func _animate_body(delta: float) -> void:
 ## A flashbang went off in view: the arm shoots up in front of the face, stays for a while and goes down again.
 func flash_react(i: float) -> void:
 	_flash_t = 0.0
-	_flash_hold = 0.4 + 1.5 * clampf(i, 0.0, 1.0)
+	_flash_hold = 0.6 + 2.0 * clampf(i, 0.0, 1.0)
 
 
 func _update_flash_cover(delta: float) -> void:
@@ -617,7 +629,7 @@ func _update_flash_cover(delta: float) -> void:
 	else:
 		_flash_t += delta
 		const UP := 0.14
-		const DOWN := 0.55
+		const DOWN := 0.8
 		if _flash_t < UP:
 			flash_cover = smoothstep(0.0, 1.0, _flash_t / UP)
 		elif _flash_t < UP + _flash_hold:

@@ -512,12 +512,12 @@ func animate(delta: float, vel_local: Vector3, on_floor: bool, crouching: bool, 
 		# the other arm lets go of the grip a little and the upper body shrinks away from the light
 		_spine_lean = lerpf(_spine_lean, -0.18, minf(1.0, flash_cover * 0.5))
 	_solve_arm(0, right_target, Vector3(0.45, -1.0, 0.25))
-	_solve_arm(1, left_target, Vector3(-0.45, -1.0, 0.25) if flash_cover < 0.001 else Vector3(-0.6, -0.2, 0.9))
+	_solve_arm(1, left_target, Vector3(-0.45, -1.0, 0.25) if flash_cover < 0.001 else Vector3(-0.85, -0.7, 0.25))
 
 
-## World position in front of the face where the covering hand goes (a bit to the left, forearm across the eyes).
+## World position in front of the face where the covering hand goes (right of the face: the left forearm crosses the eyes diagonally from lower left to upper right).
 func face_cover_point() -> Vector3:
-	return _head.to_global(Vector3(-0.07, 0.15, -0.2))
+	return _head.to_global(Vector3(0.09, 0.14, -0.22))
 
 
 func _shoulder(side: int) -> Vector3:

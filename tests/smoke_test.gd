@@ -2318,5 +2318,17 @@ func _check_weapon_pickup() -> void:
 		_fail("Aufheben darf die Sekundaerwaffe nicht veraendern")
 	if game._pickups.size() != 1 or (game._pickups.values()[0] as WeaponPickup).magazine != 3 or (game._pickups.values()[0] as WeaponPickup).weapon_id != mine_id:
 		_fail("Die eigene Waffe muss beim Tausch auf dem Boden bleiben")
+	# walking over a weapon of the same type gives one magazine and uses the pickup up
+	for old_pk in game._pickups.values():
+		(old_pk as WeaponPickup).queue_free()
+	await get_tree().process_frame
+	now_w.reserve = 10
+	var res_before := now_w.reserve
+	game.spawn_pickup(777, now_w.data.weapon_id, 5, 5, pl.global_position + Vector3(0.4, 0.0, 0.0), 0.0)
+	(game._pickups[777] as WeaponPickup).age = 2.0
+	for i in 40:
+		await get_tree().physics_frame
+	if game._pickups.has(777) or now_w.reserve != res_before + now_w.data.magazine_size:
+		_fail("Gleiche Waffe ueberlaufen muss ein Magazin geben (Reserve %d -> %d)" % [res_before, now_w.reserve])
 	game.free()
 	await get_tree().process_frame
