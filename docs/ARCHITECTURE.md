@@ -376,3 +376,6 @@ Python-Skripten in `tools/` erzeugt – keine Fremdinhalte, alles reproduzierbar
 * **Match-Start-Countdown:** `MatchCountdown` (CanvasLayer 101): Menü/Lobby-Start (`GameDirector.start_match(cfg, true)`, online `host_start_match(cfg, true)` + RPC-Flag, Protokoll 8) zeigt 3-2-1 mit Kartenkarte,
   Flash/Glanz, dann wächst die Karte auf Vollbild und geht nahtlos in den Ladescreen über. Rundenneustart nach Voting nutzt ihn nicht.
 * **Leben 250** (Anzeige in Prozent bleibt 100), Regeneration 112/s; Sniper 290, Granate max. 290 (One-Hit bleibt). Schrotflinte: 8×70, Abfall 14–28 m, Visier 1.8° (≈95 % One-Hit auf Oberkörper/Kopf bis ~12 m).
+* **Schadens-Feedback (visuell):** `DamageFx` (CanvasLayer 1, vom HUD erzeugt) ersetzt Vignette/Damage-Flash/Blut-Layer des HUD. Ein Shader (`damage_screen.gdshader`): Treffer-Aufblitzen, dunkelrote blutig-schmutzige Ränder,
+  unter 25 % Leben Tunnelblick, Entsättigung, chromatische Aberration, langsamer Puls (stärker je näher am Tod). Linsen-Splatter (prozedurale Texturen: Blobs, Schmieren, Spritzer, Dreck, Kratzer, Drips),
+  FOV-Kick pro Treffer (kehrt von selbst zurück). Läuft nur, solange etwas aktiv ist; Heilung blendet kontrolliert aus, Respawn setzt sauber zurück. Nur Events (`local_player_damaged/health_changed/died/spawned`), Gameplay/Audio unberührt.

@@ -26,9 +26,7 @@ var killfeed_box: VBoxContainer
 var center_label: Label
 var sub_label: Label
 var popup_box: VBoxContainer
-var vignette: ColorRect
-var _hit_vignette: float = 0.0 # blood/dirt at the edges after hits, fades over a few seconds
-var damage_flash: ColorRect
+var damage_fx: DamageFx # all visual damage feedback (vignette, lens blood, critical health)
 var fps_label: Label
 var hint_label: Label
 
@@ -43,8 +41,6 @@ var _spread_display: float = 0.0
 var _respawn_time_left: float = -1.0
 var _killfeed_entries: Array = [] # [{node, time}]
 var minimap: Minimap
-var _blood_layer: Control
-var _blood_splats: Array = [] # [{p: Vector2, size: float, rot: float, tex: int, age: float, vy: float}]
 var _damage_dirs: Array = [] # [{dir: Vector2 (world x/z), time: float}]
 var _warmup: bool = false
 ## name -> {"node": Control, "corner": Vector2 (0/0.5/1 = left/centre/right, top/bottom)}
@@ -82,48 +78,14 @@ func _ready() -> void:
 
 func _build() -> void:
 	# --- fullscreen overlays ---
-	vignette = ColorRect.new()
-	vignette.set_anchors_preset(Control.PRESET_FULL_RECT)
-	vignette.color = Color(0.4, 0.01, 0.01, 0.0)
-	var vsh := Shader.new()
-	# dirty, bloody screen edges: red towards the corners, streaky grain; the alpha of `color` is the strength
-	vsh.code = """shader_type canvas_item;
-float h(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
-float n(vec2 p){ vec2 i = floor(p); vec2 f = fract(p); f = f*f*(3.0-2.0*f);
-	return mix(mix(h(i), h(i+vec2(1,0)), f.x), mix(h(i+vec2(0,1)), h(i+vec2(1,1)), f.x), f.y); }
-void fragment() {
-	vec2 c = UV - vec2(0.5);
-	float d = length(c * vec2(1.0, 0.8)) * 1.45;
-	float edge = smoothstep(0.35, 1.0, d);
-	float dirt = n(UV * vec2(9.0, 14.0)) * 0.6 + n(UV * vec2(38.0, 52.0)) * 0.4;
-	float streak = n(vec2(UV.x * 26.0, UV.y * 3.0));
-	float a = edge * (0.45 + 0.75 * dirt) * (0.8 + 0.4 * streak);
-	COLOR = vec4(mix(COLOR.rgb, vec3(0.16, 0.0, 0.0), dirt * 0.6), clamp(a, 0.0, 1.0) * COLOR.a);
-}"""
-	var vmat := ShaderMaterial.new()
-	vmat.shader = vsh
-	vignette.material = vmat
-	vignette.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(vignette)
 	_kill_flash = ColorRect.new()
 	_kill_flash.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_kill_flash.color = Color(1.0, 0.95, 0.85, 0.0)
 	_kill_flash.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_kill_flash)
-	damage_flash = ColorRect.new()
-	damage_flash.set_anchors_preset(Control.PRESET_FULL_RECT)
-	damage_flash.color = Color(0.8, 0.05, 0.0, 0.0)
-	damage_flash.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(damage_flash)
-	_blood_layer = Control.new()
-	_blood_layer.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_blood_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_blood_layer.draw.connect(_draw_blood)
-	# own canvas layer: stays visible while the HUD is hidden (killcam)
-	var blood_canvas := CanvasLayer.new()
-	blood_canvas.layer = 1 # behind the HUD (UI layer 2): the HUD is never covered by blood
-	add_child(blood_canvas)
-	blood_canvas.add_child(_blood_layer)
+	damage_fx = DamageFx.new() # own canvas layer below the HUD: stays visible while the HUD is hidden (killcam)
+	damage_fx.name = "DamageFx"
+	add_child(damage_fx)
 
 	# --- crosshair / hitmarker ---
 	crosshair = Control.new()
@@ -263,7 +225,6 @@ func _layout() -> void:
 		pos += _offset_of(block_name)
 		c.position = _clamp_to_screen(pos, s, area)
 	fps_label.visible = GameSettings.show_fps
-	_update_blood_visibility()
 	if _edit_overlay != null:
 		_edit_overlay.queue_redraw()
 
@@ -382,22 +343,6 @@ func _process(delta: float) -> void:
 	_damage_dirs = _damage_dirs.filter(func(d: Dictionary) -> bool: return float(d["time"]) > 0.0)
 	crosshair.queue_redraw()
 	minimap.player = _player
-	_update_blood_visibility()
-	for sp in _blood_splats:
-		sp["age"] = float(sp["age"]) + delta
-		sp["p"] = (sp["p"] as Vector2) + Vector2(0.0, float(sp["vy"]) * delta * clampf(float(sp["age"]) * 0.6, 0.0, 1.0))
-	_blood_splats = _blood_splats.filter(func(sp: Dictionary) -> bool: return float(sp["age"]) < BLOOD_LIFETIME)
-	if not _blood_splats.is_empty() or _blood_layer.visible:
-		_blood_layer.queue_redraw()
-	# damage vignette decay
-	damage_flash.color.a = maxf(0.0, damage_flash.color.a - delta * 1.6)
-	_kill_flash.color.a = maxf(0.0, _kill_flash.color.a - delta * 1.1)
-	var target_vignette := 0.0
-	if _health_ratio < 0.6:
-		target_vignette = (0.6 - _health_ratio) / 0.6 * 0.55
-	_hit_vignette = maxf(0.0, _hit_vignette - delta * 0.28)
-	target_vignette = maxf(target_vignette, _hit_vignette)
-	vignette.color.a = lerpf(vignette.color.a, target_vignette, minf(1.0, delta * 6.0))
 	# respawn countdown
 	if _respawn_time_left >= 0.0:
 		_respawn_time_left -= delta
@@ -581,7 +526,6 @@ func _clear_center_after(seconds: float) -> void:
 
 func _on_local_spawned(player: Node) -> void:
 	_player = player as Player
-	_blood_splats.clear() # no blood carried over from the previous life
 	_respawn_time_left = -1.0
 	center_label.text = ""
 	sub_label.text = ""
@@ -593,9 +537,6 @@ func _on_local_spawned(player: Node) -> void:
 
 
 func _on_local_died(killer_id: int, respawn_delay: float) -> void:
-	# screen blood fades out quickly on death: nothing in the death view / killcam, nothing after the respawn
-	for sp in _blood_splats:
-		sp["age"] = maxf(float(sp["age"]), BLOOD_LIFETIME - 0.5)
 	var killer := MatchManager.get_participant(killer_id)
 	if killer and killer.id != MatchManager.local_participant_id:
 		center_label.text = "Getötet von %s" % killer.display_name
@@ -605,101 +546,7 @@ func _on_local_died(killer_id: int, respawn_delay: float) -> void:
 	sub_label.text = "Respawn in %d" % int(ceil(respawn_delay))
 
 
-## Screen blood only while playing: not in replays (killcam / last kill) and not at the match end.
-func _update_blood_visibility() -> void:
-	_blood_layer.visible = GameSettings.show_blood_overlay and MatchManager.state != MatchManager.State.ENDED \
-			and not (_player != null and is_instance_valid(_player) and _player.replay_mode)
-
-
-func _draw_blood() -> void:
-	for sp in _blood_splats:
-		var age := float(sp["age"])
-		var a := clampf((BLOOD_LIFETIME - age) / 1.8, 0.0, 1.0) * 0.88
-		var col := Color(0.5, 0.03, 0.03, a)
-		var grow := clampf(age * 5.0, 0.0, 1.0)
-		var p: Vector2 = sp["p"]
-		match int(sp["kind"]):
-			0:
-				var sz: float = float(sp["size"]) * (0.75 + 0.25 * grow)
-				_blood_layer.draw_set_transform(p, float(sp["rot"]), Vector2.ONE)
-				_blood_layer.draw_texture_rect(BloodFx.splat_texture(int(sp["tex"])), Rect2(-sz * 0.5, -sz * 0.5 * 1.15, sz, sz * 1.15), false, col)
-				_blood_layer.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
-			1: # smear / drip: tapered streak with a drop at its end
-				var d: Vector2 = sp["dir"]
-				var len: float = float(sp["size"]) * grow
-				var w: float = float(sp["w"])
-				var n := d.orthogonal()
-				var pts := PackedVector2Array([p + n * w * 0.5, p + d * len * 0.55 + n * w * 0.32, p + d * len, p + d * len * 0.55 - n * w * 0.32, p - n * w * 0.5])
-				if len > 6.0:
-					_blood_layer.draw_colored_polygon(pts, col)
-				_blood_layer.draw_circle(p + d * len, w * 0.34, col)
-				_blood_layer.draw_circle(p, w * 0.55, col)
-			3: # beads: glossy translucent drops with a dark rim and a highlight
-				var r: float = float(sp["size"]) * (0.6 + 0.4 * grow)
-				var sag: float = clampf(age * 0.05, 0.0, 1.0) * float(sp["size"]) * 0.6
-				var q := p + Vector2(0.0, sag)
-				_blood_layer.draw_circle(q, r, Color(0.28, 0.0, 0.0, a * 0.9))
-				_blood_layer.draw_circle(q + Vector2(0.0, r * 0.08), r * 0.82, Color(0.62, 0.05, 0.04, a * 0.75))
-				_blood_layer.draw_circle(q + Vector2(-r * 0.3, -r * 0.35), r * 0.28, Color(1.0, 0.75, 0.7, a * 0.7))
-			_: # spray / scratches: thin fan of lines with droplets at the ends
-				var d2: Vector2 = sp["dir"]
-				var rays: Array = sp["rays"]
-				for r in rays:
-					var dir := d2.rotated(float(r[0]))
-					var l := float(r[1]) * grow
-					_blood_layer.draw_line(p, p + dir * l, col, float(r[2]), true)
-					_blood_layer.draw_circle(p + dir * l, float(r[2]) * 0.9, col)
-
-
-## Blood on the screen: splats, smears/drips and thin scratch sprays, spread over the whole picture
-## (kept away from the very middle). Stronger hits = more of them.
-func _add_blood_splats(amount: float) -> void:
-	var count := clampi(3 + int(amount / 9.0), 3, 12)
-	var s := _blood_layer.size
-	var k := s.y / 1080.0
-	for i in count:
-		var pos := Vector2.ZERO
-		for attempt in 8:
-			pos = Vector2(randf_range(0.03, 0.97) * s.x, randf_range(0.03, 0.97) * s.y)
-			var rel := (pos - s * 0.5) / s
-			if absf(rel.x) > 0.17 or absf(rel.y) > 0.2:
-				break
-		var kind_roll := randf()
-		var sp := {"p": pos, "age": 0.0, "vy": randf_range(8.0, 40.0), "kind": 0}
-		if kind_roll < 0.22:
-			# a cluster of beads (the "pearls" of a spray) - one entry per bead
-			sp["kind"] = 3
-			sp["size"] = randf_range(5.0, 16.0) * k
-			for b in randi_range(3, 7):
-				var bead := sp.duplicate()
-				bead["p"] = pos + Vector2.from_angle(randf() * TAU) * randf_range(10.0, 120.0) * k
-				bead["size"] = randf_range(4.0, 17.0) * k
-				_blood_splats.append(bead)
-		elif kind_roll < 0.5:
-			sp["size"] = randf_range(80.0, 200.0) * k
-			sp["rot"] = randf() * TAU
-			sp["tex"] = randi() % BloodFx.VARIANTS
-		elif kind_roll < 0.8:
-			sp["kind"] = 1
-			sp["dir"] = Vector2.DOWN.rotated(randf_range(-0.7, 0.7)) if randf() < 0.7 else Vector2.from_angle(randf() * TAU)
-			sp["size"] = randf_range(160.0, 420.0) * k
-			sp["w"] = randf_range(16.0, 46.0) * k
-		else:
-			sp["kind"] = 2
-			sp["dir"] = Vector2.from_angle(randf() * TAU)
-			var rays: Array = []
-			for r in randi_range(5, 9):
-				rays.append([randf_range(-0.55, 0.55), randf_range(70.0, 260.0) * k, randf_range(2.0, 5.0) * k])
-			sp["rays"] = rays
-		_blood_splats.append(sp)
-	while _blood_splats.size() > 60:
-		_blood_splats.pop_front()
-
-
 func _on_local_damaged(amount: float, source_position: Vector3) -> void:
-	damage_flash.color.a = clampf(damage_flash.color.a + amount / 100.0 * 0.4, 0.0, 0.45)
-	_add_blood_splats(amount)
-	_hit_vignette = clampf(maxf(_hit_vignette, 0.35) + amount / 90.0 * 0.45, 0.0, 1.0)
 	if _player != null and is_instance_valid(_player):
 		var to := Vector2(source_position.x - _player.global_position.x, source_position.z - _player.global_position.z)
 		if to.length() > 1.0:

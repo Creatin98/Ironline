@@ -407,20 +407,23 @@ func _game_ui(state: String) -> void:
 			k += 1
 		await get_tree().create_timer(0.3).timeout
 		get_tree().paused = true
-	if state == "blood":
-		# screen splatter + blood sprayed on the surfaces in front of the player
-		game.hud._add_blood_splats(90.0)
-		game.hud._add_blood_splats(60.0)
-		game.hud._hit_vignette = 0.8
-		game.hud.vignette.color.a = 0.8
-		for sp in game.hud._blood_splats:
-			sp["age"] = 0.5
-		var origin: Vector3 = local.head.get_aim_origin()
-		var fwd: Vector3 = local.head.get_aim_direction()
-		for i in 5:
-			BloodFx.burst(game.get_tree().get_first_node_in_group("effects_container"), origin + fwd * 2.5 + Vector3(randf_range(-1.0, 1.0), randf_range(-0.6, 0.4), 0.0), fwd + Vector3(randf_range(-0.3, 0.3), -0.3, 0.0), 1.0)
-		await get_tree().create_timer(0.15).timeout
-		get_tree().paused = true
+	if state.begins_with("blood"):
+		# blood<health percent>: three hits, then the health value (e.g. blood100, blood20, blood8)
+		var fx: DamageFx = game.hud.damage_fx
+		for i in 60:
+			await get_tree().physics_frame # the match has started (spawn resets the effect)
+		get_tree().paused = true # software rendering is slow: freeze the moment
+		for amount in [60.0, 45.0, 80.0]:
+			fx._on_damaged(amount, Vector3.ZERO)
+		fx._health_ratio = float(int(state.substr(5))) / 100.0
+		for i in 8:
+			fx._process(0.4)
+		fx.hit = 0.5
+		for sp in fx.splats:
+			sp["age"] = 0.8
+		fx._process(0.001)
+		fx.canvas.queue_redraw()
+		await get_tree().process_frame
 	if state == "popups":
 		me.killstreak = 3
 		me.kills = 7

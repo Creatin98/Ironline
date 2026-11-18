@@ -34,6 +34,7 @@ func _ready() -> void:
 	await _check_flashbang()
 	await _check_sniper()
 	await _check_match_countdown()
+	await _check_damage_fx()
 	await _simulate_cams()
 	await _simulate_steps()
 	await _simulate_slide()
@@ -622,6 +623,67 @@ func _check_match_countdown() -> void:
 		_fail("Countdown zu kurz")
 	cd.queue_free()
 	print("Match-Countdown: 3-2-1, Karte waechst auf den ganzen Bildschirm")
+	await get_tree().process_frame
+
+
+## Visual damage feedback: hit impulse + lens splatter (capped), critical health, healing, respawn, clean idle state.
+func _check_damage_fx() -> void:
+	var cfg := MatchConfig.new()
+	cfg.mode_id = MatchConfig.MODE_FFA
+	cfg.map_id = "test_arena"
+	cfg.bots_enabled = false
+	cfg.time_limit = 0.0
+	MatchManager.prepare_match(cfg)
+	var game: Node = (load("res://scenes/game/game.tscn") as PackedScene).instantiate()
+	add_child(game)
+	await get_tree().process_frame
+	MatchManager.warmup_left = 0.05
+	var waited := 0.0
+	while MatchManager.state != MatchManager.State.RUNNING and waited < 6.0:
+		await get_tree().process_frame
+		waited += get_process_delta_time()
+	for i in 20:
+		await get_tree().physics_frame
+	var fx: DamageFx = game.hud.damage_fx
+	if fx == null or game.hud.get_children().filter(func(c: Node) -> bool: return c is DamageFx).size() != 1:
+		_fail("DamageFx fehlt oder doppelt")
+		game.free()
+		return
+	var fov_before: float = MatchManager.get_local_participant().node.head.camera.fov
+	fx._on_damaged(40.0, Vector3.ZERO)
+	if fx.hit < 0.6 or fx.splats.is_empty() or not fx.is_processing():
+		_fail("Einzelner Treffer: kein Aufblitzen/Splatter (hit %.2f, %d)" % [fx.hit, fx.splats.size()])
+	for i in 30: # a burst of hits: stronger but capped
+		fx._on_damaged(60.0, Vector3.ZERO)
+	if fx.hit > 1.0 or fx.splats.size() > DamageFx.MAX_SPLATS:
+		_fail("Viele Treffer ueberlagern unbegrenzt (hit %.2f, Splatter %d)" % [fx.hit, fx.splats.size()])
+	for i in 40:
+		fx._process(0.1)
+	if fx.hit > 0.01:
+		_fail("Treffer-Impuls klingt nicht ab (%.2f)" % fx.hit)
+	fx._on_health(20.0, 100.0) # critical (< 25 %)
+	for i in 30:
+		fx._process(0.1)
+	var crit_20 := fx.crit
+	fx._on_health(5.0, 100.0) # very low
+	for i in 30:
+		fx._process(0.1)
+	if crit_20 < 0.4 or fx.crit <= crit_20 or fx.low < 0.5 or not fx.screen.visible:
+		_fail("Kritische Gesundheit: Effekt zu schwach/waechst nicht (20 %%: %.2f, 5 %%: %.2f)" % [crit_20, fx.crit])
+	fx._on_health(100.0, 100.0) # healed
+	for i in 80:
+		fx._process(0.1)
+	if fx.crit > 0.02 or fx.low > 0.02 or not fx.splats.is_empty() or fx.is_processing():
+		_fail("Nach der Heilung bleibt der Effekt (crit %.2f, low %.2f, Splatter %d)" % [fx.crit, fx.low, fx.splats.size()])
+	fx._on_damaged(60.0, Vector3.ZERO)
+	fx._on_health(10.0, 100.0)
+	GameEvents.local_player_spawned.emit(MatchManager.get_local_participant().node) # respawn: clean at once
+	if fx.hit != 0.0 or fx.crit != 0.0 or not fx.splats.is_empty() or fx.screen.visible:
+		_fail("Respawn setzt den Bildschirm nicht sauber zurueck")
+	if absf(MatchManager.get_local_participant().node.head.camera.fov - fov_before) > 4.0:
+		_fail("Kamera-FOV bleibt nach dem Treffer verstellt")
+	print("Schadens-Feedback: Treffer, Serie (begrenzt), kritisch, Heilung, Respawn OK")
+	game.free()
 	await get_tree().process_frame
 
 
