@@ -628,6 +628,92 @@ def make_flash_sounds():
     write_wav("flash_ring", out, 0.55)
 
 
+def make_sniper_sounds():
+    """Sniper: a huge, ringing shot with an echo, the bolt being worked (open: lift + pull back, close: push + lock)
+    and the soft optical sounds of the scope. Own random generator: the other sounds stay identical."""
+    local = random.Random(9090)
+
+    def nz(seconds):
+        return [local.uniform(-1, 1) for _ in range(int(seconds * SR))]
+
+    def modal(freqs, decays, gains, length):
+        out = [0.0] * int(length * SR)
+        for f, d, g in zip(freqs, decays, gains):
+            for k, v in enumerate(env_exp(sine(f, length), d)):
+                out[k] += v * g
+        return out
+
+    def tick(freq_scale=1.0, strength=1.0, length=0.05):
+        return gain(mix(
+            env_exp(highpass(nz(length), 2500), 0.004),
+            gain(modal([2400 * freq_scale, 3700 * freq_scale], [0.012, 0.008], [0.7, 0.4], length), 0.5),
+        ), strength)
+
+    def thunk(freq=130.0, length=0.09, strength=1.0):
+        return gain(mix(
+            env_exp(sweep(freq * 1.6, freq * 0.7, length), 0.03),
+            gain(env_exp(lowpass(nz(length), 1400), 0.018), 0.6),
+        ), strength)
+
+    def scrape(length, lo=700, hi=3800, peak=0.5):
+        n = lowpass(highpass(nz(length), lo), hi)
+        count = len(n)
+        return [v * (math.sin(math.pi * min(1.0, i / max(1, count))) ** 0.7) * peak for i, v in enumerate(n)]
+
+    def seq(*parts):
+        total = max(int(tm * SR) + len(sm) for tm, sm in parts)
+        out = [0.0] * total
+        for tm, sm in parts:
+            start = int(tm * SR)
+            for k, v in enumerate(sm):
+                out[start + k] += v
+        return out
+
+    # --- the shot: sub-bass thump, hard crack, ringing steel, a long tail and two echoes
+    length = 1.9
+    thump = mix(env_exp(sine(48, length), 0.22), env_exp(sweep(160, 38, length), 0.12))
+    crack = env_exp(highpass(nz(length), 1600), 0.035)
+    body = env_exp(lowpass(nz(length), 2600), 0.11)
+    ring = mix(modal([1250, 2150, 3400, 5200], [0.30, 0.22, 0.15, 0.08], [0.35, 0.28, 0.20, 0.16], length))
+    tail = env_exp(lowpass(nz(length), 800), 0.55)
+    direct = soft_clip(mix(gain(thump, 1.2), gain(crack, 1.7), gain(body, 0.9), ring, gain(tail, 0.5)), 2.8)
+    echo1 = gain(lowpass(env_exp(nz(length), 0.35), 1200), 0.30)
+    echo2 = gain(lowpass(env_exp(nz(length), 0.40), 800), 0.18)
+    shot = mix(direct, delay(echo1, 0.22)[:len(direct)], delay(echo2, 0.46)[:len(direct)])
+    write_wav("shot_sniper", shot, 0.98)
+    write_wav("shot_sniper_far", gain(lowpass(shot, 1400), 0.6), 0.65)
+
+    # --- bolt: lift the handle and pull back (ratchet + scrape + stop), push forward and lock down
+    write_wav("sniper_bolt_open", seq(
+        (0.0, mix(tick(0.9, 0.9, 0.05), thunk(180, 0.05, 0.6))),
+        (0.05, scrape(0.17, 700, 3200, 0.8)),
+        (0.07, tick(0.95, 0.7, 0.03)), (0.10, tick(1.0, 0.7, 0.03)), (0.125, tick(1.05, 0.7, 0.03)), (0.15, tick(1.1, 0.7, 0.03)),
+        (0.22, mix(thunk(110, 0.09, 1.1), tick(1.0, 1.0, 0.05))),
+        (0.225, gain(modal([1400, 2300], [0.04, 0.03], [0.6, 0.4], 0.14), 0.4)),
+    ), 0.9)
+    write_wav("sniper_bolt_close", seq(
+        (0.0, scrape(0.14, 800, 3600, 0.7)),
+        (0.02, tick(0.9, 0.6, 0.03)), (0.05, tick(1.0, 0.6, 0.03)), (0.08, tick(1.1, 0.6, 0.03)),
+        (0.13, mix(thunk(100, 0.1, 1.2), tick(0.8, 1.1, 0.06))),
+        (0.21, mix(tick(1.1, 0.9, 0.04), thunk(160, 0.05, 0.7))),
+        (0.215, gain(modal([1800, 2800], [0.03, 0.02], [0.6, 0.4], 0.12), 0.4)),
+    ), 0.9)
+
+    # --- scope: a soft optical swish and the click of the zoom ring
+    def swish(length, rising):
+        n = lowpass(highpass(nz(length), 1200), 5000)
+        count = len(n)
+        out = []
+        for i, v in enumerate(n):
+            u = i / max(1, count)
+            e = math.sin(math.pi * (u if rising else 1.0 - u * 0.2)) ** 1.5
+            out.append(v * e * 0.5)
+        return out
+    write_wav("sniper_scope_in", seq((0.0, swish(0.14, True)), (0.12, tick(1.3, 0.3, 0.03)), (0.125, thunk(260, 0.04, 0.3))), 0.5)
+    write_wav("sniper_scope_out", seq((0.0, swish(0.12, False)), (0.0, tick(1.2, 0.25, 0.03))), 0.45)
+    write_wav("sniper_scope_zoom", seq((0.0, tick(1.0, 0.8, 0.04)), (0.045, tick(1.15, 0.7, 0.04)), (0.0, thunk(300, 0.03, 0.4))), 0.5)
+
+
 def make_ui():
     write_wav("ui_click", mix(env_exp(sine(1800, 0.05), 0.012), env_exp(highpass(noise(0.05), 2000), 0.006)), 0.5)
     write_wav("ui_hover", env_exp(sine(1400, 0.04), 0.01), 0.3)
@@ -664,6 +750,9 @@ if __name__ == "__main__":
     if "flash" in sys.argv[1:]:
         make_flash_sounds()
         sys.exit(0)
+    if "sniper" in sys.argv[1:]:
+        make_sniper_sounds()
+        sys.exit(0)
     make_guns()
     make_mechanical()
     make_reload_sounds()
@@ -675,3 +764,4 @@ if __name__ == "__main__":
     make_feedback()
     make_ui()
     make_flash_sounds()
+    make_sniper_sounds()

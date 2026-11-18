@@ -8,7 +8,7 @@ const KILLFEED_LIFETIME := 6.0
 const BLOOD_LIFETIME := 7.0
 const KILLFEED_MAX := 6
 const WEAPON_LABELS := {
-	"ak47": "AK-47", "mp5": "MP5", "shotgun": "Shotgun", "pistol": "Pistole",
+	"ak47": "AK-47", "mp5": "MP5", "shotgun": "Shotgun", "pistol": "Pistole", "sniper": "M200",
 	"grenade": "Granate", "flashbang": "Blendgranate", "world": "Umgebung",
 }
 

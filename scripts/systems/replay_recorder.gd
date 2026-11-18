@@ -216,8 +216,18 @@ func killer_ads_fov() -> float:
 	if n != null and is_instance_valid(n):
 		var w := n.weapon_manager.get_current_weapon()
 		if w != null:
-			return w.data.ads_fov
+			return w.data.effective_ads_fov(GameSettings.fov)
 	return GameSettings.fov
+
+
+## Killcam: field of view of the killer's scope picture while the killer aims a scoped weapon (0 = no scope picture).
+func killer_scope_fov() -> float:
+	var n: Player = _targets.get(_killer_id)
+	if playing and n != null and is_instance_valid(n):
+		var w := n.weapon_manager.get_current_weapon()
+		if w != null and w.data.scoped:
+			return w.scope_fov()
+	return 0.0
 
 
 func _clear_targets() -> void:

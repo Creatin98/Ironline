@@ -14,6 +14,8 @@ const GRENADE_THROW_DELAY := GRENADE_TOTAL_TIME * GrenadeView.RELEASE_T
 const GRENADE_HOLD_T := 0.58
 const GRENADE_SOUNDS := [[0.04, "grenade_draw", -6.0], [0.34, "grenade_pin", -3.0], [0.63, "grenade_lever", -6.0]]
 const GRENADE_SPEED := 17.0
+const SCOPE_OPEN_FROM := 0.5 # aim blend at which the scope picture starts to open
+const SCOPE_HIDE_AT := 0.72 # the viewmodel disappears: you look through the scope
 
 var player: Player
 var is_local: bool = false
@@ -110,6 +112,8 @@ func setup(new_player: Player, class_data: ClassData, local: bool) -> void:
 	current_index = 0
 	_switch_state = SwitchState.READY
 	_apply_hand_skin()
+	if is_local:
+		ScopeOverlay.tag_viewmodel(self) # weapons, arms, grenade view: the scope camera does not render them
 	_show_weapon(current_index, true)
 
 
@@ -179,7 +183,18 @@ func is_switch_ready_for_sprint() -> bool:
 
 
 func can_aim() -> bool:
+	var w := get_current_weapon()
+	if w != null and w.is_bolting():
+		return false # working the bolt: the scope drops out, aiming resumes afterwards
 	return _switch_state == SwitchState.READY and _grenade_timer <= 0.0
+
+
+## How far the scope picture is open (0..1; scoped weapons only): the viewmodel is hidden from SCOPE_HIDE_AT on.
+func scope_blend() -> float:
+	var w := get_current_weapon()
+	if w == null or not w.data.scoped or player == null:
+		return 0.0
+	return clampf((player.head.get_ads_blend() - SCOPE_OPEN_FROM) / (1.0 - SCOPE_OPEN_FROM), 0.0, 1.0)
 
 
 func _show_weapon(index: int, instant: bool) -> void:
@@ -465,6 +480,7 @@ func _process(delta: float) -> void:
 		return
 	# blends
 	_ads_blend = player.head.get_ads_blend()
+	holder.visible = not (w.data.scoped and _ads_blend > SCOPE_HIDE_AT)
 	# same pace as the camera's sprint zoom (PlayerCamera.SPRINT_BLEND_SPEED), eased
 	_sprint_blend = move_toward(_sprint_blend, 1.0 if player.is_sprinting else 0.0, delta * PlayerCamera.SPRINT_BLEND_SPEED)
 	var sprint_s := _sprint_blend * _sprint_blend * (3.0 - 2.0 * _sprint_blend)
@@ -536,7 +552,7 @@ func _update_arms(w: Weapon) -> void:
 	if _fp_arms == null:
 		return
 	var throwing := _grenade_view != null and _grenade_view.visible
-	_fp_arms.visible = not throwing
+	_fp_arms.visible = not throwing and not (w.data.scoped and _ads_blend > SCOPE_HIDE_AT)
 	if throwing or w.model == null:
 		return
 	_fp_arms.update(_wrist(w.model, "RightHand", Vector3(0.004, -0.028, 0.044)), _wrist(w.model, "LeftHand", Vector3(-0.006, -0.018, 0.040)))

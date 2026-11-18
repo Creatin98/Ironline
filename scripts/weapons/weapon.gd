@@ -51,6 +51,15 @@ var _cycle_index: int = 0 # shell cycles since the reload started
 var fire_queue_t: float = 0.0
 var _slide_timer: float = 0.0
 var _pump_rest: Vector3 = Vector3.ZERO
+## Bolt action (sniper): the bolt with its handle, the right hand that works it.
+var _bolt_node: Node3D
+var _bolt_rest: Vector3 = Vector3.ZERO
+var _bolt_grip: Node3D # marker on the bolt handle (where the hand takes hold)
+var _bolt_hand: Node3D
+var _bolt_hand_rest: Vector3 = Vector3.ZERO
+var _bolt_sound_idx: int = 0
+## Zoom step of a scoped weapon (index into WeaponData.scope_fovs).
+var scope_index: int = 0
 
 
 func setup(new_data: WeaponData, new_player: Player, local: bool) -> void:
@@ -70,6 +79,14 @@ func setup(new_data: WeaponData, new_player: Player, local: bool) -> void:
 			_pump_hand = model.get_node_or_null("LeftHand") as Node3D
 			if _pump_hand:
 				_pump_hand_rest = _pump_hand.position
+		if data.bolt_action:
+			_bolt_node = model.get_node_or_null("Bolt") as Node3D
+			_bolt_grip = model.get_node_or_null("Bolt/BoltGrip") as Node3D
+			_bolt_hand = model.get_node_or_null("RightHand") as Node3D
+			if _bolt_node:
+				_bolt_rest = _bolt_node.position
+			if _bolt_hand:
+				_bolt_hand_rest = _bolt_hand.position
 		rig = ReloadRig.create(model, data.reload_style)
 		if local:
 			# the first-person view gets IK arms (FirstPersonArms); the model's built-in sleeves would end in mid-air
@@ -123,6 +140,39 @@ func cancel_actions() -> void:
 		pump_node.position = _pump_rest
 	if _pump_hand:
 		_pump_hand.position = _pump_hand_rest
+	_reset_bolt()
+
+
+func _reset_bolt() -> void:
+	if _bolt_node:
+		_bolt_node.position = _bolt_rest
+		_bolt_node.rotation = Vector3.ZERO
+	if _bolt_hand and data.bolt_action:
+		_bolt_hand.position = _bolt_hand_rest
+
+
+func is_bolting() -> bool:
+	return state == State.PUMPING and data.bolt_action
+
+
+## Scoped weapon: field of view of the scope picture at the current zoom step.
+func scope_fov() -> float:
+	if data.scope_fovs.is_empty():
+		return 10.0
+	return data.scope_fovs[clampi(scope_index, 0, data.scope_fovs.size() - 1)]
+
+
+## Mouse wheel while aiming: next (+1) / previous (-1) zoom step. True if the step changed.
+func zoom_step(dir: int) -> bool:
+	if not data.scoped or data.scope_fovs.size() < 2:
+		return false
+	var ni := clampi(scope_index + dir, 0, data.scope_fovs.size() - 1)
+	if ni == scope_index:
+		return false
+	scope_index = ni
+	if is_local:
+		AudioManager.play_2d("sniper_scope_zoom", -8.0, 0.02)
+	return true
 
 
 func _set_state(new_state: int, duration: float) -> void:
@@ -169,6 +219,16 @@ func update(delta: float) -> void:
 		State.PUMPING:
 			_state_timer -= delta
 			var t := 1.0 - clampf(_state_timer / _state_duration, 0.0, 1.0)
+			if data.bolt_action:
+				_update_bolt(t)
+				if _state_timer <= 0.0:
+					_reset_bolt()
+					anim_offset = Vector3.ZERO
+					anim_rotation = Vector3.ZERO
+					_set_state(State.IDLE, 0.0)
+					if magazine <= 0:
+						start_reload()
+				return
 			var s := sin(t * PI)
 			var f := data.impact_feel
 			if pump_node:
@@ -253,6 +313,11 @@ func try_fire(is_aiming: bool, move_ratio: float, in_air: bool, crouching: bool)
 			var dmg := data.damage_at_distance(distance)
 			if headshot:
 				dmg *= data.headshot_multiplier
+			elif data.lower_body_multiplier != 1.0:
+				# belly and legs: the sniper's shot does not kill at once there
+				var height := Player.CROUCH_HEIGHT if target.is_crouching else Player.STAND_HEIGHT
+				if (hit_pos.y - target.global_position.y) / height < data.lower_body_fraction:
+					dmg *= data.lower_body_multiplier
 			var killed := target.take_damage(dmg, player.participant_id, data.weapon_id, hit_pos, headshot, origin)
 			if target.team == Teams.Team.NONE or target.team != player.team:
 				hit_enemy = true
@@ -278,13 +343,43 @@ func try_fire(is_aiming: bool, move_ratio: float, in_air: bool, crouching: bool)
 
 	if slide_node:
 		_slide_timer = 0.07
-	if data.pump_action:
+	if data.bolt_action:
+		# the bolt is worked after every shot (the scope drops out, see WeaponManager.can_aim)
+		_bolt_sound_idx = 0
+		_set_state(State.PUMPING, data.pump_time)
+	elif data.pump_action:
 		# pump after every shot; with an empty tube the pump state chains into reload
 		_set_state(State.PUMPING, data.pump_time)
 		_play_mech_sound("pump", -4.0)
 	elif magazine <= 0:
 		fire_cooldown = maxf(fire_cooldown, 0.15)
 	return true
+
+
+## Bolt cycle after a shot: the right hand takes the handle, lifts it, pulls the bolt back (the case flies out),
+## pushes it forward, locks it down and returns to the grip; two sounds at the hard moments.
+const BOLT_LIFT := 1.25 # radians the handle is turned up
+const BOLT_TRAVEL := 0.075 # metres the bolt slides back
+const BOLT_SOUNDS := [[0.20, "sniper_bolt_open"], [0.60, "sniper_bolt_close"]]
+
+
+func _update_bolt(t: float) -> void:
+	var lift := ReloadRig._smooth(ReloadRig._seg(t, 0.20, 0.32)) - ReloadRig._smooth(ReloadRig._seg(t, 0.74, 0.86))
+	var back := ReloadRig._smooth(ReloadRig._seg(t, 0.32, 0.52)) - ReloadRig._smooth(ReloadRig._seg(t, 0.52, 0.72))
+	var hand_k := ReloadRig._smooth(ReloadRig._seg(t, 0.06, 0.20)) - ReloadRig._smooth(ReloadRig._seg(t, 0.88, 1.0))
+	if _bolt_node:
+		_bolt_node.rotation.z = BOLT_LIFT * lift
+		_bolt_node.position = _bolt_rest + Vector3(0.0, 0.0, BOLT_TRAVEL * back)
+	if _bolt_hand and _bolt_grip and model:
+		var grip_pos := model.to_local(_bolt_grip.global_position) + Vector3(-0.026, 0.0, 0.0)
+		_bolt_hand.position = _bolt_hand_rest.lerp(grip_pos, hand_k)
+	# the whole weapon is tilted a little while the right hand leaves the grip
+	var s := sin(t * PI)
+	anim_offset = Vector3(0.01 * s, -0.012 * s, 0.02 * s)
+	anim_rotation = Vector3(0.06 * s, -0.05 * s, 0.14 * s)
+	while _bolt_sound_idx < BOLT_SOUNDS.size() and t >= float(BOLT_SOUNDS[_bolt_sound_idx][0]):
+		_play_mech_sound(String(BOLT_SOUNDS[_bolt_sound_idx][1]), -3.0)
+		_bolt_sound_idx += 1
 
 
 ## True once when a shot that was requested during an interrupted reload may be fired now.

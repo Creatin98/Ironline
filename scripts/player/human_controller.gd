@@ -46,6 +46,13 @@ func _unhandled_input(event: InputEvent) -> void:
 			d.y = -d.y
 		player.apply_look(d)
 		return
+	if event is InputEventMouseButton and event.pressed and (event.button_index == MOUSE_BUTTON_WHEEL_UP or event.button_index == MOUSE_BUTTON_WHEEL_DOWN):
+		# scope: wheel up = more zoom, wheel down = less
+		if player.is_aiming:
+			var cw := player.weapon_manager.get_current_weapon()
+			if cw != null:
+				cw.zoom_step(1 if event.button_index == MOUSE_BUTTON_WHEEL_UP else -1)
+		return
 	if event.is_action_pressed("fire"):
 		player.input.fire_pressed = true
 		_pending_actions |= NetworkManager.ACT_FIRE

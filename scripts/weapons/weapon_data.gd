@@ -15,6 +15,9 @@ enum Slot { PRIMARY, SECONDARY }
 @export var falloff_start: float = 20.0 # Meter, bis hier voller Schaden
 @export var falloff_end: float = 45.0   # Meter, ab hier min_damage
 @export var headshot_multiplier: float = 1.4
+## Hits below this share of the body height (belly and legs) deal `lower_body_multiplier` x the damage (sniper: no one-hit kill there).
+@export var lower_body_fraction: float = 0.55
+@export var lower_body_multiplier: float = 1.0
 @export var pellets: int = 1
 @export var max_range: float = 200.0
 
@@ -23,6 +26,8 @@ enum Slot { PRIMARY, SECONDARY }
 @export var automatic: bool = true
 @export var pump_action: bool = false
 @export var pump_time: float = 0.65
+## Bolt action (sniper): after every shot the bolt is worked (see Weapon._update_bolt), the scope drops out meanwhile.
+@export var bolt_action: bool = false
 @export var magazine_size: int = 30
 @export var reserve_ammo: int = 90
 @export var reload_time: float = 2.2
@@ -52,6 +57,10 @@ enum Slot { PRIMARY, SECONDARY }
 @export var ads_position: Vector3 = Vector3(0.0, -0.11, -0.28)
 @export var hip_position: Vector3 = Vector3(0.24, -0.22, -0.46)
 @export var move_speed_multiplier: float = 1.0
+## Scoped weapon (sniper): aiming shows a real scope picture (ScopeOverlay) instead of zooming the camera;
+## `scope_fovs` are the zoom steps (field of view of the scope picture, mouse wheel while aiming).
+@export var scoped: bool = false
+@export var scope_fovs: Array[float] = [18.0, 8.0]
 @export var ads_speed_multiplier: float = 0.65
 
 @export_group("Audio")
@@ -65,6 +74,11 @@ enum Slot { PRIMARY, SECONDARY }
 @export_group("Bots")
 @export var bot_effective_range: float = 30.0
 @export var bot_burst_shots: int = 4
+
+
+## Field of view of the main camera while aiming: scoped weapons do not zoom the surroundings.
+func effective_ads_fov(base_fov: float) -> float:
+	return base_fov if scoped else ads_fov
 
 
 func seconds_between_shots() -> float:

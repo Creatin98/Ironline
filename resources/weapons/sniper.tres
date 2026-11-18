@@ -1,0 +1,56 @@
+[gd_resource type="Resource" script_class="WeaponData" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/weapons/weapon_data.gd" id="1_script"]
+[ext_resource type="PackedScene" path="res://scenes/weapons/models/sniper_model.tscn" id="2_model"]
+
+[resource]
+script = ExtResource("1_script")
+weapon_id = "sniper"
+display_name = "M200 Sniper"
+slot = 0
+model_scene = ExtResource("2_model")
+damage = 230.0
+min_damage = 230.0
+falloff_start = 300.0
+falloff_end = 400.0
+headshot_multiplier = 1.2
+lower_body_fraction = 0.55
+lower_body_multiplier = 0.5
+pellets = 1
+max_range = 400.0
+rpm = 52.0
+automatic = false
+pump_action = false
+pump_time = 1.25
+bolt_action = true
+magazine_size = 5
+reserve_ammo = 20
+reload_time = 2.7
+reload_single_shells = false
+draw_time = 0.55
+impact_feel = 1.7
+spread_hip = 6.0
+spread_ads = 0.02
+spread_moving_bonus = 3.0
+spread_per_shot = 0.0
+spread_max_bonus = 0.0
+spread_recovery = 8.0
+recoil_vertical = 3.6
+recoil_horizontal = 0.5
+recoil_kick_back = 0.12
+recoil_recovery = 6.0
+ads_fov = 60.0
+ads_time = 0.34
+ads_position = Vector3(0.0000, -0.0820, -0.3125)
+hip_position = Vector3(0.2200, -0.2200, -0.5000)
+move_speed_multiplier = 0.9
+ads_speed_multiplier = 0.5
+scoped = true
+scope_fovs = Array[float]([18.0, 8.0])
+shot_sound = "shot_sniper"
+shot_sound_far = "shot_sniper_far"
+reload_sounds = Array[String](["reload_mag_out", "reload_mag_in", "reload_bolt"])
+reload_style = "sniper"
+shot_volume_db = 3.0
+bot_effective_range = 70.0
+bot_burst_shots = 1

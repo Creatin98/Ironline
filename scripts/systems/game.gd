@@ -33,6 +33,7 @@ var _paused: bool = false
 
 var recorder: ReplayRecorder
 var flash_overlay: FlashOverlay
+var scope_overlay: ScopeOverlay
 var _cam: Camera3D # shared by killcam and last-kill replay
 var _killcam_active: bool = false
 var _dead_elapsed: float = 0.0
@@ -104,6 +105,10 @@ func _ready() -> void:
 	GameEvents.participant_killed.connect(recorder.note_kill)
 	GameEvents.participant_killed.connect(_on_participant_killed_skull)
 	_build_cam_overlay()
+	scope_overlay = ScopeOverlay.new()
+	scope_overlay.name = "ScopeOverlay"
+	scope_overlay.recorder = recorder
+	add_child(scope_overlay)
 	flash_overlay = FlashOverlay.new()
 	flash_overlay.name = "FlashOverlay"
 	add_child(flash_overlay)
@@ -186,7 +191,7 @@ func _create_roster() -> void:
 	if cfg.bots_enabled and MatchManager.is_authority():
 		var count := clampi(cfg.bot_count, 0, maxi(0, cfg.max_participants() - humans))
 		var names := GameDirector.random_bot_names(count)
-		var class_ids := GameDirector.get_class_ids()
+		var class_ids := GameDirector.get_class_ids().filter(func(id: String) -> bool: return id != "sniper") # bots do not scope
 		for i in count:
 			var class_id: String = class_ids[randi() % class_ids.size()]
 			MatchManager.add_bot(names[i], cfg.bot_difficulty, class_id, Teams.Team.NONE)

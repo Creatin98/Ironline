@@ -27,21 +27,27 @@ func setup(class_ids: Array) -> void:
 		row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		panel.add_child(row)
 		var pic := TextureRect.new()
-		pic.custom_minimum_size = Vector2(150, 84)
+		pic.custom_minimum_size = Vector2(130, 73)
 		pic.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		pic.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
 		pic.texture = GameDirector.get_class_preview(String(id))
 		pic.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		row.add_child(pic)
 		var col := UITheme.vbox(1)
-		col.custom_minimum_size = Vector2(238, 0)
+		col.custom_minimum_size = Vector2(280, 0)
 		col.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		row.add_child(col)
 		var name_label := UITheme.label(cls.display_name.to_upper(), 20, UITheme.TEXT)
 		col.add_child(name_label)
-		col.add_child(UITheme.label("%s  •  %s" % [cls.primary.display_name, cls.secondary.display_name], 14, UITheme.TEXT_DIM))
-		col.add_child(UITheme.label("%s  •  %d Schuss/min  •  %s" % [_damage_text(cls.primary), int(cls.primary.rpm), _mag_text(cls.primary)], 13, UITheme.TEXT_DIM))
-		col.add_child(UITheme.label(_equipment_text(cls), 13, UITheme.ACCENT_DIM))
+		for line in [
+			[cls.primary.display_name + "  •  " + cls.secondary.display_name, 14, UITheme.TEXT_DIM],
+			["%s  •  %d/min  •  %s" % [_damage_text(cls.primary), int(cls.primary.rpm), _mag_text(cls.primary)], 13, UITheme.TEXT_DIM],
+			[_equipment_text(cls), 13, UITheme.ACCENT_DIM],
+		]:
+			var l := UITheme.label(String(line[0]), int(line[1]), line[2] as Color)
+			l.clip_text = true # long weapon names never widen the card
+			l.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+			col.add_child(l)
 		panel.gui_input.connect(func(event: InputEvent) -> void: _on_card_input(event, String(id)))
 		panel.mouse_entered.connect(func() -> void: _set_hover(String(id), true))
 		panel.mouse_exited.connect(func() -> void: _set_hover(String(id), false))
@@ -54,11 +60,13 @@ func setup(class_ids: Array) -> void:
 static func _damage_text(w: WeaponData) -> String:
 	if w.pellets > 1:
 		return "%d×%d Schaden" % [w.pellets, int(w.damage)]
+	if int(w.min_damage) == int(w.damage):
+		return "Schaden %d" % int(w.damage)
 	return "Schaden %d–%d" % [int(w.min_damage), int(w.damage)]
 
 
 static func _mag_text(w: WeaponData) -> String:
-	return "%d Patronen" % w.magazine_size
+	return "%d Schuss" % w.magazine_size
 
 
 static func _equipment_text(cls: ClassData) -> String:

@@ -32,6 +32,7 @@ func _ready() -> void:
 	_check_spread_values()
 	await _check_shotgun_interrupt()
 	await _check_flashbang()
+	await _check_sniper()
 	await _simulate_cams()
 	await _simulate_steps()
 	await _simulate_slide()
@@ -459,6 +460,145 @@ func _bus_muffled(bus: String) -> bool:
 	return false
 
 
+## Sniper: damage zones (chest and up kills, belly and below only wounds), bolt cycle that drops the scope,
+## scope picture without zooming the surroundings, zoom steps, slow mouse at high zoom.
+func _check_sniper() -> void:
+	var cls := GameDirector.get_class_data("sniper")
+	if cls == null or cls.primary == null or not cls.primary.scoped or not cls.primary.bolt_action or cls.grenades != 2 or cls.flashbangs != 1 or cls.secondary.weapon_id != "pistol":
+		_fail("Sniper-Klasse unvollstaendig (Scope, Repetierer, 2 Granaten, 1 Blendgranate, Pistole)")
+		return
+	var cfg := MatchConfig.new()
+	cfg.mode_id = MatchConfig.MODE_FFA
+	cfg.map_id = "test_arena"
+	cfg.bots_enabled = true
+	cfg.bot_count = 1
+	cfg.time_limit = 0.0
+	cfg.local_class_id = "sniper"
+	MatchManager.prepare_match(cfg)
+	var game: Node = (load("res://scenes/game/game.tscn") as PackedScene).instantiate()
+	add_child(game)
+	await get_tree().process_frame
+	MatchManager.warmup_left = 0.05
+	var waited := 0.0
+	while MatchManager.state != MatchManager.State.RUNNING and waited < 6.0:
+		await get_tree().process_frame
+		waited += get_process_delta_time()
+	var me := MatchManager.get_local_participant()
+	var local: Player = me.node as Player
+	local.human_controller.deactivate()
+	var bot: Participant = null
+	for p in MatchManager.participants.values():
+		if p.is_bot:
+			bot = p
+	var bot_node: Player = bot.node as Player
+	(bot_node.get_node("BotController") as Node).set_physics_process(false)
+	for i in 80:
+		await get_tree().physics_frame
+	var wm := local.weapon_manager
+	var w := wm.get_current_weapon()
+	if w.data.weapon_id != "sniper" or w.magazine != 5:
+		_fail("Sniper: falsche Waffe/Magazin (%s, %d)" % [w.data.weapon_id, w.magazine])
+	# --- a platform high above the map: shooter and target 20 m apart
+	var floor_body := StaticBody3D.new()
+	var floor_shape := CollisionShape3D.new()
+	var floor_box := BoxShape3D.new()
+	floor_box.size = Vector3(80.0, 1.0, 80.0)
+	floor_shape.shape = floor_box
+	floor_body.add_child(floor_shape)
+	floor_body.collision_layer = 1
+	game.add_child(floor_body)
+	floor_body.global_position = Vector3(300.0, 99.5, 0.0)
+	local.global_position = Vector3(300.0, 100.0, 10.0)
+	bot_node.global_position = Vector3(300.0, 100.0, -10.0)
+	local.velocity = Vector3.ZERO
+	bot_node.velocity = Vector3.ZERO
+	local.rotation.y = 0.0
+	for i in 10:
+		await get_tree().physics_frame
+	bot_node.health.max_health = 1000.0
+	var zones := {"Brust": 1.3, "Oberer Bauch": 1.1, "Unterer Bauch": 0.9, "Bein": 0.35, "Kopf": 1.68}
+	var expected := {"Brust": 230.0, "Oberer Bauch": 230.0, "Unterer Bauch": 115.0, "Bein": 115.0, "Kopf": 276.0}
+	for zone in zones:
+		bot_node.health.health = 1000.0
+		var aim_point: Vector3 = bot_node.global_position + Vector3(0.0, float(zones[zone]), 0.0)
+		var to_target := (aim_point - local.head.get_aim_origin()).normalized()
+		local.head.set_pitch(asin(to_target.y))
+		w.cancel_actions()
+		w.fire_cooldown = 0.0
+		w.magazine = 5
+		if not w.try_fire(true, 0.0, false, false):
+			_fail("Sniper: Schuss auf %s kam nicht zustande" % zone)
+			continue
+		var lost := 1000.0 - bot_node.health.health
+		if absf(lost - float(expected[zone])) > 1.0:
+			_fail("Sniper-Schaden Zone %s: %.0f statt %.0f" % [zone, lost, float(expected[zone])])
+		var wounds: bool = zone in ["Unterer Bauch", "Bein"]
+		if not wounds and lost < 200.0:
+			_fail("Sniper: Treffer auf %s muss mit einem Schuss toeten (%.0f Schaden)" % [zone, lost])
+		if wounds and lost >= 200.0:
+			_fail("Sniper: Treffer auf %s toetet sofort (%.0f)" % [zone, lost])
+	# --- bolt cycle: the scope drops out, no shot meanwhile, then ready (and aiming works again)
+	local.head.set_pitch(0.0)
+	w.cancel_actions()
+	w.fire_cooldown = 0.0
+	w.magazine = 5
+	w.try_fire(true, 0.0, false, false)
+	if not w.is_bolting() or wm.can_aim() or w.try_fire(true, 0.0, false, false):
+		_fail("Sniper: nach dem Schuss muss repetiert werden (kein Zielen, kein Schuss)")
+	var bolt_moved := false
+	var hand := w.model.get_node_or_null("RightHand") as Node3D
+	var bolt := w.model.get_node_or_null("Bolt") as Node3D
+	for i in 45:
+		await get_tree().physics_frame
+		if bolt != null and absf(bolt.rotation.z) > 0.5 and hand != null and hand.position.distance_to(w._bolt_hand_rest) > 0.03:
+			bolt_moved = true
+	if not bolt_moved:
+		_fail("Sniper: Verschluss und rechte Hand bewegen sich beim Repetieren nicht")
+	for i in 60:
+		await get_tree().physics_frame
+	if w.state != Weapon.State.IDLE or not wm.can_aim() or bolt.rotation.z != 0.0 or hand.position.distance_to(w._bolt_hand_rest) > 0.001:
+		_fail("Sniper: nach dem Repetieren nicht bereit / Teile nicht in Ruhelage")
+	# --- scope: opens while aiming, the surroundings are not zoomed, the viewmodel is hidden, zoom steps, slower mouse
+	local.input.aim = true
+	for i in 45:
+		await get_tree().physics_frame
+	await get_tree().process_frame
+	var overlay: ScopeOverlay = game.scope_overlay
+	if wm.scope_blend() < 0.95 or not overlay.is_open() or not overlay.rect.visible:
+		_fail("Sniper: Scope oeffnet sich beim Zielen nicht (Blend %.2f)" % wm.scope_blend())
+	if absf(local.camera.fov - GameSettings.fov) > 1.0:
+		_fail("Sniper: die Umgebung darf beim Zielen nicht gezoomt werden (FOV %.1f statt %.1f)" % [local.camera.fov, GameSettings.fov])
+	if wm.holder.visible:
+		_fail("Sniper: Waffenmodell muss im Scope ausgeblendet sein")
+	var sens_wide := local.get_ads_sensitivity_scale()
+	if not w.zoom_step(1) or w.scope_fov() != 8.0 or w.zoom_step(1) or not w.zoom_step(-1) or w.scope_fov() != 18.0:
+		_fail("Sniper: Zoomstufen funktionieren nicht")
+	w.zoom_step(1)
+	if local.get_ads_sensitivity_scale() >= sens_wide:
+		_fail("Sniper: Mausempfindlichkeit sinkt mit hohem Zoom nicht")
+	w.zoom_step(-1)
+	local.input.aim = false
+	for i in 45:
+		await get_tree().physics_frame
+	await get_tree().process_frame
+	if overlay.is_open() or overlay.rect.visible or not wm.holder.visible:
+		_fail("Sniper: Scope schliesst sich nach dem Zielen nicht")
+	# --- reload (magazine) works like the other rifles
+	w.magazine = 1
+	if not w.start_reload():
+		_fail("Sniper: Nachladen liess sich nicht starten")
+	var frames := 0
+	while w.is_reloading() and frames < 400:
+		await get_tree().physics_frame
+		frames += 1
+	if w.magazine != 5:
+		_fail("Sniper: Magazin nach dem Nachladen %d statt 5" % w.magazine)
+	print("Sniper: Zonenschaden (Brust/Bauch/Kopf toeten, Bein nicht), Repetieren, Scope ohne Zoom der Umgebung, Zoomstufen, Nachladen OK")
+	floor_body.queue_free()
+	game.free()
+	await get_tree().process_frame
+
+
 ## Reload animation: every weapon fires its sounds in order, moves its parts and returns to the rest pose.
 func _check_reload_rigs() -> void:
 	var expected := {
@@ -466,6 +606,7 @@ func _check_reload_rigs() -> void:
 		"smg": ["reload_release", "reload_mag_out", "reload_mag_in", "reload_slap", "reload_bolt"],
 		"pistol": ["reload_release", "reload_pistol_out", "reload_pistol_in", "reload_slide"],
 		"shotgun": ["shell_insert"],
+		"sniper": ["reload_release", "reload_mag_out", "reload_mag_in", "reload_slap", "reload_bolt"],
 	}
 	for class_id in GameDirector.get_class_ids():
 		var cls := GameDirector.get_class_data(class_id)
@@ -493,7 +634,7 @@ func _check_reload_rigs() -> void:
 			for pr in parts:
 				if (pr[0] as Node3D).position.distance_to(pr[1]) > 0.0005:
 					_fail("%s: %s kehrt nach dem Reload nicht in die Ruhelage zurueck" % [wd.weapon_id, (pr[0] as Node).name])
-			if wd.reload_style in ["rifle", "smg", "pistol"] and model.get_node_or_null("Mag") == null:
+			if wd.reload_style in ["rifle", "smg", "pistol", "sniper"] and model.get_node_or_null("Mag") == null:
 				_fail("%s: Modell hat kein Mag fuer den Magazinwechsel" % wd.weapon_id)
 			model.free()
 	print("Reload-Rigs: alle Waffen animieren, Sounds in Reihenfolge, Ruhelage nach dem Reload OK")
@@ -722,7 +863,7 @@ func _check_end_screen_sequence() -> void:
 		_fail("Hauptmenue-Knopf sitzt nicht mittig (x %.0f statt %.0f)" % [leave_mid, mid.x])
 	var strip_mid := screen._stage_class.global_position.x + screen._stage_class.size.x * 0.5
 	if absf(strip_mid - (screen.global_position.x + mid.x)) > 3.0:
-		_fail("Klassenwahl sitzt nicht mittig (x %.0f statt %.0f)" % [strip_mid, screen.global_position.x + mid.x])
+		_fail("Klassenwahl sitzt nicht mittig (x %.0f statt %.0f, Streifen %.0f breit, Bildschirm %.0f)" % [strip_mid, screen.global_position.x + mid.x, screen._stage_class.size.x, screen.size.x])
 	var inside := 0
 	for id in screen._cards:
 		var card: VoteCard = screen._cards[id]
@@ -1095,12 +1236,22 @@ func _simulate_cams() -> void:
 	for i in 200:
 		await get_tree().physics_frame
 	# the killer hits us once with a real shot: the killcam must show his hitmarker
-	var space := local.get_world_3d().direct_space_state
-	for off in [Vector3(5, 0, 0), Vector3(-5, 0, 0), Vector3(0, 0, 5), Vector3(0, 0, -5), Vector3(3, 0, 3), Vector3(-3, 0, -3)]:
-		bot_node.global_position = local.global_position + off # a spot with a clear line to us
-		var los := PhysicsRayQueryParameters3D.create(bot_node.get_eye_position(), local.get_center(), 1)
-		if space.intersect_ray(los).is_empty():
-			break
+	# both stand on a platform high above the map with a clear line of sight
+	var arena := StaticBody3D.new()
+	var arena_shape := CollisionShape3D.new()
+	var arena_box := BoxShape3D.new()
+	arena_box.size = Vector3(60.0, 1.0, 60.0)
+	arena_shape.shape = arena_box
+	arena.add_child(arena_shape)
+	arena.collision_layer = 1
+	game.add_child(arena)
+	arena.global_position = Vector3(700.0, 99.5, 0.0)
+	local.global_position = Vector3(700.0, 100.0, 0.0)
+	bot_node.global_position = Vector3(700.0, 100.0, -5.0)
+	local.velocity = Vector3.ZERO
+	bot_node.velocity = Vector3.ZERO
+	for i in 6:
+		await get_tree().physics_frame
 	bot_node.face_towards(local.get_eye_position())
 	for i in 40: # the turn takes 0.5 s
 		await get_tree().physics_frame
@@ -1179,6 +1330,19 @@ func _simulate_cams() -> void:
 	MatchManager.report_kill(bot.id, me.id, "ak47", true)
 	await get_tree().physics_frame
 	MatchManager.runout_time = 1.7
+	# a clear runway high above the map (a random spawn next to a wall would stop the runner at once)
+	var runway := StaticBody3D.new()
+	var runway_shape := CollisionShape3D.new()
+	var runway_box := BoxShape3D.new()
+	runway_box.size = Vector3(80.0, 1.0, 120.0)
+	runway_shape.shape = runway_box
+	runway.add_child(runway_shape)
+	runway.collision_layer = 1
+	game.add_child(runway)
+	runway.global_position = Vector3(500.0, 199.5, 0.0)
+	local.global_position = Vector3(500.0, 200.0, 50.0)
+	local.rotation.y = 0.0
+	await get_tree().physics_frame
 	local.velocity = Vector3.ZERO
 	local.input.move = Vector2(0, 1)
 	local.input.sprint = true

@@ -8,6 +8,7 @@ extends Node
 ## Targets: menu, menu_settings, menu_online, menu_quick, menu_classes,
 ##   fp_<class>_<hip|ads>   first-person view in the test arena (class: assault, smg, shotgun)
 ##   game_pause | game_scoreboard | game_end | game_killcam | game_lastkill   in-game UI states (test arena, a few bots)
+##   bolt_<class>_<percent>   bolt cycle pose (sniper) at that progress
 ##   rl_<class>_<percent>[_sec]   reload pose at that progress (first person, hip), e.g. rl_assault_40
 ##   map_<id>      overview render of a map (preview image for menus)
 ##   class_<id>    weapon render of a class (preview image for menus)
@@ -75,6 +76,8 @@ func _run() -> void:
 		await _reload_model_view()
 	elif target.begins_with("rl_"):
 		await _reload_view()
+	elif target.begins_with("bolt_"):
+		await _reload_view(true)
 	elif target.begins_with("fp_"):
 		await _first_person_view()
 	elif target.begins_with("game_"):
@@ -496,7 +499,7 @@ func _game_ui(state: String) -> void:
 		await get_tree().process_frame
 
 
-func _reload_view() -> void:
+func _reload_view(bolt: bool = false) -> void:
 	var parts := target.split("_")
 	var class_id := parts[1]
 	var progress := float(parts[2]) / 100.0
@@ -525,6 +528,18 @@ func _reload_view() -> void:
 		for i in 60:
 			await get_tree().physics_frame
 	var w := wm.get_current_weapon()
+	if bolt:
+		# bolt cycle after a shot (bolt_<class>_<percent>)
+		w._set_state(Weapon.State.PUMPING, w.data.pump_time)
+		await get_tree().physics_frame
+		get_tree().paused = true
+		w._bolt_sound_idx = 99
+		w._update_bolt(progress)
+		wm.holder.position = w.data.hip_position + w.anim_offset
+		wm.holder.rotation = w.anim_rotation
+		for i in 3:
+			await get_tree().process_frame
+		return
 	w.magazine = 2
 	w.start_reload()
 	await get_tree().physics_frame

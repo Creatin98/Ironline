@@ -368,3 +368,8 @@ Python-Skripten in `tools/` erzeugt – keine Fremdinhalte, alles reproduzierbar
   `GameEvents.flashbang_exploded`. `FlashMath` (Abstand 6–24 m, Blickrichtung, Sichtlinie gegen Wände) bestimmt die Stärke für den lokalen Spieler (`FlashOverlay`) und für Bots
   (`BotController._blind_left`: sehen und schießen nichts). `FlashOverlay`: Weißblende (max. 1.8 s) → unscharfes, aufgehelltes Bild + dunkles Nachbild (`assets/shaders/flash_blind.gdshader`),
   zusammen ca. 5.5 s; `AudioManager.set_flash_effect`: Tiefpass + Absenkung auf den Kategorie-Bussen (nicht HitOther/UI), Tinnitus `flash_ring`. Direkttreffer jeder Granate: 5 Schaden + Hitmarker (einmal pro Granate).
+* **Sniper:** `WeaponData.bolt_action/scoped/scope_fovs/lower_body_*`, Klasse `class_sniper` (230 Schaden, Kopf 1.2×; unterhalb 55 % der Körperhöhe 0.5× → kein One-Hit-Kill).
+  Repetieren nach jedem Schuss: `Weapon._update_bolt` (Verschluss dreht/gleitet, rechte Hand greift den Griff, Sounds `sniper_bolt_open/close`); währenddessen `WeaponManager.can_aim()` = false (Scope klappt weg, danach automatisch wieder an).
+  Scope: `ScopeOverlay` (CanvasLayer 1) mit zweiter Kamera in einem `SubViewport` (gleiche Welt, `scope_fov`, ohne Viewmodel-Layer `1<<19`) + `assets/shaders/scope_view.gdshader` (Linse mit Absehen/Mil-Dots,
+  außen die ungezoomte, stark weichgezeichnete Hauptansicht); Hauptkamera zoomt nicht (`WeaponData.effective_ads_fov`), Mausrad = Zoomstufe (`Weapon.zoom_step`), Maus-Empfindlichkeit skaliert mit dem Zoom.
+  Killcam: `ReplayRecorder.killer_scope_fov()` → dieselbe Scope-Ansicht aus Sicht des Schützen. Bots wählen die Klasse nicht.

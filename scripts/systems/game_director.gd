@@ -39,6 +39,7 @@ const CLASSES: Dictionary = {
 	"assault": "res://resources/classes/class_assault.tres",
 	"smg": "res://resources/classes/class_smg.tres",
 	"shotgun": "res://resources/classes/class_shotgun.tres",
+	"sniper": "res://resources/classes/class_sniper.tres",
 }
 
 const BOT_NAMES: Array[String] = [

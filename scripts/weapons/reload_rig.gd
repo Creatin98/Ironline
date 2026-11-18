@@ -22,6 +22,13 @@ const SMG := {
 	"handle_hand": Vector3(-0.060, 0.045, -0.240),
 	"handle_pull": 0.060,
 }
+## Sniper: the magazine well sits at (0, -0.03, 0.02); the support hand ends the reload with a tap on the rear of the receiver.
+const SNIPER := {
+	"grip": Vector3(-0.030, -0.120, 0.034),
+	"belt": Vector3(-0.200, -0.320, 0.000),
+	"handle_hand": Vector3(-0.040, 0.050, 0.100),
+	"handle_pull": 0.0,
+}
 const PISTOL := {
 	"grip": Vector3(-0.012, -0.112, 0.060),
 	"belt": Vector3(-0.150, -0.260, 0.100),
@@ -193,6 +200,8 @@ func apply(t: float, tilt_scale: float = 1.0) -> Array[String]:
 			_pose_shotgun(t, tilt_scale)
 		"smg":
 			_pose_rifle(t, SMG)
+		"sniper":
+			_pose_rifle(t, SNIPER)
 		_:
 			_pose_rifle(t, RIFLE)
 	_update_arms()

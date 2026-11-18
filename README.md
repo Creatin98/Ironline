@@ -1,14 +1,14 @@
 # Ironline – Arcade Multiplayer FPS (Godot 4)
 
 Schneller First-Person-Arena-Shooter im Stil der klassischen Konsolen-Multiplayer-Ära:
-drei Klassen, drei Drei-Wege-Maps, Team Deathmatch und Free for All, Bots und Online-Multiplayer.
+vier Klassen, drei Drei-Wege-Maps, Team Deathmatch und Free for All, Bots und Online-Multiplayer.
 
 ## Aktueller Stand (Phase 1–8 abgeschlossen)
 
 | Phase | Inhalt | Status |
 |---|---|---|
 | 1 | Projektstruktur, First-Person-Controller, Testarena | fertig |
-| 2 | AK-47, MP5, Shotgun, Pistole, Granate, Hitscan, Schaden, Tod | fertig |
+| 2 | AK-47, MP5, Shotgun, Sniper, Pistole, Granate, Blendgranate, Hitscan, Schaden, Tod | fertig |
 | 3 | Team Deathmatch, Free for All, Respawn, Killlimit, Scoreboard, HUD | fertig |
 | 4 | Maps Harbor, Frontier, Suburb, Bot-Navigation | fertig |
 | 5 | Bot-KI | fertig |
@@ -26,6 +26,11 @@ drei Klassen, drei Drei-Wege-Maps, Team Deathmatch und Free for All, Bots und On
 4. F5 (Projekt starten) → Hauptmenü:
    * **Training (Offline)**: Modus, Klasse, Bots wählen → **Match starten**.
    * **Online**: siehe „Online spielen“.
+
+**Sniper** (M200): Repetierer mit Scope. Zielen öffnet ein echtes Zielfernrohr-Bild (scharf, gezoomt, mit Absehen), die Umgebung außenherum bleibt ungezoomt und unscharf;
+Mausrad wechselt den Zoom, nach jedem Schuss wird repetiert (das Zielen setzt danach wieder ein). Ein Treffer von der Brust aufwärts tötet, unterer Bauch und Beine verwunden nur.
+**Blendgranate** (F, 1 pro Klasse): Weißblende mit gedämpften Geräuschen und Tinnitus, abhängig von Abstand, Blickrichtung und Wänden dazwischen (ca. 5,5 s im Maximum); Bots werden ebenfalls geblendet.
+Granaten und Blendgranaten, die einen Gegner direkt treffen, verursachen 5 Schaden und einen Hitmarker.
 
 Nachladen ist animiert: Das Magazin wird gelöst, gewechselt und eingesetzt (Gewehr, MP5, Pistole), die Schrotflinte lädt Patrone
 für Patrone (schnell und wuchtig, mit „Ratsch-Ratsch“-Geräusch) und lässt sich jederzeit per Schuss unterbrechen: Mit mindestens einer Patrone im
@@ -50,7 +55,7 @@ Ein Spieler ist Host (Server und Mitspieler zugleich), die anderen treten bei.
 2. Mitspieler: **Online** → IP-Adresse des Hosts und Port eintragen → **Beitreten**.
 3. Jeder wählt in der Lobby Team (nur Team Deathmatch) und Klasse. Der Host stellt Modus, Map und Bots ein und startet das Match.
 4. Die Klasse kann jederzeit gewechselt werden (Lobby, Pausemenü, Endbildschirm) und gilt ab dem nächsten Respawn.
-5. Nach dem Match stimmen alle 20 Sekunden (10 s Scoreboard, 10 s finale Abstimmung mit Klassenwahl) über die nächste Karte ab (Harbor, Frontier, Suburb). Bei Gleichstand oder ohne Stimmen entscheidet der Zufall, sobald alle gewählt haben startet die Runde sofort. Der Host kann stattdessen **Zur Lobby** wählen. Offline wählst du die nächste Karte direkt im Endbildschirm.
+5. Nach dem Match stimmen alle 20 Sekunden (10 s Scoreboard, 10 s finale Abstimmung mit Klassenwahl) über die nächste Karte ab (Harbor, Frontier, Suburb). Bei Gleichstand oder ohne Stimmen entscheidet der Zufall. Der Host kann stattdessen **Zur Lobby** wählen. Offline wählst du die nächste Karte direkt im Endbildschirm.
 
 Im selben WLAN/LAN genügt die lokale IP des Hosts (z. B. `192.168.x.x`). Über das Internet muss der Host
 den **UDP**-Port am Router an seinen Rechner weiterleiten (Port-Forwarding) und die öffentliche IP weitergeben;

@@ -43,6 +43,7 @@ const EXACT_SOUNDS := {
 	"kill_confirm": "kill", "kill_headshot": "kill",
 	"bullet_impact": "hit_other", "ricochet": "hit_other", "hurt": "hit_other", "death": "hit_other",
 	"explosion": "grenades", "flashbang_bang": "grenades", "flash_ring": "hit_other",
+	"sniper_bolt_open": "reload", "sniper_bolt_close": "reload", "sniper_scope_in": "handling", "sniper_scope_out": "handling", "sniper_scope_zoom": "handling",
 	"respawn": "ui", "round_start": "ui", "round_win": "ui", "round_lose": "ui",
 	"amb_wind": "wind", "amb_water": "water", "amb_plane": "distant", "amb_gull": "birds",
 }

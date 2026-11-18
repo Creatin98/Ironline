@@ -31,6 +31,7 @@ MATERIALS = {
     "sleeve": dict(color=(0.17, 0.20, 0.14), metallic=0.0, roughness=0.95),
     "shell_red": dict(color=(0.72, 0.10, 0.08), metallic=0.0, roughness=0.55),
     "brass": dict(color=(0.80, 0.62, 0.26), metallic=0.8, roughness=0.3),
+    "lens": dict(color=(0.10, 0.20, 0.34), metallic=0.9, roughness=0.10),
     "sight_dot": dict(color=(0.95, 0.95, 0.9), metallic=0.0, roughness=0.4, emission=(1.0, 1.0, 0.95), energy=0.9),
 }
 
@@ -392,6 +393,59 @@ def shotgun():
     return s
 
 
+# --------------------------------------------------------------------------- Sniper (bolt action, scope)
+
+def sniper():
+    s = Scene("SniperModel")
+    s.root()
+    # receiver with rail and ejection port
+    s.box("Receiver", (0, 0.0, 0.040), (0.052, 0.064, 0.300), "gunmetal")
+    s.box("ReceiverRail", (0, 0.036, 0.040), (0.030, 0.008, 0.280), "steel")
+    s.box("EjectionPort", (0.0265, 0.014, 0.050), (0.002, 0.026, 0.100), "steel")
+    # heavy barrel, sleeve and muzzle brake with ports
+    s.cyl("Barrel", (0, 0.012, -0.440), 0.0135, 0.660, "gunmetal")
+    s.cyl("BarrelSleeve", (0, 0.012, -0.300), 0.0185, 0.340, "steel")
+    s.cyl("MuzzleBrake", (0, 0.012, -0.800), 0.0185, 0.080, "steel_light")
+    s.box("BrakePortL", (-0.0188, 0.012, -0.800), (0.004, 0.012, 0.050), "polymer")
+    s.box("BrakePortR", (0.0188, 0.012, -0.800), (0.004, 0.012, 0.050), "polymer")
+    # chassis forend with a bottom rail
+    s.box("Forend", (0, -0.016, -0.260), (0.056, 0.052, 0.340), "polymer_grey")
+    s.box("ForendRail", (0, -0.045, -0.260), (0.020, 0.010, 0.300), "steel")
+    # scope: tube, bells with glass, turrets, rings
+    s.cyl("ScopeTube", (0, 0.082, -0.020), 0.0215, 0.300, "polymer")
+    s.cyl("ScopeObjective", (0, 0.082, -0.205), 0.033, 0.090, "polymer")
+    s.cyl("ScopeOcular", (0, 0.082, 0.175), 0.0285, 0.070, "polymer")
+    s.cyl("ScopeLensFront", (0, 0.082, -0.2515), 0.0305, 0.004, "lens")
+    s.cyl("ScopeLensRear", (0, 0.082, 0.2105), 0.0250, 0.004, "lens")
+    s.box("ScopeTurretTop", (0, 0.1075, -0.020), (0.026, 0.024, 0.026), "polymer")
+    s.box("ScopeTurretSide", (0.0345, 0.082, -0.020), (0.024, 0.026, 0.026), "polymer")
+    s.box("ScopeRingFront", (0, 0.058, -0.090), (0.036, 0.028, 0.032), "steel")
+    s.box("ScopeRingRear", (0, 0.058, 0.095), (0.036, 0.028, 0.032), "steel")
+    # bolt (group: axis along z, the handle sticks out to the right and turns up when it is worked)
+    bolt = s.group("Bolt", (0, 0.014, 0.070))
+    s.box("BoltBody", (0, 0, 0), (0.022, 0.022, 0.130), "steel_light", parent=bolt)
+    s.box("BoltRod", (0.040, 0, 0.040), (0.058, 0.010, 0.010), "steel_light", parent=bolt)
+    s.box("BoltKnob", (0.074, 0, 0.040), (0.022, 0.022, 0.022), "polymer_grey", parent=bolt)
+    s.marker("BoltGrip", (0.074, 0, 0.040), parent=bolt)
+    # trigger group, grip, stock
+    s.box("TriggerGuardBottom", (0, -0.040, 0.060), (0.008, 0.008, 0.075), "steel")
+    s.box("TriggerGuardFront", (0, -0.024, 0.024), (0.008, 0.030, 0.008), "steel")
+    s.box("Trigger", (0, -0.022, 0.056), (0.006, 0.022, 0.008), "steel_light", rot=(18, 0, 0))
+    s.box("Grip", (0, -0.078, 0.140), (0.034, 0.092, 0.044), "polymer_grey", rot=(22, 0, 0))
+    s.box("StockNeck", (0, 0.002, 0.235), (0.042, 0.070, 0.090), "polymer_grey")
+    s.box("Stock", (0, -0.015, 0.360), (0.046, 0.085, 0.180), "polymer_grey", rot=(-3, 0, 0))
+    s.box("CheekRiser", (0, 0.040, 0.330), (0.040, 0.030, 0.120), "polymer")
+    s.box("StockPad", (0, -0.022, 0.462), (0.048, 0.100, 0.016), "polymer")
+    # box magazine (removable)
+    mp = (0.0, -0.030, 0.020)
+    mg = mag_group(s, mp)
+    s.box("MagBody", (0.0, -0.055, 0.0), (0.034, 0.110, 0.070), "steel", parent=mg)
+    s.box("MagFloor", (0.0, -0.113, 0.0), (0.040, 0.010, 0.078), "gunmetal", parent=mg)
+    s.marker("Muzzle", (0, 0.012, -0.845))
+    hands(s, left=(0.0, 0.0, -0.280), right=(0.0, -0.082, 0.138), left_target=(-0.12, -0.55, 0.30), right_target=(0.14, -0.55, 0.40), half=0.028, bottom=-0.042)
+    return s
+
+
 # --------------------------------------------------------------------------- Pistol
 
 def pistol():
@@ -444,6 +498,8 @@ WEAPONS = {
     "mp5": (mp5, 0.082, 0.070, 0.30, (0.19, -0.19, -0.40), 58.0),
     "shotgun": (shotgun, 0.0645, 0.040, 0.30, (0.20, -0.20, -0.42), 58.0),
     "pistol": (pistol, 0.0585, 0.050, 0.32, (0.17, -0.17, -0.34), 60.0),
+    # sight_y = the scope axis, rear_z = the rear lens: the eye sits 0.10 m behind it
+    "sniper": (sniper, 0.082, 0.2125, 0.10, (0.22, -0.22, -0.50), 60.0),
 }
 
 

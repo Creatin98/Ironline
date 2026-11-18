@@ -18,6 +18,8 @@ const RUNOUT_DECEL := 7.0
 const AIR_ACCEL := 3.5
 const STAND_HEIGHT := 1.8
 const CROUCH_HEIGHT := 1.2
+## Killcam: from this aim blend on a scoped weapon is not drawn (the scope picture shows the view, see ScopeOverlay).
+const REPLAY_SCOPE_HIDE_AT := 0.72
 const EYE_BELOW_TOP := 0.18
 const HEADSHOT_ZONE := 0.36
 const SPRINT_FIRE_DELAY := 0.22
@@ -245,6 +247,8 @@ func _play_death_animation_replay() -> void:
 ## (relative to the camera `cam_xf`), so sights and weapon look like in the game (0 = hip, 1 = sights).
 func replay_aim(a: float, cam_xf: Transform3D = Transform3D.IDENTITY) -> void:
 	_replay_aiming = a > 0.001
+	var scoped_w := weapon_manager.get_current_weapon()
+	hands.visible = not (scoped_w != null and scoped_w.data.scoped and a > REPLAY_SCOPE_HIDE_AT) # through the scope the weapon itself is not seen
 	var hip := rig.weapon_anchor()
 	if a <= 0.001:
 		hands.position = hip
@@ -416,6 +420,8 @@ func get_ads_sensitivity_scale() -> float:
 	var w := weapon_manager.get_current_weapon()
 	if w == null:
 		return 1.0
+	if w.data.scoped:
+		return clampf(w.scope_fov() / GameSettings.fov, 0.08, 1.0) * GameSettings.ads_sensitivity # as slow as the zoom is strong
 	return clampf(w.data.ads_fov / GameSettings.fov, 0.45, 1.0) * GameSettings.ads_sensitivity
 
 
@@ -476,7 +482,7 @@ func _process(delta: float) -> void:
 	last_look_delta = _look_accum
 	_look_accum = Vector2.ZERO
 	var w := weapon_manager.get_current_weapon()
-	var ads_fov := w.data.ads_fov if w else GameSettings.fov
+	var ads_fov := w.data.effective_ads_fov(GameSettings.fov) if w else GameSettings.fov
 	var ads_time := w.data.ads_time if w else 0.2
 	_step_view_offset = move_toward(_step_view_offset, 0.0, delta * STEP_VIEW_SPEED)
 	head.sliding = is_sliding
