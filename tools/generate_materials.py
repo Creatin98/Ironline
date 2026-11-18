@@ -25,16 +25,26 @@ MATERIALS = {
     "rubber": (0.8, 0.0, 1.0, 0.3),
 }
 
-TEMPLATE = """[gd_resource type="StandardMaterial3D" load_steps=2 format=3]
+# roughness values in MATERIALS are kept for reference; the roughness map holds the real values
+NORMAL_SCALE = {"brick": 1.3, "concrete": 1.1, "asphalt": 1.0, "water": 0.6, "rubber": 0.8}
+
+TEMPLATE = """[gd_resource type="StandardMaterial3D" load_steps=4 format=3]
 
 [ext_resource type="Texture2D" path="res://assets/textures/{name}.png" id="1_tex"]
+[ext_resource type="Texture2D" path="res://assets/textures/{name}_n.png" id="2_nrm"]
+[ext_resource type="Texture2D" path="res://assets/textures/{name}_r.png" id="3_rgh"]
 
 [resource]
 resource_name = "{name}"
 albedo_texture = ExtResource("1_tex")
 metallic = {metallic}
 metallic_specular = {specular}
-roughness = {roughness}
+roughness = 1.0
+roughness_texture = ExtResource("3_rgh")
+roughness_texture_channel = 0
+normal_enabled = true
+normal_scale = {nscale}
+normal_texture = ExtResource("2_nrm")
 uv1_scale = Vector3({scale}, {scale}, {scale})
 uv1_triplanar = true
 uv1_world_triplanar = true
@@ -46,5 +56,5 @@ if __name__ == "__main__":
     for name, (rough, metal, scale, spec) in MATERIALS.items():
         path = os.path.join(OUT, name + ".tres")
         with open(path, "w", encoding="utf-8", newline="\n") as f:
-            f.write(TEMPLATE.format(name=name, roughness=rough, metallic=metal, scale=scale, specular=spec))
+            f.write(TEMPLATE.format(name=name, nscale=NORMAL_SCALE.get(name, 1.0), metallic=metal, scale=scale, specular=spec))
         print("wrote", path)
