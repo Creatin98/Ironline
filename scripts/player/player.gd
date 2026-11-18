@@ -34,7 +34,8 @@ const DEATH_FALL_TIME := 0.34
 const SLIDE_TIME := 0.84
 const SLIDE_MIN_SPEED := 5.2
 const SLIDE_MIN_START_SPEED := 6.6
-const SLIDE_COOLDOWN := 0.9
+const SLIDE_COOLDOWN := 1.2 # (was 0.9) with the slower run-up after a slide, chain-sliding is no longer worth it
+const POST_SLIDE_TIME := 0.8 # after a slide the sprint builds up again from a slower pace
 const SLIDE_RELOAD_FACTOR := 0.93
 
 var participant_id: int = 0
@@ -51,6 +52,7 @@ var is_sprinting: bool = false
 var is_crouching: bool = false
 var is_sliding: bool = false
 var _slide_len: float = SLIDE_TIME
+var _post_slide_t: float = 0.0
 var spectating: bool = false
 ## Showroom dummies: a fixed animation pose (velocity in the figure's frame, sprint arms); Vector3.INF = off.
 var pose_vel: Vector3 = Vector3.INF
@@ -859,6 +861,7 @@ func _update_states(delta: float) -> void:
 	if input.fire_held or input.fire_pressed:
 		_sprint_block_timer = SPRINT_FIRE_DELAY
 	_slide_cd = maxf(0.0, _slide_cd - delta)
+	_post_slide_t = maxf(0.0, _post_slide_t - delta)
 	if not input.crouch:
 		_crouch_suppressed = false
 	# slide: crouch pressed while sprinting on the ground
@@ -962,6 +965,7 @@ func _start_slide() -> void:
 ## `stand`: Space was pressed -> stand up now (and stay up although crouch may still be held).
 func _end_slide(stand: bool) -> void:
 	is_sliding = false
+	_post_slide_t = POST_SLIDE_TIME
 	if stand:
 		_crouch_suppressed = true
 		if _can_stand_up():
@@ -994,6 +998,8 @@ func _move(delta: float) -> void:
 		speed = CROUCH_SPEED
 	elif is_sprinting:
 		speed = SPRINT_SPEED
+		if _post_slide_t > 0.0:
+			speed *= lerpf(0.8, 1.0, 1.0 - _post_slide_t / POST_SLIDE_TIME) # run-up after a slide: no instant full speed
 	var w := weapon_manager.get_current_weapon()
 	if w:
 		speed *= w.data.move_speed_multiplier

@@ -2342,7 +2342,7 @@ func _check_hit_zones() -> void:
 	var cases := [
 		[Vector3(0, 1.7, 0), "head"], [Vector3(0, 1.35, 0), "chest"], [Vector3(0, 1.05, 0), "belly"],
 		[Vector3(0.25, 1.3, 0), "upper_arm"], [Vector3(-0.25, 0.95, 0), "forearm"],
-		[Vector3(0.1, 0.7, 0), "thigh"], [Vector3(-0.1, 0.25, 0), "shin"],
+		[Vector3(0.1, 0.7, 0), "thigh"], [Vector3(-0.1, 0.25, 0), "shin"], [Vector3(0.1, 0.05, 0), "foot"],
 	]
 	for c in cases:
 		var z := HitZones.classify(c[0], 1.8)

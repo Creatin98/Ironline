@@ -716,7 +716,7 @@ func set_spectator(on: bool) -> void:
 		get_tree().create_timer(12.0).timeout.connect(func() -> void: if is_instance_valid(hint_label): hint_label.text = "")
 
 
-const ZONE_NAMES := {"head": "KOPF", "chest": "BRUST", "belly": "BAUCH", "upper_arm": "OBERARM", "forearm": "UNTERARM", "thigh": "OBERSCHENKEL", "shin": "WADE"}
+const ZONE_NAMES := {"head": "KOPF", "chest": "BRUST", "belly": "BAUCH", "upper_arm": "OBERARM", "forearm": "UNTERARM", "thigh": "OBERSCHENKEL", "shin": "WADE", "foot": "FUSS"}
 var _train_label: Label
 var _train_tween: Tween
 

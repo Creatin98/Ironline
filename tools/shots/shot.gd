@@ -381,6 +381,10 @@ func _game_ui(state: String) -> void:
 		sl.global_position = Vector3(-18.5, 0.1, 26.0)
 		sl.rotation.y = deg_to_rad(90.0)
 		sl.head.set_pitch(-0.12)
+		if "--close=1" in OS.get_cmdline_user_args():
+			sl.global_position = Vector3(-31.5, 0.1, 20.0)
+			sl.rotation.y = deg_to_rad(90.0) + 0.55
+			sl.head.set_pitch(-0.05)
 		for i in 20:
 			await get_tree().physics_frame
 		get_tree().paused = true

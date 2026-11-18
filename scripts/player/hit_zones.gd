@@ -11,6 +11,7 @@ const HIP := 0.92          # pelvis joint
 const CHEST := 1.22        # above this the torso counts as chest
 const SHOULDER := 1.42     # top of the shoulders
 const ELBOW := 1.12        # elbow height of the arms held forward
+const FOOT := 0.11         # below this: the foot (boot)
 const ARM_X := 0.17        # |x| beyond this (and between the hands' and shoulders' heights) is an arm
 const HEAD_Y := 1.44       # head and neck above this
 
@@ -24,6 +25,8 @@ static func classify(local: Vector3, height: float) -> Dictionary:
 	if y >= HEAD_Y:
 		return {"zone": "head", "side": side, "seg": 2}
 	if y < HIP - 0.04:
+		if y < FOOT:
+			return {"zone": "foot", "side": side, "seg": 4 + 4 * side} # the foot goes with the shin
 		if y >= KNEE:
 			return {"zone": "thigh", "side": side, "seg": 3 + 4 * side}
 		return {"zone": "shin", "side": side, "seg": 4 + 4 * side}
@@ -37,4 +40,4 @@ static func classify(local: Vector3, height: float) -> Dictionary:
 
 
 static func is_limb(zone: String) -> bool:
-	return zone in ["upper_arm", "forearm", "thigh", "shin"]
+	return zone in ["upper_arm", "forearm", "thigh", "shin", "foot"]
