@@ -464,7 +464,9 @@ func build_detail(d: MapDetail) -> void:
 	MesaScenery.garden_details(d, _bushes, _palms)
 	MesaScenery.hill_life(d, hills, _bushes, _palms)
 	MesaScenery.dust(geometry_root)
-	MesaScenery.clouds(geometry_root)
+	var weather := MesaSky.new()
+	weather.name = "MesaSky"
+	add_child(weather)
 	Vegetation.scatter(geometry_root, Vegetation.palm_mesh(), _palms, "Palms")
 	Vegetation.scatter(geometry_root, Vegetation.bush_mesh(), _bushes, "Bushes")
 	var hill_mat := _get_material("dirt", Color(0.74, 0.66, 0.54))

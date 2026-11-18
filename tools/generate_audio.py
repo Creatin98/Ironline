@@ -172,24 +172,26 @@ def make_mechanical():
     write_wav("shell_insert", concat(click(1900, 0.05, 0.012, 0.4), silence(0.02), click(2400, 0.04, 0.008, 0.3)), 0.6)
     write_wav("pump", concat(gain(slide(0.1, 3000), 0.7), click(800, 0.06, 0.02), silence(0.05), gain(slide(0.08, 3000), 0.7), click(1000, 0.06, 0.018)), 0.85)
     write_wav("weapon_switch", concat(gain(slide(0.07, 2500), 0.5), click(1000, 0.06, 0.015, 0.5)), 0.6)
-    # magazine stowed: a quick zipper pulled shut - the teeth rattle as a fast, rising train of tiny ticks plus a thin
-    # metallic hiss, a tiny stop tick at the end (short and crisp, ~0.22 s)
-    zn = int(0.19 * SR)
-    zip_ticks = [0.0] * (zn + 400)
+    # magazine stowed (CoD "Scavenger" pickup feel): a dry, very fast zipper run - tiny dead ticks whose tone climbs from
+    # dark to bright while they speed up, then one short muted tuck of the pouch. No hiss, no tail (~0.15 s).
+    zn = int(0.115 * SR)
+    zip_ticks = [0.0] * (zn + 300)
     ph = 0.0
     while True:
         i = int(ph * SR)
         if i >= zn:
             break
-        amp = rnd.uniform(0.6, 1.0)
-        for j in range(int(0.0016 * SR)):
+        prog = i / zn
+        carrier = 1400.0 + 4600.0 * prog          # dark -> bright
+        amp = 0.55 + 0.45 * prog
+        dec = 0.00028 - 0.00008 * prog           # shorter = drier as it rises
+        for j in range(int(0.0012 * SR)):
             if i + j < len(zip_ticks):
-                zip_ticks[i + j] += amp * math.exp(-j / (0.00045 * SR)) * (rnd.uniform(-1, 1) * 0.6 + math.sin(2 * math.pi * 4300 * j / SR) * 0.7)
-        ph += 1.0 / (95.0 + 110.0 * (i / zn))
-    hiss = highpass(noise(0.19), 3800)
-    hiss = [h * 0.16 * min(1.0, k / (0.012 * SR)) * min(1.0, (len(hiss) - k) / (0.03 * SR)) for k, h in enumerate(hiss)]
-    stop = delay(click(3300, 0.02, 0.004, 0.5), 0.0)
-    write_wav("ammo_stow", concat(mix(zip_ticks[:zn], hiss), gain(stop, 0.9)), 0.7)
+                zip_ticks[i + j] += amp * math.exp(-j / (dec * SR)) * (math.sin(2 * math.pi * carrier * j / SR) * 0.75 + rnd.uniform(-1, 1) * 0.35)
+        ph += 1.0 / (125.0 + 130.0 * prog)       # faster and faster
+    tuck = env_exp(sine(520, 0.03), 0.006)
+    tuck = [t * 0.5 for t in tuck]
+    write_wav("ammo_stow", concat(zip_ticks[:zn], tuck), 0.72)
     write_wav("empty_click", click(2600, 0.04, 0.006, 0.4), 0.5)
     write_wav("grenade_pin", click(3200, 0.05, 0.01, 0.5), 0.5)
     whoosh = env_adsr(lowpass(highpass(noise(0.35), 400), 1800), 0.08, 0.1, 0.6, 0.15)

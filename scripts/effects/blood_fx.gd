@@ -113,8 +113,8 @@ static func burst(parent: Node3D, pos: Vector3, dir: Vector3, scale: float = 1.0
 				reach = 2.8
 		var q := PhysicsRayQueryParameters3D.create(pos, pos + d * reach, 1)
 		var hit := space.intersect_ray(q)
-		if hit.is_empty():
-			continue
+		if hit.is_empty() or (hit["normal"] as Vector3).length() < 0.5:
+			continue # (a ray that starts inside a collider has no normal)
 		var dist := pos.distance_to(hit["position"])
 		var size := rng.randf_range(0.7, 1.4) * lerpf(1.0, 0.7, clampf(dist / reach, 0.0, 1.0)) * (0.65 + 0.35 * scale)
 		_place_splat(parent, hit["position"], hit["normal"], size, rng)

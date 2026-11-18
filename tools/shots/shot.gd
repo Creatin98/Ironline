@@ -537,6 +537,18 @@ func _game_ui(state: String) -> void:
 					(c as LensFlare).queue_redraw()
 		get_tree().paused = true
 		await get_tree().process_frame
+	if state == "mag":
+		GameEvents.local_ammo_picked.emit(30)
+		await get_tree().process_frame
+		for c in game.hud.get_children():
+			if c is MagPickupFx:
+				c._t = 0.3
+				c.set_process(false)
+				c.modulate.a = 1.0
+				c.scale = Vector2.ONE * 1.7
+				c.queue_redraw()
+		get_tree().paused = true
+		await get_tree().process_frame
 	if state == "pickup":
 		# weapons lying on the floor (outline), one still falling
 		var lp2 := me.node as Player

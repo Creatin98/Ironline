@@ -35,6 +35,7 @@ func _process(delta: float) -> void:
 		var q := PhysicsRayQueryParameters3D.create(cam.global_position, cam.global_position + to_sun * 600.0, 1)
 		if not space.intersect_ray(q).is_empty():
 			target = 0.0
+	target *= float(sun.get_meta("clear", 1.0)) # clouds in front of the sun weaken the flare
 	_vis = move_toward(_vis, target, delta * 4.0)
 	visible = _vis > 0.01
 	if visible:

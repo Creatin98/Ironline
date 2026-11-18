@@ -10,7 +10,6 @@ const RED_DARK := Color(0.66, 0.14, 0.09)
 const CONCRETE := Color(0.82, 0.8, 0.76)
 const WOOD := Color(0.86, 0.62, 0.4)
 const CLOTH_SHADER := "res://assets/shaders/cloth.gdshader"
-const CLOUD_SHADER := "res://assets/shaders/clouds.gdshader"
 
 static var _cloth_mats: Dictionary = {}
 
@@ -176,22 +175,6 @@ static func _emitter(root: Node3D, pos: Vector3, extents: Vector3, amount: int, 
 	root.add_child(p)
 
 
-## A soft cloud layer far above the map.
-static func clouds(root: Node3D) -> void:
-	var plane := PlaneMesh.new()
-	plane.size = Vector2(900, 900)
-	var mat := ShaderMaterial.new()
-	mat.shader = load(CLOUD_SHADER)
-	var mi := MeshInstance3D.new()
-	mi.name = "Clouds"
-	mi.mesh = plane
-	mi.material_override = mat
-	mi.position = Vector3(0, 120, 0)
-	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	mi.extra_cull_margin = 2000.0
-	root.add_child(mi)
-
-
 # ----------------------------------------------------------------------------- planting and rocks
 
 ## Flower beds along the plazas and the garden path, boulders along the walls, planters at the arcade.
@@ -267,7 +250,13 @@ static func hill_life(d: MapDetail, hills: Array, bushes: Array, palms: Array) -
 	var villas := [Vector3(-52, 0, -30), Vector3(-46, 0, 52), Vector3(50, 0, -50), Vector3(58, 0, 40), Vector3(-72, 0, 14)]
 	for v in villas:
 		var y := hill_height(hills, v.x, v.z)
-		if y < 4.0:
+		if y < 6.0:
+			continue
+		var flat := true
+		for c in [Vector2(-7, -4), Vector2(7, -4), Vector2(-7, 4), Vector2(7, 4)]:
+			if absf(hill_height(hills, v.x + c.x, v.z + c.y) - y) > 1.2:
+				flat = false
+		if not flat:
 			continue
 		d.add_box(Vector3(v.x, y + 2.0, v.z), Vector3(12.0, 4.0, 7.0), "plaster", Color(0.93, 0.9, 0.84))
 		d.add_box(Vector3(v.x + 1.0, y + 4.25, v.z), Vector3(13.5, 0.5, 8.0), "concrete", Color(0.85, 0.83, 0.8))
