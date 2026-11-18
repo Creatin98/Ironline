@@ -456,12 +456,14 @@ func animate(delta: float, vel_local: Vector3, on_floor: bool, crouching: bool, 
 	# per leg: stand/gait -> crouch -> slide -> air
 	var thigh := [amp * s, -amp * s]
 	var knee := [-(0.1 + flex * maxf(0.0, c)), -(0.1 + flex * maxf(0.0, -c))]
-	var crouch_thigh := [1.15 + 0.25 * amp * s, 1.15 - 0.25 * amp * s]
-	var crouch_knee := [-1.15, -1.15]
+	# crouch: a staggered squat (left foot forward, right heel up) with real steps - the lifted foot bends its knee
+	var crouch_thigh := [0.98 + 0.5 * amp * s, 1.30 - 0.5 * amp * s]
+	var crouch_knee := [-1.55 - 0.6 * flex * maxf(0.0, c), -1.25 - 0.6 * flex * maxf(0.0, -c)]
 	var slide_thigh := [1.5, 0.25]
 	var slide_knee := [-0.1, -2.0]
 	var air_thigh := [0.95, 0.25]
 	var air_knee := [-1.25, -0.55]
+	var foot_depth := [0.0, 0.0] # how far each foot hangs below the pelvis
 	for i in 2:
 		var th: float = thigh[i]
 		var kn: float = knee[i]
@@ -476,9 +478,12 @@ func animate(delta: float, vel_local: Vector3, on_floor: bool, crouching: bool, 
 		_thigh[i].rotation.y = _strafe * 0.85
 		_thigh[i].rotation.x = th
 		_knee[i].rotation.x = kn
+		foot_depth[i] = THIGH * cos(th) + SHIN * cos(th + kn)
 	# pelvis height and lean
 	var bob := absf(s) * 0.035 * moving * (1.0 - _crouch) * (1.0 - _slide)
-	var h := lerpf(HIP_H - bob, 0.66, _crouch)
+	# crouching: the pelvis sits exactly so that the lower foot touches the floor (no hovering)
+	var crouch_h := maxf(float(foot_depth[0]), float(foot_depth[1])) + 0.035
+	var h := lerpf(HIP_H - bob, crouch_h, _crouch)
 	h = lerpf(h, 0.34, _slide)
 	h = lerpf(h, HIP_H + 0.04, _air)
 	h -= 0.13 * _land

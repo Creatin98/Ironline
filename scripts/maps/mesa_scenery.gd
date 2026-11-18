@@ -8,7 +8,7 @@ const PIT := -1.2
 const RED := Color(0.86, 0.22, 0.13)
 const RED_DARK := Color(0.66, 0.14, 0.09)
 const CONCRETE := Color(0.82, 0.8, 0.76)
-const WOOD := Color(0.86, 0.62, 0.4)
+const WOOD := Color(0.66, 0.46, 0.3)
 const CLOTH_SHADER := "res://assets/shaders/cloth.gdshader"
 
 static var _cloth_mats: Dictionary = {}
@@ -60,7 +60,7 @@ static func facades(d: MapDetail) -> void:
 		for z in [17.22, 8.28]:
 			for x in [-4.9, 4.9]:
 				d.add_box(Vector3(x, 1.5, sgn * z), Vector3(6.0, 2.9, 0.07), "wood_planks", WOOD)
-				d.add_box(Vector3(x, 5.0, sgn * z), Vector3(6.0, 2.7, 0.07), "wood_planks", Color(0.92, 0.7, 0.46))
+				d.add_box(Vector3(x, 5.0, sgn * z), Vector3(6.0, 2.7, 0.07), "wood_planks", Color(0.74, 0.54, 0.35))
 				for i in 7: # thin vertical battens
 					d.add_box(Vector3(x - 2.6 + float(i) * 0.87, 3.25, sgn * (z + (0.05 if z > 10.0 else -0.05))), Vector3(0.05, 6.1, 0.05), "wood_planks", Color(0.36, 0.24, 0.15))
 		# garage wing: wood strips + a floating canopy over the bays
@@ -184,12 +184,13 @@ static func garden_details(d: MapDetail, bushes: Array, palms: Array) -> void:
 		# raised beds with low shrubs and flowers
 		for x in [-16.0, -11.0, 11.0, 16.0]:
 			d.add_box(Vector3(x, 0.2, sgn * 20.2), Vector3(3.6, 0.4, 1.0), "concrete", Color(0.86, 0.82, 0.74))
-			for i in 4:
-				bushes.append({"pos": Vector3(x - 1.2 + float(i) * 0.8, 0.5, sgn * 20.2), "scale3": Vector3(0.8, 0.6, 0.8), "yaw": float(i) * 1.9 + x,
+			for i in 7:
+				var sc := 0.38 + 0.12 * float((i * 5 + int(absf(x))) % 3)
+				bushes.append({"pos": Vector3(x - 1.5 + float(i) * 0.5, 0.42 + 0.1 * sc, sgn * (20.0 + 0.25 * float(i % 2))), "scale3": Vector3(sc, sc * 0.8, sc), "yaw": float(i) * 1.9 + x,
 						"color": colors[(i + int(absf(x))) % colors.size()]})
 		# succulents and tall grasses along the perimeter walls
-		for i in 12:
-			var x := -29.0 + float(i) * 5.4
+		for i in 16:
+			var x := -39.0 + float(i) * 5.3
 			bushes.append({"pos": Vector3(x, 0.25, sgn * 27.2), "scale3": Vector3(1.1, 0.5, 1.1), "yaw": float(i) * 2.1, "color": Color(0.5, 0.68, 0.55)})
 			bushes.append({"pos": Vector3(x + 1.4, 0.4, sgn * 27.6), "scale3": Vector3(0.9, 0.9, 0.9), "yaw": float(i) * 1.3, "color": Color(0.7, 0.72, 0.4)})
 		# boulders at the garden and yard walls (visual rocks)
@@ -201,7 +202,7 @@ static func garden_details(d: MapDetail, bushes: Array, palms: Array) -> void:
 					Basis(Vector3.UP, float(i) * 1.1) * Basis(Vector3.RIGHT, 0.12 * float(i % 2)))
 			d.add_box(Vector3(r.x + 0.7 * s, 0.22 * s, sgn * (r.z - 0.4)), Vector3(0.8 * s, 0.5 * s, 0.7 * s), "concrete", Color(0.7, 0.62, 0.52), Basis(Vector3.UP, 0.7 + float(i)))
 		# extra palms behind the walls and around the corners (they frame the view from the plazas)
-		for p in [Vector3(-27.0, 0, 29.5), Vector3(-8.0, 0, 29.8), Vector3(9.0, 0, 29.5), Vector3(27.5, 0, 30.0), Vector3(-33.5, 0, 14.0), Vector3(33.8, 0, 12.0), Vector3(-33.0, 0, 3.0)]:
+		for p in [Vector3(-27.0, 0, 29.5), Vector3(-8.0, 0, 29.8), Vector3(9.0, 0, 29.5), Vector3(27.5, 0, 30.0), Vector3(-43.5, 0, 14.0), Vector3(43.8, 0, 12.0), Vector3(-43.0, 0, 3.0), Vector3(-43.0, 0, 22.0), Vector3(43.2, 0, 22.0)]:
 			palms.append({"pos": Vector3(p.x, 0.0, sgn * p.z), "scale": 1.5 + 0.2 * float(palms.size() % 3), "yaw": float(palms.size()) * 2.1, "tilt": 0.05 * float((palms.size() % 3) - 1)})
 
 
@@ -228,8 +229,8 @@ static func hill_life(d: MapDetail, hills: Array, bushes: Array, palms: Array) -
 	var made := 0
 	while made < 260 and tries < 3000:
 		tries += 1
-		var p := Vector2(rng.randf_range(-110.0, 110.0), rng.randf_range(-110.0, 110.0))
-		if absf(p.x) < 36.0 and absf(p.y) < 33.0:
+		var p := Vector2(rng.randf_range(-130.0, 130.0), rng.randf_range(-110.0, 110.0))
+		if absf(p.x) < 47.0 and absf(p.y) < 33.0:
 			continue # not inside the playing area
 		var y := hill_height(hills, p.x, p.y)
 		if y < 1.0:
@@ -269,45 +270,28 @@ static func hill_life(d: MapDetail, hills: Array, bushes: Array, palms: Array) -
 static func perimeter(d: MapDetail, bushes: Array) -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 777
-	# cap + outside pilasters
-	d.add_box(Vector3(-32.25, 6.1, 0), Vector3(0.9, 0.25, 57.6), "concrete", Color(0.7, 0.66, 0.6))
-	d.add_box(Vector3(32.25, 6.1, 0), Vector3(0.9, 0.25, 57.6), "concrete", Color(0.7, 0.66, 0.6))
-	d.add_box(Vector3(0, 6.1, -28.25), Vector3(65.6, 0.25, 0.9), "concrete", Color(0.7, 0.66, 0.6))
-	d.add_box(Vector3(0, 6.1, 28.25), Vector3(65.6, 0.25, 0.9), "concrete", Color(0.7, 0.66, 0.6))
+	# cap + outside pilasters on the outer walls (x +-42.25, z +-28.25)
+	d.add_box(Vector3(-42.25, 6.1, 0), Vector3(0.9, 0.25, 57.6), "concrete", Color(0.7, 0.66, 0.6))
+	d.add_box(Vector3(42.25, 6.1, 0), Vector3(0.9, 0.25, 57.6), "concrete", Color(0.7, 0.66, 0.6))
+	d.add_box(Vector3(0, 6.1, -28.25), Vector3(85.6, 0.25, 0.9), "concrete", Color(0.7, 0.66, 0.6))
+	d.add_box(Vector3(0, 6.1, 28.25), Vector3(85.6, 0.25, 0.9), "concrete", Color(0.7, 0.66, 0.6))
 	for i in range(-3, 4):
 		var t := float(i) * 8.0
-		d.add_box(Vector3(-32.85, 3.0, t), Vector3(0.5, 6.0, 0.7), "concrete", Color(0.76, 0.72, 0.66))
-		d.add_box(Vector3(32.85, 3.0, t), Vector3(0.5, 6.0, 0.7), "concrete", Color(0.76, 0.72, 0.66))
-	for i in range(-4, 5):
-		var t := float(i) * 7.2
+		d.add_box(Vector3(-42.85, 3.0, t), Vector3(0.5, 6.0, 0.7), "concrete", Color(0.76, 0.72, 0.66))
+		d.add_box(Vector3(42.85, 3.0, t), Vector3(0.5, 6.0, 0.7), "concrete", Color(0.76, 0.72, 0.66))
+	for i in range(-5, 6):
+		var t := float(i) * 7.6
 		d.add_box(Vector3(t, 3.0, -28.85), Vector3(0.7, 6.0, 0.5), "concrete", Color(0.76, 0.72, 0.66))
 		d.add_box(Vector3(t, 3.0, 28.85), Vector3(0.7, 6.0, 0.5), "concrete", Color(0.76, 0.72, 0.66))
-	# vines on the inside faces (flat leaf panels, a few cm thick) and blossoms at their feet
-	for k in 26:
-		var side := rng.randi() % 4
-		var along := rng.randf_range(-24.0, 24.0)
-		var w := rng.randf_range(2.0, 4.5)
-		var h := rng.randf_range(2.0, 4.6)
-		var col := Color(0.28, 0.42, 0.2).lerp(Color(0.42, 0.54, 0.26), rng.randf())
-		var pos := Vector3.ZERO
-		var size := Vector3.ZERO
-		match side:
-			0:
-				pos = Vector3(31.97, h * 0.5 + 0.1, along); size = Vector3(0.06, h, w)
-			1:
-				pos = Vector3(-31.97, h * 0.5 + 0.1, along); size = Vector3(0.06, h, w)
-			2:
-				pos = Vector3(along, h * 0.5 + 0.1, 27.97); size = Vector3(w, h, 0.06)
-			_:
-				pos = Vector3(along, h * 0.5 + 0.1, -27.97); size = Vector3(w, h, 0.06)
-		if absf(pos.x) < 31.0 and absf(pos.z) < 27.0:
-			continue
-		d.add_box(pos, size, "grass", col)
-		var foot := pos
-		foot.y = 0.3
-		foot.x = clampf(foot.x, -31.3, 31.3)
-		foot.z = clampf(foot.z, -27.3, 27.3)
-		bushes.append({"pos": foot, "scale3": Vector3(1.0, 0.8, 1.0), "yaw": rng.randf() * TAU, "color": Color(0.92, 0.3, 0.55) if rng.randf() < 0.5 else Color(0.95, 0.75, 0.25)})
+	# inner walls: caps on top, sandstone-coloured gate frames
+	for sx in [-1.0, 1.0]:
+		d.add_box(Vector3(sx * 32.25, 6.1, 0), Vector3(0.8, 0.22, 57.4), "concrete", Color(0.7, 0.66, 0.6))
+		for gz in [0.0, -25.0, 25.0]:
+			for dz in [-2.1, 2.1]:
+				d.add_box(Vector3(sx * 32.25, 1.6, gz + dz), Vector3(0.9, 3.2, 0.35), "concrete", Color(0.82, 0.78, 0.7))
+	for gz in [-10.2, 10.2]:
+		for dz in [-1.45, 1.45]:
+			d.add_box(Vector3(32.25, 1.6, gz + dz), Vector3(0.9, 3.2, 0.35), "concrete", Color(0.82, 0.78, 0.7))
 	# pool decks, loungers and umbrellas (visual only, placed beside the pool, off the walking lines)
 	for sgn in [-1.0, 1.0]:
 		d.add_box(Vector3(-21.4, 0.03, sgn * 15.5), Vector3(7.0, 0.05, 5.8), "wood_planks", Color(0.66, 0.5, 0.34))
@@ -350,3 +334,108 @@ static func interior(d: MapDetail, bushes: Array) -> void:
 		d.add_box(Vector3(24.5, 1.6, sgn * 10.9), Vector3(3.0, 1.2, 0.05), "metal_panel", Color(0.35, 0.37, 0.4))
 		for i in 6:
 			d.add_box(Vector3(23.4 + 0.45 * float(i), 1.7, sgn * 10.86), Vector3(0.08, 0.5, 0.04), "metal_panel", Color(0.8, 0.2, 0.15) if i % 2 == 0 else Color(0.85, 0.85, 0.88))
+
+
+# ----------------------------------------------------------------------------- wings
+
+static func _awning(root: Node3D, pos: Vector3, size: Vector2, col: Color, yaw: float) -> void:
+	var q := QuadMesh.new()
+	q.size = size
+	q.subdivide_depth = 4
+	q.subdivide_width = 3
+	var mi := MeshInstance3D.new()
+	mi.mesh = q
+	mi.material_override = _cloth_material(col, 1.0, 0.04, 1.4)
+	mi.position = pos
+	mi.rotation = Vector3(deg_to_rad(-62.0), yaw, 0.0)
+	root.add_child(mi)
+
+
+## Dressing of the two wings: vines on trellises and a pergola over the vineyard terrace, lanterns, well and fountain water,
+## market stalls with striped awnings, bunting, neon signs, rails and lamps. Visual only.
+static func wings(d: MapDetail, root: Node3D, bushes: Array) -> void:
+	var stripes := [Color(0.85, 0.2, 0.15), Color(0.2, 0.42, 0.8), Color(0.9, 0.7, 0.2), Color(0.25, 0.6, 0.4)]
+	for sgn in [-1.0, 1.0]:
+		# --- vineyard: trellis posts and wires along the hedge rows, vine leaves and grapes
+		for row in [[-39.0, 12.6, 5.0], [-35.0, 15.4, 5.0], [-39.0, 18.2, 5.0]]:
+			var cx: float = row[0]
+			var cz: float = row[1]
+			var len: float = row[2]
+			for i in 4:
+				var x := cx - len * 0.5 + 0.3 + float(i) * (len - 0.6) / 3.0
+				d.add_box(Vector3(x, 2.65, sgn * cz), Vector3(0.07, 1.7, 0.07), "wood_planks", Color(0.42, 0.28, 0.18))
+			d.bar(Vector3(cx - len * 0.5 + 0.3, 3.1, sgn * cz), Vector3(cx + len * 0.5 - 0.3, 3.1, sgn * cz), 0.025, 0.025, "metal_panel", Color(0.3, 0.3, 0.3))
+			d.bar(Vector3(cx - len * 0.5 + 0.3, 2.65, sgn * cz), Vector3(cx + len * 0.5 - 0.3, 2.65, sgn * cz), 0.025, 0.025, "metal_panel", Color(0.3, 0.3, 0.3))
+			for i in 9:
+				var x := cx - len * 0.5 + 0.35 + float(i) * (len - 0.7) / 8.0
+				bushes.append({"pos": Vector3(x, 2.55 + 0.1 * float(i % 3), sgn * cz), "scale3": Vector3(0.7, 0.9, 0.5), "yaw": float(i) * 1.7 + cx, "color": Color(0.34, 0.5, 0.22) if i % 4 != 0 else Color(0.35, 0.16, 0.4)})
+		# pergola over the vineyard terrace (timber beams) and string lights
+		for x in [-41.4, -33.2]:
+			d.bar(Vector3(x, 4.45, sgn * 11.0), Vector3(x, 4.45, sgn * 19.6), 0.18, 0.22, "wood_planks", WOOD)
+		for i in 5:
+			var z := 11.4 + float(i) * 2.0
+			d.bar(Vector3(-41.5, 4.55, sgn * z), Vector3(-33.1, 4.55, sgn * z), 0.1, 0.12, "wood_planks", WOOD)
+		for pz in [11.0, 19.6]:
+			for px in [-41.4, -33.2]:
+				d.add_box(Vector3(px, 3.1, sgn * pz), Vector3(0.22, 2.6, 0.22), "wood_planks", WOOD)
+		d.bulb(Vector3(-37.2, 4.2, sgn * 13.0), Color(1.0, 0.78, 0.45), 1.0, 0.9, 5.0)
+		d.bulb(Vector3(-37.2, 4.2, sgn * 17.5), Color(1.0, 0.78, 0.45), 1.0, 0.9, 5.0)
+		# cantina: lanterns, sign, lamp, a lit window glow
+		d.add_box(Vector3(-38.6, 3.3, sgn * 22.85), Vector3(2.6, 0.45, 0.08), "lamp", Color(1.0, 0.55, 0.2))
+		d.glow(Vector3(-38.6, 3.3, sgn * 22.6), Color(1.0, 0.6, 0.25), 3.0)
+		d.lamp(Vector3(-38.6, 2.95, sgn * 25.5), Color(1.0, 0.85, 0.6), 0.8, 6.0)
+		d.bulb(Vector3(-34.0, 2.6, sgn * 21.5), Color(1.0, 0.7, 0.4), 0.9, 0.9, 5.0)
+		# court: lantern posts and the gate lanterns
+		d.lamp_post(Vector3(-41.2, 0, sgn * 5.0), 4.0, 0.0)
+		d.bulb(Vector3(-32.9, 3.0, sgn * 2.4), Color(1.0, 0.72, 0.4), 0.9, 0.9, 5.0)
+		d.bulb(Vector3(-32.9, 3.0, sgn * 25.0), Color(1.0, 0.72, 0.4), 0.9, 0.9, 5.0)
+		# --- market: stalls with awnings, bunting, neon, rails
+		for st in [[36.0, 4.0, 3.4], [38.0, 7.6, 3.4]]:
+			var sx: float = st[0]
+			var sz: float = st[1]
+			for dx in [-1.6, 1.6]:
+				d.bar(Vector3(sx + dx, 0.0, sgn * (sz - 0.55)), Vector3(sx + dx, 2.5, sgn * (sz - 0.55)), 0.06, 0.06, "wood_planks", Color(0.4, 0.27, 0.17))
+				d.bar(Vector3(sx + dx, 0.0, sgn * (sz + 0.55)), Vector3(sx + dx, 2.2, sgn * (sz + 0.55)), 0.06, 0.06, "wood_planks", Color(0.4, 0.27, 0.17))
+			_awning(root, Vector3(sx, 2.4, sgn * sz), Vector2(st[2], 1.5), stripes[int(sx) % stripes.size()], 0.0 if sgn > 0.0 else PI)
+			d.bulb(Vector3(sx, 2.15, sgn * sz), Color(1.0, 0.82, 0.55), 0.9, 0.8, 4.0)
+			# goods on the table: little boxes in warm colours
+			for i in 5:
+				d.add_box(Vector3(sx - 1.1 + float(i) * 0.55, 1.12, sgn * sz), Vector3(0.36, 0.22, 0.36), "plaster", [Color(0.85, 0.25, 0.15), Color(0.95, 0.75, 0.2), Color(0.3, 0.6, 0.3), Color(0.9, 0.5, 0.15), Color(0.6, 0.2, 0.4)][i])
+		# bunting across the market court and a neon sign on the shop
+		var a := Vector3(33.0, 4.2, sgn * 6.0)
+		var b := Vector3(41.8, 4.2, sgn * 6.0)
+		var n := 12
+		var prev := a
+		for i in n + 1:
+			var t := float(i) / float(n)
+			var p := a.lerp(b, t)
+			p.y -= 0.7 * 4.0 * t * (1.0 - t)
+			if i > 0:
+				d.bar(prev, p, 0.022, 0.022, "metal_panel", Color(0.2, 0.2, 0.2))
+			prev = p
+			if i < n:
+				_cloth(root, p + Vector3(0.2, 0, 0), Vector2(0.38, 0.5), stripes[i % stripes.size()], 0.0 if sgn > 0.0 else PI, 0.0, 0.08)
+		d.add_box(Vector3(38.2, 3.0, sgn * 9.78), Vector3(3.4, 0.5, 0.08), "lamp", Color(0.2, 0.9, 1.0))
+		d.glow(Vector3(38.2, 3.0, sgn * 9.5), Color(0.3, 0.9, 1.0), 3.4)
+		d.add_box(Vector3(35.0, 3.0, sgn * 9.78), Vector3(0.5, 0.5, 0.08), "lamp", Color(1.0, 0.3, 0.55))
+		d.led_strip(Vector3(34.3, 3.55, sgn * 9.7), Vector3(42.0, 3.55, sgn * 9.7), Color(1.0, 0.8, 0.5), 4.0)
+		d.lamp(Vector3(38.2, 3.1, sgn * 15.5), Color(1.0, 0.88, 0.66), 0.9, 7.0)
+		d.lamp_post(Vector3(33.6, 0, sgn * 5.0), 4.2, PI)
+		d.bulb(Vector3(32.9, 3.0, sgn * 2.4), Color(1.0, 0.72, 0.4), 0.9, 0.9, 5.0)
+		d.bulb(Vector3(32.9, 3.0, sgn * 25.0), Color(1.0, 0.72, 0.4), 0.9, 0.9, 5.0)
+		# roof and bridge rails, water tank legs
+		d.rail(Vector3(34.3, 3.5, sgn * 21.1), Vector3(42.0, 3.5, sgn * 21.1), 0.9, 2.0, Color(0.82, 0.84, 0.86))
+		d.ac_unit(Vector3(36.0, 3.5, sgn * 12.2), 0.0)
+		d.vent_stack(Vector3(41.2, 3.5, sgn * 12.0), 1.0)
+		d.antenna(Vector3(41.0, 3.5, sgn * 20.0), 3.0)
+		d.solar_panel(Vector3(37.0, 3.5, sgn * 19.8), 0.0 if sgn > 0.0 else PI)
+		d.solar_panel(Vector3(38.8, 3.5, sgn * 19.8), 0.0 if sgn > 0.0 else PI)
+	# well and fountain water (once)
+	var water := Color(0.25, 0.7, 0.8)
+	d.add_cylinder(Vector3(-37.2, 0.86, 0), 2.2, 0.06, "water")
+	d.add_cylinder(Vector3(37.2, 0.66, 0), 2.6, 0.06, "water")
+	d.bulb(Vector3(-37.2, 1.2, 0), Color(1.0, 0.75, 0.4), 1.2, 1.0, 5.0)
+	d.bulb(Vector3(37.2, 1.2, 0), water, 1.4, 1.2, 5.5)
+	for i in 6: # a ring of lanterns around the market fountain
+		var ang := TAU * float(i) / 6.0
+		d.add_box(Vector3(37.2 + 1.9 * cos(ang), 0.28, 1.9 * sin(ang)), Vector3(0.22, 0.2, 0.22), "lamp", Color(1.0, 0.8, 0.5))

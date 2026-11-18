@@ -1,5 +1,6 @@
 extends BlockMap
-## MESA – a desert hillside villa estate (own design, three-lane structure in the spirit of classic CoD maps).
+## MESA – a desert hillside villa estate (own design, three-lane structure in the spirit of classic CoD maps), extended by a
+## vineyard wing (west) and a market wing (east) behind gated inner walls: x -42..42, z -28..28.
 ## Rot spawns north (z < 0), Blau south (z > 0). The map is mirrored across z = 0, so every position is written
 ## once for the "local" half (z' = distance from the centre line, 0..28) and placed for both teams (sgn).
 ##
@@ -110,6 +111,104 @@ func _bush(sgn: float, x: float, z: float, scale: Vector3, color: Color) -> void
 	_bushes.append({"pos": Vector3(x, 0.32 * scale.y, sgn * z), "scale3": scale, "yaw": float(_bushes.size()) * 2.3, "color": color})
 
 
+# ----------------------------------------------------------------------------- wings
+
+## West wing "vineyard": a tiled court with a well (z' 0..10), a vineyard terrace at +1.8 (z' 10..20.5) with two stair routes,
+## a lane and a cantina (z' 23..28). Reached through the middle gate and the plaza gate of the west wall.
+func _wing_west(b: Array, sgn: float) -> void:
+	_ov(b, sgn, -37.2, 5.0, 9.4, 10.0, "tiles", Color(0.9, 0.84, 0.7))
+	_ov(b, sgn, -35.0, 24.0, 5.0, 8.0, "tiles", Color(0.86, 0.8, 0.66))
+	# court: benches, barrels, olive trees
+	_bx(b, sgn, -34.6, 0.25, 3.8, 2.6, 0.5, 0.6, "concrete", C_STONE)
+	_bx(b, sgn, -40.2, 0.25, 4.2, 2.6, 0.5, 0.6, "concrete", C_STONE)
+	_cyl(b, sgn, -41.0, 0.45, 8.4, 0.8, 0.9, "metal_panel", Color(0.5, 0.28, 0.18))
+	_cyl(b, sgn, -40.0, 0.45, 8.9, 0.8, 0.9, "metal_panel", Color(0.5, 0.28, 0.18))
+	_bx(b, sgn, -41.2, 0.6, 7.0, 1.2, 1.2, 1.2, "crate")
+	var extra: Array = []
+	_palm(sgn, -40.6, 2.2, 1.0, extra)
+	_palm(sgn, -33.6, 8.6, 0.9, extra)
+	b.append_array(extra)
+	# vineyard terrace A (+1.8): parapets, hedge rows as chest-high cover, two stair routes
+	_bx(b, sgn, -37.2, 0.9, 15.25, 9.4, 1.8, 10.5, "concrete", C_STONE)
+	_ov(b, sgn, -37.2, 15.25, 9.0, 10.1, "grass", C_GRASS, 1.82)
+	_rp(b, sgn, Vector3(-37.2, 0, 6.0), Vector3(-37.2, 1.8, 10.0), 3.0, "concrete", 0.3, C_STONE)
+	_rp(b, sgn, Vector3(-34.0, 0, 23.0), Vector3(-34.0, 1.8, 19.0), 2.4, "concrete", 0.3, C_STONE)
+	_bx(b, sgn, -40.3, 2.25, 10.15, 3.3, 0.9, 0.3, "concrete", C_WHITE)
+	_bx(b, sgn, -34.2, 2.25, 10.15, 3.3, 0.9, 0.3, "concrete", C_WHITE)
+	_bx(b, sgn, -38.6, 2.25, 20.35, 6.6, 0.9, 0.3, "concrete", C_WHITE)
+	_bx(b, sgn, -39.0, 2.15, 12.6, 5.0, 0.7, 0.6, "grass", C_HEDGE)
+	_bx(b, sgn, -35.0, 2.15, 15.4, 5.0, 0.7, 0.6, "grass", C_HEDGE)
+	_bx(b, sgn, -39.0, 2.15, 18.2, 5.0, 0.7, 0.6, "grass", C_HEDGE)
+	_bx(b, sgn, -41.4, 2.3, 15.4, 1.0, 1.0, 1.4, "crate")
+	# cantina (door to the lane in the north, one to the corridor in the east), roof slab, bar and barrels inside
+	_room(b, sgn, -38.6, 25.5, 7.2, 5.0, 0.0, 3.0, "plaster", C_WHITE, [
+		{"side": "n", "offset": -1.5, "width": 1.8}, {"side": "e", "offset": 0.0, "width": 1.8},
+		{"side": "n", "offset": 2.1, "width": 1.2, "sill": 1.0, "top": 2.1}, {"side": "e", "offset": 1.9, "width": 1.0, "sill": 1.0, "top": 2.1},
+	])
+	_bx(b, sgn, -38.6, 3.15, 25.5, 7.8, SLAB, 5.6, "concrete", Color(0.7, 0.68, 0.64))
+	_bx(b, sgn, -40.9, 0.5, 26.4, 0.8, 1.0, 3.2, "wood_planks", C_WOOD)
+	_cyl(b, sgn, -41.3, 0.45, 24.1, 0.8, 0.9, "metal_panel", Color(0.5, 0.28, 0.18))
+	_bx(b, sgn, -37.2, 0.4, 24.3, 1.4, 0.8, 0.9, "wood_planks", C_WOOD)
+	# bushes and flower beds
+	_bush(sgn, -41.2, 11.0, Vector3(1.0, 1.0, 1.0), C_HEDGE)
+	_bush(sgn, -33.2, 21.6, Vector3(0.9, 0.8, 0.9), Color(0.9, 0.3, 0.5))
+
+
+## East wing "market": a court with stalls and a van (z' 0..10), a two-storey shop block (z' 10..21) with a roof terrace at +3.5
+## (long stair from the court) that is linked to the garage roof by a bridge through the wall; a market lane by the plaza gate.
+func _wing_east(b: Array, sgn: float) -> void:
+	_ov(b, sgn, 37.2, 5.0, 9.4, 10.0, "tiles", Color(0.82, 0.76, 0.66))
+	_ov(b, sgn, 37.5, 24.5, 9.0, 7.0, "asphalt", Color(0.9, 0.86, 0.8))
+	# stalls (tables, crates, barrels), a parked van
+	_bx(b, sgn, 36.0, 0.5, 4.0, 3.0, 1.0, 1.0, "wood_planks", C_WOOD)
+	_bx(b, sgn, 38.0, 0.5, 7.6, 3.0, 1.0, 1.0, "wood_planks", Color(0.62, 0.46, 0.3))
+	_bx(b, sgn, 34.2, 0.6, 8.2, 1.2, 1.2, 1.2, "crate")
+	_bx(b, sgn, 34.5, 1.8, 8.2, 1.2, 1.2, 1.2, "crate", null, 0.4)
+	_bx(b, sgn, 41.0, 0.6, 5.0, 1.2, 1.2, 1.2, "crate")
+	_cyl(b, sgn, 33.8, 0.45, 2.6, 0.8, 0.9, "metal_panel", Color(0.2, 0.32, 0.5))
+	b.append_array(car(Vector3(35.4, 0, sgn * 1.6 + sgn * 0.0), Color(0.9, 0.62, 0.15), 0.0 if sgn > 0.0 else 180.0))
+	# shop block: ground floor with arcade-like openings to the court and an alley door at the back, roof terrace +3.5
+	_room(b, sgn, 38.2, 15.5, 7.4, 11.0, 0.0, FLOOR_H, "plaster", C_SAND, [
+		{"side": "n", "offset": -2.2, "width": 2.4, "top": 2.8}, {"side": "n", "offset": 2.4, "width": 1.6},
+		{"side": "w", "offset": -3.0, "width": 2.0}, {"side": "w", "offset": 3.0, "width": 1.6, "sill": 1.0, "top": 2.2},
+		{"side": "s", "offset": 0.0, "width": 1.8}, {"side": "n", "offset": -0.3, "width": 1.0, "sill": 1.0, "top": 2.1},
+	])
+	_bx(b, sgn, 38.2, 0.4, 15.5, 1.6, 0.8, 1.0, "wood_planks", C_WOOD) # shop counter
+	_bx(b, sgn, 40.4, 0.6, 18.8, 1.2, 1.2, 1.2, "crate")
+	_bx(b, sgn, 38.2, 3.35, 15.5, 7.9, SLAB, 11.4, "concrete", Color(0.72, 0.7, 0.66))
+	_bx(b, sgn, 34.3, TOP + 0.5, 16.45, 0.2, 1.0, 9.5, "concrete", C_WHITE) # (west edge open at z' 9.8..11.3: the bridge)
+	_bx(b, sgn, 42.0, TOP + 0.5, 15.5, 0.2, 1.0, 11.4, "concrete", C_WHITE)
+	_bx(b, sgn, 38.2, TOP + 0.5, 21.1, 7.9, 1.0, 0.2, "concrete", C_WHITE)
+	_bx(b, sgn, 37.3, TOP + 0.5, 9.9, 4.2, 1.0, 0.2, "concrete", C_WHITE) # north parapet (the stair arrives right of it)
+	_cyl(b, sgn, 40.3, TOP + 1.0, 18.6, 2.0, 2.0, "metal_panel", Color(0.78, 0.8, 0.82)) # water tank
+	_bx(b, sgn, 36.6, TOP + 0.6, 18.4, 1.2, 1.2, 1.2, "crate")
+	_bx(b, sgn, 36.4, TOP + 0.45, 12.6, 1.8, 0.9, 0.5, "concrete", C_STONE)
+	_bx(b, sgn, 40.2, TOP + 0.45, 13.0, 0.5, 0.9, 2.2, "concrete", C_STONE)
+	# long stair from the court up to the roof (east side) and the bridge to the garage roof
+	_rp(b, sgn, Vector3(40.6, 0, 3.0), Vector3(40.6, TOP, 10.0), 2.0, "metal_panel", 0.3, C_DARK)
+	_rp(b, sgn, Vector3(41.65, 1.0, 3.0), Vector3(41.65, TOP + 1.0, 10.0), 0.1, "metal_panel", 1.0, C_DARK)
+	_rp(b, sgn, Vector3(39.55, 1.0, 3.0), Vector3(39.55, TOP + 1.0, 10.0), 0.1, "metal_panel", 1.0, C_DARK)
+	_bx(b, sgn, 30.8, 3.35, 10.3, 7.3, SLAB, 2.4, "metal_panel", C_DARK)
+	_bx(b, sgn, 30.8, TOP + 0.5, 9.15, 7.3, 1.0, 0.1, "metal_panel", C_DARK)
+	_bx(b, sgn, 30.8, TOP + 0.5, 11.45, 7.3, 1.0, 0.1, "metal_panel", C_DARK)
+	# market lane: crates and a flatbed by the plaza gate, palms
+	_bx(b, sgn, 36.5, 0.6, 22.8, 1.2, 1.2, 1.2, "crate")
+	_bx(b, sgn, 40.8, 0.45, 25.0, 1.4, 0.9, 3.0, "concrete", C_STONE)
+	b.append_array(car(Vector3(38.2, 0, sgn * 26.6), Color(0.3, 0.4, 0.34), 90.0))
+	var extra: Array = []
+	_palm(sgn, 41.0, 22.0, 1.0, extra)
+	_palm(sgn, 33.8, 27.0, 1.1, extra)
+	b.append_array(extra)
+	_bush(sgn, 34.0, 21.8, Vector3(1.0, 0.8, 1.0), Color(0.95, 0.75, 0.25))
+
+
+## Features on the middle line (not mirrored): the well of the vineyard court and the fountain of the market court.
+func _court_centres(b: Array) -> void:
+	b.append(cylinder(Vector3(-37.2, 0.45, 0.0), 2.6, 0.9, "concrete", C_WHITE))
+	b.append({"pos": Vector3(-37.2, 1.7, 0.0), "size": Vector3(0.4, 1.6, 0.4), "mat": "wood_planks", "shape": "cylinder", "visible": false})
+	b.append(cylinder(Vector3(37.2, 0.35, 0.0), 3.0, 0.7, "concrete", C_STONE))
+
+
 # ----------------------------------------------------------------------------- blocks
 
 func get_blocks() -> Array:
@@ -123,20 +222,41 @@ func get_blocks() -> Array:
 		_garden(b, sgn)
 		_garage(b, sgn)
 		_plaza(b, sgn)
+		_wing_west(b, sgn)
+		_wing_east(b, sgn)
+	_court_centres(b)
 	return b
 
 
 func _ground(b: Array) -> void:
 	for sgn in [-1.0, 1.0]:
-		_bx(b, sgn, 0, -1.0, 17.5, 64, 2.0, 21, "concrete", C_STONE)
-	b.append(box(Vector3(-19.5, -1.0, 0), Vector3(25, 2.0, 14), "concrete", C_STONE))
-	b.append(box(Vector3(19.5, -1.0, 0), Vector3(25, 2.0, 14), "concrete", C_STONE))
+		_bx(b, sgn, 0, -1.0, 17.5, 84, 2.0, 21, "concrete", C_STONE)
+	b.append(box(Vector3(-24.5, -1.0, 0), Vector3(35, 2.0, 14), "concrete", C_STONE))
+	b.append(box(Vector3(24.5, -1.0, 0), Vector3(35, 2.0, 14), "concrete", C_STONE))
 	b.append(box(Vector3(0, PIT - 1.0, 0), Vector3(14, 2.0, 14), "tiles", C_SAND))
-	# perimeter walls (6 m, jump-proof) with a terracotta stucco look
-	b.append(box(Vector3(-32.25, 3, 0), Vector3(0.5, 6, 57), "plaster", C_TERRA))
-	b.append(box(Vector3(32.25, 3, 0), Vector3(0.5, 6, 57), "plaster", C_TERRA))
-	b.append(box(Vector3(0, 3, -28.25), Vector3(65, 6, 0.5), "plaster", C_TERRA))
-	b.append(box(Vector3(0, 3, 28.25), Vector3(65, 6, 0.5), "plaster", C_TERRA))
+	# outer perimeter walls (6 m, jump-proof) in warm sandstone
+	b.append(box(Vector3(-42.25, 3, 0), Vector3(0.5, 6, 57), "plaster", C_TERRA))
+	b.append(box(Vector3(42.25, 3, 0), Vector3(0.5, 6, 57), "plaster", C_TERRA))
+	b.append(box(Vector3(0, 3, -28.25), Vector3(85, 6, 0.5), "plaster", C_TERRA))
+	b.append(box(Vector3(0, 3, 28.25), Vector3(85, 6, 0.5), "plaster", C_TERRA))
+	_inner_walls(b)
+
+
+## The old outer walls (x = +-32.25) now separate the estate from the two wings. Gates: a 4 m gate in the middle (z -2..2),
+## a 4 m gate next to each spawn plaza (z' 23..27) and, on the east wall, a 2.8 m passage under the rooftop bridge (z' 8.8..11.6).
+func _inner_walls(b: Array) -> void:
+	for sx in [-1.0, 1.0]:
+		var x: float = sx * 32.25
+		for sgn in [-1.0, 1.0]:
+			var segs: Array = [[2.0, 23.0], [27.0, 28.5]]
+			if sx > 0.0:
+				segs = [[2.0, 8.8], [11.6, 23.0], [27.0, 28.5]]
+			for sg in segs:
+				b.append(box(Vector3(x, 3.0, sgn * (float(sg[0]) + float(sg[1])) * 0.5), Vector3(0.5, 6.0, float(sg[1]) - float(sg[0])), "plaster", C_TERRA))
+			b.append(header(Vector3(x, 0, sgn * 25.0), 4.0, 3.2, 6.0, 0.5, false, "plaster", C_TERRA))
+		b.append(header(Vector3(x, 0, 0), 4.0, 3.2, 6.0, 0.5, false, "plaster", C_TERRA))
+	for sgn in [-1.0, 1.0]:
+		b.append(header(Vector3(32.25, 0, sgn * 10.2), 2.8, 5.6, 6.0, 0.5, false, "plaster", C_TERRA))
 
 
 ## Sunken atrium (14 x 14 m, -1.2 m) with four ramps, a fountain, corner planters and a pergola on the rim.
@@ -296,7 +416,7 @@ func _garage(b: Array, sgn: float) -> void:
 	_bx(b, sgn, 22.0, 3.35, 6.5, 10.3, SLAB, 9.3, "concrete", Color(0.72, 0.7, 0.66))
 	_bx(b, sgn, 16.9, TOP + 0.5, 6.5, 0.2, 1.0, 9.3, "concrete", C_WHITE)
 	_bx(b, sgn, 22.0, TOP + 0.5, 1.9, 10.3, 1.0, 0.2, "concrete", C_WHITE)
-	_bx(b, sgn, 27.1, TOP + 0.5, 6.5, 0.2, 1.0, 9.3, "concrete", C_WHITE)
+	_bx(b, sgn, 27.1, TOP + 0.5, 5.475, 0.2, 1.0, 7.25, "concrete", C_WHITE) # (gap z' 9.3..11.05: the bridge to the market roof)
 	_bx(b, sgn, 25.6, TOP + 0.5, 11.05, 3.1, 1.0, 0.2, "concrete", C_WHITE)
 	_room(b, sgn, 25.0, 4.25, 4.0, 3.5, TOP, 2.6, "plaster", C_WHITE, [
 		{"side": "w", "offset": 0.0, "width": 1.6, "top": 2.2}, {"side": "s", "offset": 0.0, "width": 1.4, "sill": 0.9, "top": 2.0},
@@ -369,7 +489,12 @@ func get_lanes() -> Dictionary:
 	right = [Vector3(12, 0, -24), Vector3(18, 0, -22.5), Vector3(20.5, 0, -16), Vector3(20.5, 0, -12), Vector3(14, 0, -6),
 		Vector3(14, 0, 0), Vector3(14, 0, 6), Vector3(20.5, 0, 12), Vector3(20.5, 0, 16), Vector3(18, 0, 22.5), Vector3(12, 0, 24)]
 	roof = [Vector3(6, TOP, -13), Vector3(20, TOP, -7), Vector3(-27.5, 1.8, -7), Vector3(-27.5, 1.8, 7), Vector3(20, TOP, 7), Vector3(6, TOP, 13)]
-	return {"left": left, "mid": mid, "right": right, "roof": roof}
+	var wing_w: Array[Vector3] = []
+	var wing_e: Array[Vector3] = []
+	for sgn in [-1.0, 1.0]:
+		wing_w.append_array([Vector3(-37.0, 0, sgn * 3.5), Vector3(-34.8, 1.8, sgn * 12.6), Vector3(-38.5, 1.8, sgn * 15.4), Vector3(-34.8, 1.8, sgn * 18.2), Vector3(-33.8, 0, sgn * 21.8), Vector3(-34.0, 0, sgn * 25.5)])
+		wing_e.append_array([Vector3(38.0, 0, sgn * 6.4), Vector3(33.4, 0, sgn * 15.0), Vector3(36.0, TOP, sgn * 14.5), Vector3(38.5, TOP, sgn * 17.4), Vector3(30.8, TOP, sgn * 10.3), Vector3(35.0, 0, sgn * 24.5)])
+	return {"left": left, "mid": mid, "right": right, "roof": roof, "wing_west": wing_w, "wing_east": wing_e}
 
 
 func get_cover_points() -> Array:
@@ -378,6 +503,7 @@ func get_cover_points() -> Array:
 		Vector3(-12.0, 0, 7.5), Vector3(12.0, 0, -7.5), Vector3(-18.5, 0, -6.0), Vector3(14.5, 0, 6.5),
 		Vector3(-27.5, 1.8, -9.0), Vector3(-27.5, 1.8, 9.0), Vector3(20, TOP, -9.5), Vector3(20, TOP, 9.5),
 		Vector3(6, 0, -14.5), Vector3(-6, 0, 14.5), Vector3(24.5, 0, 14.0), Vector3(-24.5, 0, -13.0),
+		Vector3(-35.0, 1.8, -14.4), Vector3(-39.0, 1.8, 16.6), Vector3(36.0, TOP, -13.5), Vector3(38.0, TOP, 19.0), Vector3(36.0, 0, -5.2), Vector3(-40.0, 0, 5.8),
 	]
 
 
@@ -452,12 +578,13 @@ func build_detail(d: MapDetail) -> void:
 	var hills := [
 		{"pos": Vector3(-20, -1, -58), "size": Vector3(70, 26, 40), "yaw": 0.2}, {"pos": Vector3(30, -1, -60), "size": Vector3(60, 20, 36), "yaw": -0.3},
 		{"pos": Vector3(-24, -1, 58), "size": Vector3(64, 22, 38), "yaw": 0.4}, {"pos": Vector3(28, -1, 61), "size": Vector3(72, 28, 40), "yaw": -0.1},
-		{"pos": Vector3(-60, -1, -8), "size": Vector3(44, 24, 70), "yaw": 0.1}, {"pos": Vector3(62, -1, 10), "size": Vector3(46, 30, 74), "yaw": -0.2},
-		{"pos": Vector3(-58, -1, 40), "size": Vector3(40, 18, 40), "yaw": 0.5}, {"pos": Vector3(58, -1, -42), "size": Vector3(40, 22, 44), "yaw": 0.3},
-		{"pos": Vector3(0, -1, -80), "size": Vector3(120, 40, 40), "yaw": 0.0}, {"pos": Vector3(0, -1, 80), "size": Vector3(120, 44, 40), "yaw": 0.0},
+		{"pos": Vector3(-76, -1, -8), "size": Vector3(44, 24, 70), "yaw": 0.1}, {"pos": Vector3(78, -1, 10), "size": Vector3(46, 30, 74), "yaw": -0.2},
+		{"pos": Vector3(-74, -1, 40), "size": Vector3(40, 18, 40), "yaw": 0.5}, {"pos": Vector3(74, -1, -42), "size": Vector3(40, 22, 44), "yaw": 0.3},
+		{"pos": Vector3(0, -1, -80), "size": Vector3(160, 40, 40), "yaw": 0.0}, {"pos": Vector3(0, -1, 80), "size": Vector3(160, 44, 40), "yaw": 0.0},
 	]
 	MesaScenery.tower(d)
 	MesaScenery.facades(d)
+	MesaScenery.wings(d, geometry_root, _bushes)
 	MesaScenery.perimeter(d, _bushes)
 	MesaScenery.interior(d, _bushes)
 	MesaScenery.banners(d, geometry_root)

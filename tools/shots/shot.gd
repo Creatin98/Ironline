@@ -567,7 +567,6 @@ func _game_ui(state: String) -> void:
 				c._t = 0.3
 				c.set_process(false)
 				c.modulate.a = 1.0
-				c.scale = Vector2.ONE * 1.7
 				c.queue_redraw()
 		get_tree().paused = true
 		await get_tree().process_frame

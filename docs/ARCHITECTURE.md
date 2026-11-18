@@ -453,3 +453,6 @@ Python-Skripten in `tools/` erzeugt – keine Fremdinhalte, alles reproduzierbar
 * **Countdown:** Im `WARMUP` bleiben Steuerung aktiv, `Player._physics_process` filtert alles außer Umsehen und Ducken (für alle sichtbar über die normalen Snapshots).
 * **Slide/Reload:** Nachladen bricht Sprint und Slide nicht mehr ab; ein Slide aus dem Nachladen ist 7 % kürzer und langsamer (`SLIDE_RELOAD_FACTOR`).
 * **Blut in der Welt:** bis 420 Decals, 150 s Lebensdauer (Ausblenden per Tween), an Wänden laufen Streifen mit Tropfen nach unten (`BloodFx._drip`), unter jeder Leiche wächst eine Lache.
+
+* **Mesa-Erweiterung:** Die Map ist jetzt 84 × 56 m (vorher 64 × 56). Die alten Außenmauern (x = ±32,25) sind Innenmauern mit Toren (Mitte, Spawn-Plätze, Brückendurchgang); dahinter liegen zwei Flügel: West „Weinberg“ (Brunnenhof, Terrasse +1,8 mit Hecken-Deckung, zwei Treppen, Cantina) und Ost „Markt“ (Hof mit Brunnen und Ständen, Ladenblock mit Dachterrasse +3,5, lange Außentreppe, Brücke zum Garagendach). Neue Lane-Schlüssel `wing_west`, `wing_east`. Dekor in `MesaScenery.wings`.
+* **Hocke:** `HumanoidRig` hockt gestaffelt (linker Fuß vorn, rechte Ferse hoch) mit echten Schritten im Gehen; die Beckenhöhe wird aus den Beinwinkeln berechnet, sodass der tiefere Fuß den Boden berührt (kein Schweben). Gilt für alle Spieler und die Killcams (gleiche Animationsfunktion).

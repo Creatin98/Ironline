@@ -702,12 +702,11 @@ func _on_ammo_changed(magazine: int, reserve: int) -> void:
 
 ## Feedback for a picked-up magazine: a small magazine with "+1" pops up beside the ammo display (and the display glows).
 func _on_ammo_picked(_amount: int) -> void:
-	var panel: Control = _blocks["ammo"]["node"]
 	var fx := MagPickupFx.new()
 	add_child(fx)
-	var r := panel.get_global_rect()
-	fx.global_position = Vector2(r.position.x - 175.0, r.position.y + r.size.y * 0.5 - 38.0)
-	fx.scale = Vector2.ONE
+	var kk := clampf(size.y / 1080.0, 0.7, 1.5)
+	fx.scale = Vector2.ONE * kk * 1.25
+	fx.global_position = Vector2(size.x * 0.5 + 95.0 * kk, size.y * 0.5 + 38.0 * kk) # a little off the crosshair
 	ammo_label.pivot_offset = Vector2(ammo_label.size.x, ammo_label.size.y * 0.5)
 	ammo_label.modulate = Color(0.65, 1.0, 0.75)
 	ammo_label.scale = Vector2(1.1, 1.1)

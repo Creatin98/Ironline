@@ -172,9 +172,9 @@ def make_mechanical():
     write_wav("shell_insert", concat(click(1900, 0.05, 0.012, 0.4), silence(0.02), click(2400, 0.04, 0.008, 0.3)), 0.6)
     write_wav("pump", concat(gain(slide(0.1, 3000), 0.7), click(800, 0.06, 0.02), silence(0.05), gain(slide(0.08, 3000), 0.7), click(1000, 0.06, 0.018)), 0.85)
     write_wav("weapon_switch", concat(gain(slide(0.07, 2500), 0.5), click(1000, 0.06, 0.015, 0.5)), 0.6)
-    # magazine stowed (CoD "Scavenger" pickup feel): a dry, very fast zipper run - tiny dead ticks whose tone climbs from
-    # dark to bright while they speed up, then one short muted tuck of the pouch. No hiss, no tail (~0.15 s).
-    zn = int(0.115 * SR)
+    # magazine stowed (CoD "Scavenger" pickup feel), aggressive: a hard snap, then a violent zipper run - hard, raspy ticks
+    # whose tone climbs from dark to bright while they speed up, saturated, then a muted pouch slap. ~0.17 s, no tail.
+    zn = int(0.12 * SR)
     zip_ticks = [0.0] * (zn + 300)
     ph = 0.0
     while True:
@@ -182,16 +182,18 @@ def make_mechanical():
         if i >= zn:
             break
         prog = i / zn
-        carrier = 1400.0 + 4600.0 * prog          # dark -> bright
-        amp = 0.55 + 0.45 * prog
-        dec = 0.00028 - 0.00008 * prog           # shorter = drier as it rises
-        for j in range(int(0.0012 * SR)):
+        carrier = 1100.0 + 5200.0 * prog
+        amp = 0.8 + 0.2 * prog
+        dec = 0.00034 - 0.0001 * prog
+        for j in range(int(0.0013 * SR)):
             if i + j < len(zip_ticks):
-                zip_ticks[i + j] += amp * math.exp(-j / (dec * SR)) * (math.sin(2 * math.pi * carrier * j / SR) * 0.75 + rnd.uniform(-1, 1) * 0.35)
-        ph += 1.0 / (125.0 + 130.0 * prog)       # faster and faster
-    tuck = env_exp(sine(520, 0.03), 0.006)
-    tuck = [t * 0.5 for t in tuck]
-    write_wav("ammo_stow", concat(zip_ticks[:zn], tuck), 0.72)
+                zip_ticks[i + j] += amp * math.exp(-j / (dec * SR)) * (math.sin(2 * math.pi * carrier * j / SR) * 0.6 + rnd.uniform(-1, 1) * 0.7)
+        ph += 1.0 / (135.0 + 150.0 * prog)
+    snap = env_exp(highpass(noise(0.02), 1500), 0.004)
+    zipper = soft_clip([a + b for a, b in zip(zip_ticks[:zn], gain(snap, 1.4) + [0.0] * zn)][:zn], 2.6)
+    slap = gain(env_exp(lowpass(noise(0.05), 700), 0.012), 0.9)
+    tuck = [a + b for a, b in zip(gain(env_exp(sine(430, 0.05), 0.01), 0.6) + [0.0] * 5, slap + [0.0] * 200)][:len(slap)]
+    write_wav("ammo_stow", concat(zipper, tuck), 0.85)
     # medal pop: dark sub thud, a short metallic strike and a faint ring (serious, cinematic, short)
     medal_sub = gain(env_exp(sweep(110, 42, 0.42), 0.13), 1.0)
     medal_strike = gain(env_exp(highpass(noise(0.06), 2500), 0.012), 0.35)
