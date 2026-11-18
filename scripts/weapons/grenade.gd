@@ -28,6 +28,7 @@ var visual_only: bool = false
 var _fuse: float = FUSE_TIME
 var _exploded: bool = false
 var _bounce_cooldown: float = 0.0
+var _last_pos: Vector3 = Vector3.INF
 var _hit_bodies: Dictionary = {} # instance ids of players this grenade already hit (once each)
 
 
@@ -40,6 +41,14 @@ func _ready() -> void:
 	if kind == KIND_FLASH:
 		_fuse = FLASH_FUSE_TIME
 		_build_flash_look()
+
+
+func _physics_process(_delta: float) -> void:
+	# whole window glass on the way is smashed (host decides); the grenade is not slowed down by it
+	if not visual_only and not _exploded:
+		if _last_pos != Vector3.INF:
+			GlassField.on_grenade_move(get_tree(), get_world_3d().direct_space_state, _last_pos, global_position)
+		_last_pos = global_position
 
 
 ## Flashbang look: a silver can with dark end caps and band, a straight lever - clearly not the green round frag grenade.

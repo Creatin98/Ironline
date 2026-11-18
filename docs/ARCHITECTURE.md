@@ -271,6 +271,8 @@ Python-Skripten in `tools/` erzeugt – keine Fremdinhalte, alles reproduzierbar
   beschädigt jede Scheibe auf seinem Weg). Zerbrochen: Körper entfernt, nur kleine Randsplitter (rein visuell) bleiben im Rahmen.
 - **Bruch**: `GlassShards` = 16–38 Dreiecke in EINEM MultiMesh, per Skript bewegt (kein Physik-Körper), fallen auf den Boden unter dem
   Fenster, einmal abprallen, nach 8 s verschwinden; max. 8 Gruppen gleichzeitig. Dazu Funkenpartikel und Sounds (`glass_*`).
+- **Granaten**: Eine geworfene Granate zerschlägt intaktes Glas auf ihrem Weg komplett (`GlassField.on_grenade_move`, Host) und fliegt
+  ungebremst durch die Öffnung; sie kann also nie durch heile Scheiben fliegen.
 - **Explosionen**: `GlassField.on_explosion` (Host, aus `Grenade.explode`): Reichweite 1,1 × Radius, Wirkung fällt mit der Entfernung
   ab, Wände dazwischen schwächen sie auf 30 %; nahe Scheiben brechen, weitere reißen nur an.
 - **Multiplayer**: Der Host entscheidet (`MatchManager.is_authority()`), Clients zeigen nur. Events: `_rpc_glass` (Treffer/Bruch),

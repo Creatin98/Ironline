@@ -73,6 +73,33 @@ func shot(space: PhysicsDirectSpaceState3D, from: Vector3, to: Vector3, damage: 
 			NetworkManager.broadcast_glass(0, win.id, point, dir, win.damage_fraction())
 
 
+## Host: a thrown grenade flew from `from` to `to`; every intact pane on the way is smashed completely (like in the
+## big shooters, a grenade cannot be thrown through whole glass) and the grenade flies on through the opening.
+static func on_grenade_move(tree: SceneTree, space: PhysicsDirectSpaceState3D, from: Vector3, to: Vector3) -> void:
+	if not MatchManager.is_authority() or from.distance_to(to) < 0.01:
+		return
+	var field := find(tree)
+	if field == null or field.windows.is_empty():
+		return
+	var dir := (to - from).normalized()
+	var exclude: Array[RID] = []
+	for i in 3:
+		var q := PhysicsRayQueryParameters3D.create(from, to, LAYER)
+		q.exclude = exclude
+		var r := space.intersect_ray(q)
+		if r.is_empty():
+			break
+		exclude.append(r["rid"])
+		var body := r["collider"] as Node
+		var win: GlassWindow = body.get_meta("glass", null) as GlassWindow if body != null else null
+		if win == null or win.broken:
+			continue
+		var point: Vector3 = r["position"]
+		win.health = 0.0
+		win.break_glass(point, dir, 0.8)
+		NetworkManager.broadcast_glass(1, win.id, point, dir, 0.8)
+
+
 ## Host: an explosion at `center` (radius = its damage radius). Panes close by break, farther ones crack, the rest is untouched.
 static func on_explosion(tree: SceneTree, space: PhysicsDirectSpaceState3D, center: Vector3, radius: float) -> void:
 	if not MatchManager.is_authority():

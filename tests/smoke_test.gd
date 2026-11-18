@@ -2110,6 +2110,12 @@ func _check_glass() -> void:
 	field.blast(space, w3.global_position + w3.global_transform.basis.z * 1.0, Grenade.RADIUS)
 	if not w3.broken:
 		_fail("Eine Explosion direkt vor dem Fenster muss es zerbrechen")
+	# a thrown grenade smashes whole glass completely
+	var w5: GlassWindow = field.windows[5]
+	var n5 := w5.global_transform.basis.z
+	GlassField.on_grenade_move(get_tree(), space, w5.global_position + n5 * 1.0, w5.global_position - n5 * 1.0)
+	if not w5.broken:
+		_fail("Eine Granate muss intaktes Glas komplett zerschlagen")
 	# many breaks: the live fragment groups stay limited
 	for pane in field.windows:
 		if not pane.broken:
