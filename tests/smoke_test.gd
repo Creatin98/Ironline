@@ -2195,6 +2195,11 @@ func _check_ak_handle_and_stairs() -> void:
 	if handle == null or handle.get_node_or_null("HandleKnob") == null or handle.get_node_or_null("HandleLever") == null:
 		_fail("AK: Spannhebel muss eine Gruppe aus Hebel und Knauf sein (beweglich)")
 	ak.free()
+	var mp: Node3D = (load("res://scenes/weapons/models/mp5_model.tscn") as PackedScene).instantiate()
+	var ch := mp.get_node_or_null("CockingHandle")
+	if ch == null or ch.get_node_or_null("HandleKnob") == null or ch.get_node_or_null("HandleStem") == null:
+		_fail("MP5: Spannhebel muss eine bewegliche Gruppe aus Stiel und Knauf sein")
+	mp.free()
 	var r := BlockMap.ramp(Vector3(0, 0, 0), Vector3(0, 3.5, 6), 3.0, "concrete")
 	if not r.get("stairs", false) or r.get("visible", true):
 		_fail("Rampen ueber 45 cm muessen als Treppe (unsichtbare Kollisionsschraege) gebaut werden")

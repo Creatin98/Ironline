@@ -79,7 +79,9 @@ func setup(new_data: WeaponData, new_player: Player, local: bool) -> void:
 		muzzle = model.get_node_or_null("Muzzle")
 		pump_node = model.get_node_or_null("Pump")
 		slide_node = model.get_node_or_null("Slide")
-		_handle_node = model.get_node_or_null("ChargingHandle") as Node3D # AK: reciprocates with every shot
+		_handle_node = model.get_node_or_null("ChargingHandle") as Node3D # AK / MP5: runs back and forth with every shot
+		if _handle_node == null:
+			_handle_node = model.get_node_or_null("CockingHandle") as Node3D
 		if _handle_node:
 			_handle_rest = _handle_node.position
 		if pump_node:

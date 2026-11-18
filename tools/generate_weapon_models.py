@@ -356,7 +356,10 @@ def mp5():
     s.box("ReceiverTop", (0, 0.054, 0.010), (0.038, 0.010, 0.250), "steel")
     s.box("EjectionPort", (0.0255, 0.030, 0.015), (0.002, 0.020, 0.060), "steel")
     s.cyl("CockingTube", (-0.034, 0.030, -0.120), 0.0105, 0.300, "gunmetal")
-    s.box("CockingHandle", (-0.034, 0.030, -0.250), (0.020, 0.012, 0.020), "steel_light")
+    # cocking handle: a short stem out of the tube ending in a flat grip knob; it runs back and forth with every shot / the reload
+    handle = s.group("CockingHandle", (-0.034, 0.030, -0.250))
+    s.box("HandleStem", (-0.016, 0, 0), (0.026, 0.009, 0.014), "steel_light", parent=handle)
+    s.box("HandleKnob", (-0.034, 0, 0), (0.014, 0.018, 0.030), "polymer", parent=handle)
     s.box("Handguard", (0, 0.010, -0.215), (0.056, 0.052, 0.170), "polymer_grey")
     for i in range(4):
         s.box(f"HandguardSlot{i}", (0.0285, 0.010, -0.160 - 0.034 * i), (0.002, 0.028, 0.014), "polymer")
