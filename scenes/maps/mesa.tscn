@@ -3,8 +3,8 @@
 [ext_resource type="Script" path="res://scripts/maps/mesa.gd" id="1_script"]
 
 [sub_resource type="ProceduralSkyMaterial" id="sky_mat"]
-sky_top_color = Color(0.2, 0.42, 0.78, 1)
-sky_horizon_color = Color(0.95, 0.84, 0.68, 1)
+sky_top_color = Color(0.12, 0.38, 0.82, 1)
+sky_horizon_color = Color(0.92, 0.86, 0.74, 1)
 ground_bottom_color = Color(0.3, 0.24, 0.17, 1)
 ground_horizon_color = Color(0.7, 0.6, 0.48, 1)
 sun_angle_max = 25.0
@@ -45,10 +45,10 @@ fog_sky_affect = 0.6
 volumetric_fog_enabled = true
 volumetric_fog_length = 70.0
 volumetric_fog_ambient_inject = 0.0
-volumetric_fog_anisotropy = 0.55
+volumetric_fog_anisotropy = 0.72
 volumetric_fog_detail_spread = 2.0
 adjustment_brightness = 1.0
-volumetric_fog_density = 0.0035
+volumetric_fog_density = 0.007
 volumetric_fog_albedo = Color(0.95, 0.86, 0.7, 1)
 ambient_light_color = Color(0.74, 0.68, 0.6, 1)
 
@@ -61,8 +61,8 @@ environment = SubResource("env")
 
 [node name="Sun" type="DirectionalLight3D" parent="."]
 transform = Transform3D(0.766044, -0.413176, 0.492404, 0, 0.766044, 0.642788, -0.642788, -0.492404, 0.586824, 0, 20, 0)
-light_color = Color(1, 0.9, 0.74, 1)
-light_energy = 1.55
+light_color = Color(1, 0.88, 0.7, 1)
+light_energy = 1.75
 shadow_enabled = true
 shadow_bias = 0.08
 directional_shadow_mode = 2

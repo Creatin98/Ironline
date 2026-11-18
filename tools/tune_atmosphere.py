@@ -35,13 +35,13 @@ MAPS = {
         "sun": {"light_color": "Color(1, 0.89, 0.74, 1)", "light_energy": "1.4"},
     },
     "mesa": {
-        "sky": {"sky_top_color": "Color(0.2, 0.42, 0.78, 1)", "sky_horizon_color": "Color(0.95, 0.84, 0.68, 1)", "sky_curve": "0.13",
+        "sky": {"sky_top_color": "Color(0.12, 0.38, 0.82, 1)", "sky_horizon_color": "Color(0.92, 0.86, 0.74, 1)", "sky_curve": "0.13",
                 "ground_horizon_color": "Color(0.7, 0.6, 0.48, 1)", "ground_bottom_color": "Color(0.3, 0.24, 0.17, 1)"},
         "env": {"ambient_light_color": "Color(0.74, 0.68, 0.6, 1)", "ambient_light_sky_contribution": "0.5", "ambient_light_energy": "0.95",
                 "fog_density": "0.0032", "fog_light_color": "Color(0.9, 0.8, 0.64, 1)",
-                "volumetric_fog_density": "0.0035", "volumetric_fog_albedo": "Color(0.95, 0.86, 0.7, 1)",
+                "volumetric_fog_density": "0.007", "volumetric_fog_anisotropy": "0.72", "volumetric_fog_albedo": "Color(0.95, 0.86, 0.7, 1)",
                 "adjustment_contrast": "1.14", "adjustment_saturation": "1.1", "tonemap_exposure": "1.0", "tonemap_white": "5.0"},
-        "sun": {"light_color": "Color(1, 0.9, 0.74, 1)", "light_energy": "1.55"},
+        "sun": {"light_color": "Color(1, 0.88, 0.7, 1)", "light_energy": "1.75"},
     },
     "test_arena": {
         "sky": {"sky_top_color": "Color(0.22, 0.4, 0.78, 1)", "sky_horizon_color": "Color(0.72, 0.8, 0.9, 1)", "sky_curve": "0.15",

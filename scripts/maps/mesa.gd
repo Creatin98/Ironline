@@ -23,7 +23,7 @@ const PIT := -1.2   # floor of the atrium
 
 const C_SAND := Color(0.88, 0.80, 0.66)
 const C_WHITE := Color(0.93, 0.91, 0.86)
-const C_TERRA := Color(0.74, 0.42, 0.30)
+const C_TERRA := Color(0.82, 0.68, 0.52) # perimeter walls: warm sandstone
 const C_WOOD := Color(0.72, 0.56, 0.40)
 const C_DARK := Color(0.26, 0.27, 0.30)
 const C_STONE := Color(0.76, 0.70, 0.60)
@@ -408,8 +408,6 @@ func build_detail(d: MapDetail) -> void:
 	for sx in [-8.2, 8.2]:
 		d.bar(Vector3(sx, 3.35, -7.8), Vector3(sx, 3.35, 7.8), 0.22, 0.3, "wood_planks", C_WOOD)
 	d.add_cylinder(Vector3(0, PIT + 1.02, 0), 3.5, 0.08, "concrete", C_WHITE)
-	d.add_cylinder(Vector3(0, PIT + 1.6, 0), 0.7, 1.2, "concrete", C_WHITE)
-	d.add_cylinder(Vector3(0, PIT + 2.25, 0), 1.3, 0.1, "concrete", C_WHITE)
 	d.lamp_post(Vector3(-7.4, 0, 0), 4.2, 0.0)
 	d.lamp_post(Vector3(7.4, 0, 0), 4.2, PI)
 	for sgn in [-1.0, 1.0]:
@@ -449,14 +447,24 @@ func build_detail(d: MapDetail) -> void:
 			d.bar(Vector3(-30.0 + float(i), 4.8, sgn * 4.0), Vector3(-30.0 + float(i), 4.8, sgn * 10.0), 0.1, 0.12, "wood_planks", C_WOOD)
 		d.lamp(Vector3(-27.5, 4.6, sgn * 7.0), Color(1.0, 0.85, 0.6), 0.6, 8.0)
 		d.lamp(Vector3(-27.5, 2.85, sgn * 19.5), Color(1.0, 0.9, 0.7), 0.8, 6.0)
-	# plants and hills (wind in the foliage shader)
-	Vegetation.scatter(geometry_root, Vegetation.palm_mesh(), _palms, "Palms")
-	Vegetation.scatter(geometry_root, Vegetation.bush_mesh(), _bushes, "Bushes")
-	var hill_mat := _get_material("dirt", Color(0.74, 0.66, 0.54))
-	Vegetation.hills(geometry_root, hill_mat, [
+	# hills first (their heights place the plants), then the visual dressing, then the plants (wind in the foliage shader)
+	var hills := [
 		{"pos": Vector3(-20, -1, -58), "size": Vector3(70, 26, 40), "yaw": 0.2}, {"pos": Vector3(30, -1, -60), "size": Vector3(60, 20, 36), "yaw": -0.3},
 		{"pos": Vector3(-24, -1, 58), "size": Vector3(64, 22, 38), "yaw": 0.4}, {"pos": Vector3(28, -1, 61), "size": Vector3(72, 28, 40), "yaw": -0.1},
 		{"pos": Vector3(-60, -1, -8), "size": Vector3(44, 24, 70), "yaw": 0.1}, {"pos": Vector3(62, -1, 10), "size": Vector3(46, 30, 74), "yaw": -0.2},
 		{"pos": Vector3(-58, -1, 40), "size": Vector3(40, 18, 40), "yaw": 0.5}, {"pos": Vector3(58, -1, -42), "size": Vector3(40, 22, 44), "yaw": 0.3},
 		{"pos": Vector3(0, -1, -80), "size": Vector3(120, 40, 40), "yaw": 0.0}, {"pos": Vector3(0, -1, 80), "size": Vector3(120, 44, 40), "yaw": 0.0},
-	])
+	]
+	MesaScenery.tower(d)
+	MesaScenery.facades(d)
+	MesaScenery.perimeter(d, _bushes)
+	MesaScenery.interior(d, _bushes)
+	MesaScenery.banners(d, geometry_root)
+	MesaScenery.garden_details(d, _bushes, _palms)
+	MesaScenery.hill_life(d, hills, _bushes, _palms)
+	MesaScenery.dust(geometry_root)
+	MesaScenery.clouds(geometry_root)
+	Vegetation.scatter(geometry_root, Vegetation.palm_mesh(), _palms, "Palms")
+	Vegetation.scatter(geometry_root, Vegetation.bush_mesh(), _bushes, "Bushes")
+	var hill_mat := _get_material("dirt", Color(0.74, 0.66, 0.54))
+	Vegetation.hills(geometry_root, hill_mat, hills)
