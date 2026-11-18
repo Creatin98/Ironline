@@ -559,6 +559,15 @@ func _process(delta: float) -> void:
 		var step := sin(ph)
 		pos += Vector3(cos(ph * 0.5) * 0.007, -step * step * 0.008, 0.0) * amp
 		rot += Vector3(step * 0.005, cos(ph * 0.5) * 0.010, cos(ph * 0.5) * 0.010) * amp
+	# sprinting: the rifle is carried across the body and works with every stride - a real bounce, a swing from side to
+	# side, a roll and a pitch on each step (the tempo of the steps is the camera's bob phase)
+	if GameSettings.weapon_sway and sprint_s > 0.01 and on_floor:
+		var sp := player.head.get_bob_phase()
+		var a2 := sprint_s * _walk_amp
+		var st := sin(sp)
+		var half := cos(sp * 0.5)
+		pos += Vector3(half * 0.032, -st * st * 0.034 + 0.008 * sin(sp * 2.0), 0.012 * st) * a2
+		rot += Vector3(st * 0.05 + 0.03 * sin(sp * 2.0 + 0.7), half * 0.09, half * 0.075 + st * 0.02) * a2
 	# weapon kick: strongly damped while aiming so the iron sight stays in view
 	var kick_scale := lerpf(1.0, w.data.ads_kick_scale, _ads_blend)
 	pos += Vector3(0.0, _kick * 0.25, _kick) * kick_scale
