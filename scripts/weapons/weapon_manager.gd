@@ -269,6 +269,8 @@ func process_input(input: PlayerInputState, delta: float) -> void:
 func begin_switch(index: int) -> void:
 	if index < 0 or index >= weapons.size() or index == current_index:
 		return
+	if not is_local and player.rig != null:
+		player.rig.switch_pulse() # others see the weapon dip
 	_stop_tp_reload()
 	var w := get_current_weapon()
 	w.cancel_actions()
@@ -295,6 +297,15 @@ func _update_switch(delta: float) -> void:
 		_switch_timer = get_current_weapon().data.draw_time
 	elif _switch_state == SwitchState.RAISING and _switch_timer <= 0.0:
 		_switch_state = SwitchState.READY
+
+
+## Third-person view: progress 0..1 of a grenade throw (simulated here or announced by the server), -1 = none.
+func throw_progress() -> float:
+	if _grenade_timer > 0.0:
+		return clampf(1.0 - _grenade_timer / GRENADE_TOTAL_TIME, 0.0, 1.0)
+	if _tp_grenade_t >= 0.0:
+		return clampf(_tp_grenade_t / GRENADE_TOTAL_TIME, 0.0, 1.0)
+	return -1.0
 
 
 func is_throwing_grenade() -> bool:
@@ -586,11 +597,15 @@ func set_remote_weapon_index(index: int) -> void:
 	_stop_tp_reload()
 	get_current_weapon().cancel_actions()
 	current_index = index
+	if not is_local and player.rig != null and player.alive:
+		player.rig.switch_pulse()
 	_show_weapon(current_index, true)
 
 
 ## Muzzle flash on the third-person model (what other players see).
 func flash_third_person() -> void:
+	if player != null and player.rig != null:
+		player.rig.shot_kick() # recoil of the body
 	if current_index < _tp_flashes.size():
 		var f := _tp_flashes[current_index]
 		if f != null and f.has_method("flash"):

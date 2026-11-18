@@ -35,6 +35,7 @@ func _ready() -> void:
 	await _check_sniper()
 	await _check_match_countdown()
 	await _check_damage_fx()
+	await _check_third_person()
 	await _simulate_cams()
 	await _simulate_steps()
 	await _simulate_slide()
@@ -683,6 +684,127 @@ func _check_damage_fx() -> void:
 	if absf(MatchManager.get_local_participant().node.head.camera.fov - fov_before) > 4.0:
 		_fail("Kamera-FOV bleibt nach dem Treffer verstellt")
 	print("Schadens-Feedback: Treffer, Serie (begrenzt), kritisch, Heilung, Respawn OK")
+	game.free()
+	await get_tree().process_frame
+
+
+## Third-person view of other players: reactions, throw, weapon switch, ragdoll on death, reload hint.
+func _check_third_person() -> void:
+	var cfg := MatchConfig.new()
+	cfg.mode_id = MatchConfig.MODE_FFA
+	cfg.map_id = "test_arena"
+	cfg.bots_enabled = true
+	cfg.bot_count = 2
+	cfg.time_limit = 0.0
+	MatchManager.prepare_match(cfg)
+	var game: Node = (load("res://scenes/game/game.tscn") as PackedScene).instantiate()
+	add_child(game)
+	await get_tree().process_frame
+	MatchManager.warmup_left = 0.05
+	var waited := 0.0
+	while MatchManager.state != MatchManager.State.RUNNING and waited < 6.0:
+		await get_tree().process_frame
+		waited += get_process_delta_time()
+	var me := MatchManager.get_local_participant()
+	var local: Player = me.node as Player
+	local.human_controller.deactivate()
+	var bots: Array = []
+	for p in MatchManager.participants.values():
+		if p.is_bot:
+			bots.append(p)
+	var bot_node: Player = bots[0].node as Player
+	for b in bots:
+		(b.node.get_node("BotController") as Node).set_physics_process(false)
+	for i in 40:
+		await get_tree().physics_frame
+	var rig := bot_node.rig
+	# hit reaction: torso and head move, then settle again
+	rig.hit_react(Vector3(0, 0, -1), true, 1.0)
+	if absf(rig._hit.x) < 0.1 or absf(rig._head_snap.x) < 0.3:
+		_fail("Treffer-Reaktion bewegt Oberkoerper/Kopf nicht")
+	for i in 60:
+		await get_tree().physics_frame
+	if rig._hit.length() > 0.02:
+		_fail("Treffer-Reaktion klingt nicht ab")
+	# the remote events: shot kick, weapon switch dip, grenade throw (arm + weapon out of the way)
+	bot_node.weapon_manager.flash_third_person()
+	if rig._kick < 0.9:
+		_fail("Schuss-Rueckstoss der Figur fehlt")
+	bot_node.weapon_manager.begin_switch(1)
+	if rig._switch < 0.9:
+		_fail("Waffenwechsel-Bewegung der Figur fehlt")
+	bot_node.weapon_manager.play_remote_event("grenade")
+	for i in 20:
+		await get_tree().physics_frame
+	if bot_node.weapon_manager.throw_progress() < 0.1 or bot_node.hands.visible:
+		_fail("Granatenwurf ist fuer andere nicht sichtbar (Fortschritt %.2f)" % bot_node.weapon_manager.throw_progress())
+	# a throw reaches the hand positions the animation promises
+	var up: Vector3 = rig._throw_hand(0.58)
+	if up.y < 0.1 or up.z < 0.1:
+		_fail("Ausholen beim Wurf liegt nicht hinter/ueber der Schulter")
+	bot_node.weapon_manager._tp_grenade_t = -1.0
+	# landing: a jump followed by touching the ground squashes the body
+	rig.animate(0.016, Vector3.ZERO, false, false, false, false, 0.0, Vector3.INF, Vector3.INF)
+	for i in 30:
+		rig.animate(0.016, Vector3.ZERO, false, false, false, false, 0.0, Vector3.INF, Vector3.INF)
+	for i in 3:
+		rig.animate(0.016, Vector3.ZERO, true, false, false, false, 0.0, Vector3.INF, Vector3.INF)
+	if rig._land < 0.3:
+		_fail("Landebewegung fehlt (%.2f)" % rig._land)
+	# strafing: the legs turn towards the direction of movement
+	for i in 40:
+		rig.animate(0.016, Vector3(5.0, 0.0, 0.0), true, false, false, false, 0.0, Vector3.INF, Vector3.INF)
+	if absf(rig._strafe) < 0.5:
+		_fail("Seitliches Laufen dreht die Beine nicht (%.2f)" % rig._strafe)
+	# death: ragdoll in the same pose, pushed away from the shooter, falls, lies there; the respawn brings the body back
+	var start_y := bot_node.global_position.y + 1.2
+	bot_node.take_damage(9999.0, me.id, "shotgun", bot_node.get_center(), true, local.global_position)
+	var ragdolls := []
+	for c in bot_node.get_parent().get_children():
+		if c is Ragdoll:
+			ragdolls.append(c)
+	if ragdolls.size() != 1 or (ragdolls[0] as Ragdoll)._bodies.size() != 11 or bot_node.body.visible:
+		_fail("Ragdoll wird beim Tod nicht erzeugt (%d)" % ragdolls.size())
+	else:
+		var rd: Ragdoll = ragdolls[0]
+		var torso_y0: float = rd._bodies[1].global_position.y
+		for i in 90:
+			await get_tree().physics_frame
+		var torso_y1: float = rd._bodies[1].global_position.y
+		if torso_y1 > torso_y0 - 0.25:
+			_fail("Ragdoll faellt nicht um (%.2f -> %.2f)" % [torso_y0, torso_y1])
+		if not rd._bodies[1].global_position.is_finite():
+			_fail("Ragdoll-Koerper ungueltig")
+	# many deaths at once: the number of ragdolls is capped
+	for i in 12:
+		Ragdoll.spawn(local.rig, bot_node.get_parent(), Vector3.ZERO, Vector3.FORWARD, 1.0, false)
+	var n := 0
+	for c in bot_node.get_parent().get_children():
+		if c is Ragdoll and not c.is_queued_for_deletion():
+			n += 1
+	if n > Ragdoll.MAX_ALIVE:
+		_fail("Zu viele gleichzeitige Ragdolls (%d)" % n)
+	# reload hint thresholds
+	var w := local.weapon_manager.get_current_weapon()
+	if HUD.reload_hint_threshold(w) < 2 or HUD.reload_hint_threshold(w) >= w.data.magazine_size:
+		_fail("Schwellenwert der Nachladeerinnerung unsinnig (%d)" % HUD.reload_hint_threshold(w))
+	w.magazine = w.data.magazine_size
+	for i in 20:
+		game.hud._update_reload_hint(0.05)
+	if game.hud.reload_hint.visible:
+		_fail("Nachladeerinnerung bei vollem Magazin sichtbar")
+	w.magazine = 2
+	for i in 20:
+		game.hud._update_reload_hint(0.05)
+	if not game.hud.reload_hint.visible or not game.hud.reload_hint.text.ends_with("ZUM NACHLADEN"):
+		_fail("Nachladeerinnerung erscheint bei fast leerem Magazin nicht")
+	w.start_reload()
+	for i in 20:
+		game.hud._update_reload_hint(0.05)
+	if game.hud.reload_hint.visible:
+		_fail("Nachladeerinnerung bleibt waehrend des Nachladens")
+	w.cancel_actions()
+	print("Dritte Person: Treffer, Schuss, Wechsel, Wurf, Landen, Seitwaerts, Ragdoll (begrenzt), Nachladehinweis OK")
 	game.free()
 	await get_tree().process_frame
 

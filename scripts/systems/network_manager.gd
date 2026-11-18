@@ -13,7 +13,7 @@ extends Node
 
 enum Mode { OFFLINE, HOST, CLIENT }
 
-const PROTOCOL_VERSION := 8
+const PROTOCOL_VERSION := 9
 const DEFAULT_PORT := 7777
 const MAX_PEERS := 12
 const SNAPSHOT_EVERY_TICKS := 3 # 20 Hz at 60 physics ticks
@@ -735,6 +735,24 @@ func _rpc_shot(shooter_id: int, impacts: Array) -> void:
 	if pl == null:
 		return
 	pl.weapon_manager.play_remote_shot(impacts)
+
+
+## Server: a player was hit (not killed) -> the body flinches on the other machines (small event, throttled by the Player).
+func broadcast_hit_react(victim_id: int, source_position: Vector3, headshot: bool, strength: float) -> void:
+	if mode != Mode.HOST or not in_match:
+		return
+	for id in multiplayer.get_peers():
+		if id != victim_id:
+			_rpc_hit_react.rpc_id(id, victim_id, source_position, headshot, strength)
+
+
+@rpc("authority", "call_remote", "unreliable")
+func _rpc_hit_react(victim_id: int, source_position: Vector3, headshot: bool, strength: float) -> void:
+	if mode != Mode.CLIENT:
+		return
+	var pl := _player_of(victim_id)
+	if pl != null:
+		pl.play_hit_react(source_position, headshot, strength)
 
 
 ## Server: reload / switch / grenade pin of a player -> sound on the other machines.

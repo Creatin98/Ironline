@@ -31,6 +31,12 @@ var fps_label: Label
 var hint_label: Label
 
 var _player: Player
+var reload_hint: Label # "R ZUM NACHLADEN" when the magazine is nearly empty
+var _hint_alpha: float = 0.0
+var _hint_age: float = 0.0
+## Share of the magazine (at least 2 rounds) below which the reload hint appears.
+const RELOAD_HINT_FRACTION := 0.25
+const RELOAD_HINT_MIN := 2
 var _health_ratio: float = 1.0
 var _hitmarker_time: float = 0.0
 var _hitmarker_total: float = 0.14
@@ -93,6 +99,14 @@ func _build() -> void:
 	crosshair.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	crosshair.draw.connect(_draw_crosshair)
 	add_child(crosshair)
+
+	reload_hint = UITheme.label("", 26, UITheme.TEXT, HORIZONTAL_ALIGNMENT_CENTER)
+	reload_hint.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	reload_hint.size = Vector2(520, 50)
+	reload_hint.pivot_offset = Vector2(260, 25)
+	reload_hint.modulate.a = 0.0
+	reload_hint.add_theme_constant_override("outline_size", 6)
+	add_child(reload_hint)
 
 	# --- top left: score ---
 	var score_panel := UITheme.panel()
@@ -330,6 +344,7 @@ func _edit_input(event: InputEvent) -> void:
 # ----------------------------------------------------------------------------- per frame
 
 func _process(delta: float) -> void:
+	_update_reload_hint(delta)
 	_hitmarker_time = maxf(0.0, _hitmarker_time - delta)
 	if _player and _player.alive:
 		var w := _player.weapon_manager.get_current_weapon()
@@ -625,6 +640,45 @@ func _on_weapon_changed(weapon: Node) -> void:
 		return
 	weapon_label.text = w.data.display_name.to_upper()
 	_on_ammo_changed(w.magazine, w.reserve)
+
+
+## Rounds at or below which the reload hint shows for this weapon.
+static func reload_hint_threshold(w: Weapon) -> int:
+	return maxi(RELOAD_HINT_MIN, ceili(w.data.magazine_size * RELOAD_HINT_FRACTION))
+
+
+## Classic "press R to reload": fades in when the magazine is nearly empty (red and pulsing when empty), gone at once
+## while reloading, after the reload and when the weapon is switched.
+func _update_reload_hint(delta: float) -> void:
+	var w: Weapon = null
+	if _player != null and is_instance_valid(_player) and _player.alive:
+		w = _player.weapon_manager.get_current_weapon()
+	var want := w != null and not w.is_reloading() and w.state != Weapon.State.DRAWING and w.reserve > 0 \
+			and w.magazine <= reload_hint_threshold(w) and not _player.weapon_manager.is_throwing_grenade() and MatchManager.state == MatchManager.State.RUNNING
+	var before := _hint_alpha
+	_hint_alpha = move_toward(_hint_alpha, 1.0 if want else 0.0, delta * (6.0 if want else 12.0))
+	if _hint_alpha <= 0.0:
+		reload_hint.visible = false
+		_hint_age = 0.0
+		return
+	reload_hint.visible = true
+	if before <= 0.0:
+		_hint_age = 0.0
+	_hint_age += delta
+	var key := "R"
+	var evs := InputMap.action_get_events("reload")
+	if not evs.is_empty() and evs[0] is InputEventKey:
+		key = (evs[0] as InputEventKey).as_text_physical_keycode().to_upper()
+	reload_hint.text = "%s ZUM NACHLADEN" % key
+	var empty := w != null and w.magazine <= 0
+	var pulse := 0.5 + 0.5 * sin(_hint_age * 7.0)
+	var col := UITheme.DANGER.lerp(Color(1.0, 0.45, 0.35), pulse) if empty else Color(0.97, 0.85, 0.6)
+	reload_hint.add_theme_color_override("font_color", col)
+	reload_hint.add_theme_font_size_override("font_size", 36 if empty else 26)
+	var k := crosshair.size.y / 1080.0
+	reload_hint.scale = Vector2.ONE * (1.0 + 0.3 * maxf(0.0, 1.0 - _hint_age * 5.0)) * maxf(k, 0.5) # pops in
+	reload_hint.position = Vector2(crosshair.size.x * 0.5 - 260.0, crosshair.size.y * 0.66)
+	reload_hint.modulate.a = _hint_alpha * (0.75 + 0.25 * pulse if empty else 0.9)
 
 
 func _on_ammo_changed(magazine: int, reserve: int) -> void:

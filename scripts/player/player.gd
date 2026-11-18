@@ -109,6 +109,10 @@ var _replay_aiming: bool = false
 var _last_pos: Vector3 = Vector3.ZERO
 var _est_vel: Vector3 = Vector3.ZERO
 var _death_tween: Tween
+var _hands_pitch: float = 0.0
+var _last_hit_react_msec: int = 0
+## Weapon -> how hard the body is thrown when it dies (ragdoll).
+const DEATH_PUSH := {"pistol": 0.7, "mp5": 0.8, "ak47": 1.0, "shotgun": 1.7, "sniper": 1.8, "grenade": 2.0, "flashbang": 0.6}
 var _walk_phase: float = 0.0
 var _step_view_offset: float = 0.0 # camera lag after a step so the view glides instead of popping
 ## Set whenever this player fired (read by the replay recorder).
@@ -336,7 +340,7 @@ func _on_health_died(attacker_id: int, weapon_id: String, headshot: bool) -> voi
 	weapon_manager.on_owner_died()
 	is_aiming = false
 	is_sprinting = false
-	_play_death_animation()
+	_play_death_animation(attacker_id, weapon_id, headshot)
 	if is_local:
 		_play_fall_camera()
 		AudioManager.play_2d("death", -2.0)
@@ -352,18 +356,37 @@ func _play_fall_camera() -> void:
 	t.tween_property(head, "fall", 1.0, DEATH_FALL_TIME).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 
 
-func _play_death_animation() -> void:
+## Death: the body is replaced by a physical ragdoll (same pose, no jump) that is pushed away from the shooter.
+func _play_death_animation(attacker_id: int = 0, weapon_id: String = "", headshot: bool = false) -> void:
 	_kill_death_tween()
-	_death_tween = create_tween()
-	_death_tween.set_parallel(true)
-	var dir := 1.0 if randf() > 0.5 else -1.0
-	_death_tween.tween_property(body, "rotation", Vector3(0.0, 0.0, deg_to_rad(88.0 * dir)), 0.45).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
-	_death_tween.tween_property(body, "position", Vector3(0.0, 0.25, 0.0), 0.45)
-	_death_tween.chain().tween_interval(4.0)
-	# the respawn (3 s) comes before this; never hide a living body
-	_death_tween.chain().tween_callback(func() -> void:
-		if not alive:
-			body.hide())
+	var from := Vector3.ZERO
+	var killer := MatchManager.get_participant(attacker_id)
+	if killer != null and killer.node != null and is_instance_valid(killer.node) and killer.node != self:
+		from = global_position - (killer.node as Node3D).global_position
+	from.y = 0.0
+	var push := from.normalized() if from.length() > 0.1 else (global_transform.basis * Vector3(0, 0, 1)) # no shooter: falls backwards
+	Ragdoll.spawn(rig, get_parent(), _est_vel, push, float(DEATH_PUSH.get(weapon_id, 1.0)), headshot)
+	body.hide()
+
+
+## Authority: a shot that does not kill makes the body flinch - on every machine (event, nothing per frame).
+func _announce_hit_react(source_position: Vector3, amount: float, headshot: bool) -> void:
+	var now := Time.get_ticks_msec()
+	if now - _last_hit_react_msec < 110:
+		return # shotgun pellets: one reaction per shot
+	_last_hit_react_msec = now
+	var strength := clampf(amount / 55.0, 0.5, 1.5)
+	if not is_local:
+		play_hit_react(source_position, headshot, strength)
+	NetworkManager.broadcast_hit_react(participant_id, source_position, headshot, strength)
+
+
+func play_hit_react(source_position: Vector3, headshot: bool, strength: float) -> void:
+	if not alive:
+		return
+	var to := source_position - global_position
+	var local := Basis(Vector3.UP, rotation.y).inverse() * to
+	rig.hit_react(local, headshot, strength)
 
 
 func _kill_death_tween() -> void:
@@ -386,6 +409,8 @@ func take_damage(amount: float, attacker_id: int, weapon_id: String, hit_positio
 	if attacker != null and me != null and attacker_id != participant_id and not attacker.is_enemy_of(me):
 		return false # kein Friendly Fire
 	var killed := health.apply_damage(amount, attacker_id, weapon_id, headshot)
+	if not killed:
+		_announce_hit_react(source_position, amount, headshot)
 	if is_local:
 		GameEvents.local_player_damaged.emit(amount, source_position)
 		head.add_shake(0.35)
@@ -504,10 +529,17 @@ func _animate_body(delta: float) -> void:
 	var grounded := true
 	if not replay_mode:
 		grounded = is_on_floor() if has_movement_authority() else _net_on_floor
-	if not replay_mode:
-		hands.rotation.x = lerpf(hands.rotation.x, head.pitch, minf(1.0, delta * 12.0))
+	# what other players see: the pose follows aiming / throwing / switching (all known on every machine)
+	rig.aiming = is_aiming
+	rig.throw_progress = weapon_manager.throw_progress()
 	if not _replay_aiming:
+		if not replay_mode:
+			_hands_pitch = lerpf(_hands_pitch, head.pitch, minf(1.0, delta * 12.0))
+			var tilt := rig.weapon_tilt()
+			hands.rotation = Vector3(_hands_pitch + tilt.x, tilt.y, tilt.z)
 		hands.position = rig.weapon_anchor()
+	if (not is_local or replay_mode) and alive:
+		hands.visible = rig.throw_progress < 0.0 # the weapon is out of the way during a grenade throw
 	rig.animate(delta, vel_local, grounded, is_crouching, is_sliding, is_sprinting, head.pitch, _hand_target(true), _hand_target(false))
 
 

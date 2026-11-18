@@ -47,6 +47,22 @@ var _air: float = 0.0
 var _sprint: float = 0.0
 var _speed: float = 0.0
 var _gait: float = 0.0
+## Inputs set by the Player every frame (all known on every machine from snapshots/events).
+var aiming: bool = false
+## Throw progress 0..1 of a grenade (the pulled grenade is held at its cocked point), -1 = not throwing.
+var throw_progress: float = -1.0
+var _aim: float = 0.0
+var _air_time: float = 0.0
+var _was_air: float = 0.0
+var _land: float = 0.0 # landing squash 1 -> 0
+var _strafe: float = 0.0 # yaw of the legs towards the direction of movement
+var _spine_lean: float = 0.0
+var _hit: Vector3 = Vector3.ZERO # torso reaction: pitch, roll, yaw
+var _head_snap: Vector3 = Vector3.ZERO # head reaction: pitch, roll
+var _kick: float = 0.0 # recoil of the last shot
+var _switch: float = 0.0 # weapon change dip 1 -> 0
+var _throw_w: float = 0.0
+var _nade: MeshInstance3D
 
 
 func _ready() -> void:
@@ -170,7 +186,33 @@ func _build() -> void:
 		_box(low, Vector3(0.098, 0.098, FORE_ARM), Vector3(0, 0, -FORE_ARM * 0.5), skin)
 		_arm_up.append(up)
 		_arm_low.append(low)
+	# the grenade in the throwing hand (visible during a throw until it is released)
+	_nade = MeshInstance3D.new()
+	var nm := BoxMesh.new()
+	nm.size = Vector3(0.07, 0.09, 0.07)
+	_nade.mesh = nm
+	_nade.material_override = _material("grenade", Color(0.2, 0.26, 0.15))
+	_nade.position = Vector3(0, 0, -FORE_ARM - 0.02)
+	_nade.visible = false
+	_arm_low[0].add_child(_nade)
 	set_outline_visible(false)
+
+
+## Body segments for the ragdoll: pivot node (its origin = the joint), parent segment, collision box, mass and joint limits
+## (x = flexion range in radians, y/z = swing either way).
+func ragdoll_segments() -> Array:
+	var seg: Array = []
+	seg.append({"node": _pelvis, "parent": -1, "size": Vector3(0.36, 0.2, 0.22), "center": Vector3.ZERO, "mass": 9.0})
+	seg.append({"node": _spine, "parent": 0, "size": Vector3(0.40, 0.52, 0.24), "center": Vector3(0, 0.27, 0), "mass": 20.0, "x": Vector2(-0.7, 0.6), "yz": Vector2(0.5, 0.5)})
+	seg.append({"node": _head, "parent": 1, "size": Vector3(0.23, 0.26, 0.23), "center": Vector3(0, 0.15, 0), "mass": 5.0, "x": Vector2(-0.9, 0.9), "yz": Vector2(0.9, 0.6)})
+	for i in 2:
+		var thigh_idx := seg.size()
+		seg.append({"node": _thigh[i], "parent": 0, "size": Vector3(0.16, THIGH, 0.17), "center": Vector3(0, -THIGH * 0.5, 0), "mass": 8.0, "x": Vector2(-1.4, 0.9), "yz": Vector2(0.5, 0.6)})
+		seg.append({"node": _knee[i], "parent": thigh_idx, "size": Vector3(0.14, SHIN, 0.15), "center": Vector3(0, -SHIN * 0.5, 0), "mass": 5.0, "x": Vector2(-2.3, 0.0), "yz": Vector2(0.05, 0.05)})
+		var up_idx := seg.size()
+		seg.append({"node": _arm_up[i], "parent": 1, "size": Vector3(0.115, 0.115, UPPER_ARM), "center": Vector3(0, 0, -UPPER_ARM * 0.5), "mass": 3.0, "x": Vector2(-1.7, 1.7), "yz": Vector2(1.2, 1.2)})
+		seg.append({"node": _arm_low[i], "parent": up_idx, "size": Vector3(0.1, 0.1, FORE_ARM), "center": Vector3(0, 0, -FORE_ARM * 0.5), "mass": 2.0, "x": Vector2(-2.2, 0.1), "yz": Vector2(0.15, 0.15)})
+	return seg
 
 
 # ----------------------------------------------------------------------------- appearance
@@ -199,7 +241,40 @@ func set_shadow_only(shadow_only: bool) -> void:
 
 ## Where the weapon (hands node) sits: in front of the chest, follows lean and crouch.
 func weapon_anchor() -> Vector3:
-	return _pelvis.transform * (_spine.transform * Vector3(0.13, 0.31, -0.30)) + position
+	var dip := sin(_switch * PI)
+	var off := Vector3(0.13, 0.31, -0.30)
+	off += Vector3(-0.09, 0.09, -0.06) * _aim # shouldered, close to the face
+	off += Vector3(0.04, -0.17, 0.07) * _sprint # lowered, across the body
+	off += Vector3(0.0, -0.26, 0.06) * dip # weapon change: down and up again
+	off += Vector3(0.0, 0.012, 0.035) * _kick # recoil
+	return _pelvis.transform * (_spine.transform * off) + position
+
+
+## Extra rotation of the weapon (added to the pitch): sprint carry, weapon change, recoil.
+func weapon_tilt() -> Vector3:
+	var dip := sin(_switch * PI)
+	return Vector3(-0.38 * _sprint + 0.55 * dip - 0.07 * _kick, 0.55 * _sprint, 0.22 * _sprint - 0.3 * dip)
+
+
+# --- reactions (events, also from the network)
+
+## A hit: torso and head react. `from_local` = direction the shot came from (rig space, horizontal), strength ~0.5..1.5.
+func hit_react(from_local: Vector3, headshot: bool, strength: float = 1.0) -> void:
+	var d := Vector3(from_local.x, 0.0, from_local.z).normalized()
+	_hit += Vector3(-d.z * 0.22, d.x * 0.18, d.x * 0.12) * strength * (1.7 if headshot else 1.0)
+	_hit = _hit.clamp(Vector3(-0.6, -0.5, -0.4), Vector3(0.6, 0.5, 0.4))
+	if headshot:
+		_head_snap = Vector3(-d.z * 0.95 + 0.2, d.x * 0.5, 0.0)
+	else:
+		_head_snap += Vector3(-d.z * 0.3, d.x * 0.15, 0.0) * strength
+
+
+func shot_kick() -> void:
+	_kick = 1.0
+
+
+func switch_pulse() -> void:
+	_switch = 1.0
 
 
 ## `vel_local`: velocity in the player's own frame (x right, -z forward). Hand targets are in rig space
@@ -213,6 +288,20 @@ func animate(delta: float, vel_local: Vector3, on_floor: bool, crouching: bool, 
 	_slide = lerpf(_slide, 1.0 if sliding else 0.0, minf(1.0, delta * 9.0))
 	_air = lerpf(_air, 1.0 if (not on_floor and not sliding) else 0.0, minf(1.0, delta * 12.0))
 	_sprint = lerpf(_sprint, 1.0 if sprinting else 0.0, minf(1.0, delta * 8.0))
+	_aim = lerpf(_aim, 1.0 if (aiming and not sprinting) else 0.0, minf(1.0, delta * 12.0))
+	_kick = move_toward(_kick, 0.0, delta * 9.0)
+	_switch = move_toward(_switch, 0.0, delta * 2.3)
+	_hit = _hit.lerp(Vector3.ZERO, minf(1.0, delta * 7.0))
+	_head_snap = _head_snap.lerp(Vector3.ZERO, minf(1.0, delta * 6.0))
+	# landing: remember how long we were in the air
+	if on_floor:
+		if _was_air > 0.5 and _air_time > 0.12:
+			_land = clampf(0.4 + _air_time * 0.5, 0.4, 1.0)
+		_air_time = 0.0
+	else:
+		_air_time += delta
+	_was_air = _air
+	_land = move_toward(_land, 0.0, delta * 3.4)
 	var dir := -1.0 if vel_local.z > 0.6 else 1.0 # walking backwards runs the cycle in reverse
 	_phase += delta * speed * 2.6 * dir
 	var moving := clampf(_speed / 1.2, 0.0, 1.0)
@@ -222,6 +311,9 @@ func animate(delta: float, vel_local: Vector3, on_floor: bool, crouching: bool, 
 	var s := sin(_phase)
 	var c := cos(_phase)
 
+	# legs step in the direction of movement (strafing, backwards-diagonal)
+	var strafe_target := -clampf(atan2(vel_local.x, absf(vel_local.z)), -1.1, 1.1) * moving * (1.0 - _slide) * (1.0 - _air)
+	_strafe = lerpf(_strafe, strafe_target, minf(1.0, delta * 9.0))
 	# per leg: stand/gait -> crouch -> slide -> air
 	var thigh := [amp * s, -amp * s]
 	var knee := [-(0.1 + flex * maxf(0.0, c)), -(0.1 + flex * maxf(0.0, -c))]
@@ -240,6 +332,9 @@ func animate(delta: float, vel_local: Vector3, on_floor: bool, crouching: bool, 
 		kn = lerpf(kn, slide_knee[i], _slide)
 		th = lerpf(th, air_thigh[i], _air)
 		kn = lerpf(kn, air_knee[i], _air)
+		th += 0.6 * _land * (1.0 - _slide) # landing: knees give way
+		kn -= 0.9 * _land * (1.0 - _slide)
+		_thigh[i].rotation.y = _strafe * 0.85
 		_thigh[i].rotation.x = th
 		_knee[i].rotation.x = kn
 	# pelvis height and lean
@@ -247,15 +342,68 @@ func animate(delta: float, vel_local: Vector3, on_floor: bool, crouching: bool, 
 	var h := lerpf(HIP_H - bob, 0.66, _crouch)
 	h = lerpf(h, 0.34, _slide)
 	h = lerpf(h, HIP_H + 0.04, _air)
+	h -= 0.13 * _land
 	_pelvis.position.y = h
 	position.z = 0.18 * _crouch + 0.38 * _slide
-	var lean := -0.05 * moving - 0.30 * _sprint - 0.42 * _crouch + 0.5 * _slide - 0.1 * _air
-	_spine.rotation.x = lerpf(_spine.rotation.x, lean, minf(1.0, delta * 8.0))
-	_spine.rotation.z = sin(_time * 1.7) * 0.012 + (-vel_local.x * 0.012)
-	_head.rotation.x = clampf(pitch, -1.2, 1.2) * 0.75 - _spine.rotation.x * 0.7
+	var lean := -0.05 * moving - 0.30 * _sprint - 0.42 * _crouch + 0.5 * _slide - 0.1 * _air + 0.22 * _land
+	lean += 0.05 * _aim # leaning into the sights
+	_spine_lean = lerpf(_spine_lean, lean, minf(1.0, delta * 8.0))
+	# throwing: the torso winds up and swings
+	var twist := 0.0
+	if throw_progress >= 0.0:
+		var wind := smoothstep(0.35, 0.58, throw_progress) - smoothstep(0.62, 0.78, throw_progress)
+		twist = -0.55 * wind
+	_spine.rotation.x = _spine_lean + _hit.x + 0.06 * _kick
+	_spine.rotation.z = sin(_time * 1.7) * 0.012 + (-vel_local.x * 0.012) + _hit.y
+	_spine.rotation.y = _hit.z + twist
+	_head.rotation.x = clampf(pitch, -1.2, 1.2) * 0.75 - _spine.rotation.x * 0.7 + _head_snap.x
+	_head.rotation.z = _head_snap.y
 
+	_throw_w = lerpf(_throw_w, 1.0 if throw_progress >= 0.0 else 0.0, minf(1.0, delta * 14.0))
+	if _throw_w > 0.01:
+		var p := maxf(throw_progress, 0.0)
+		var rs := _shoulder(0)
+		var ls := _shoulder(1)
+		right_target = _blend_target(right_target, rs + _throw_hand(p), _throw_w)
+		left_target = _blend_target(left_target, ls + _throw_left(p), _throw_w)
+	_nade.visible = _throw_w > 0.5 and throw_progress >= 0.0 and throw_progress < 0.62
 	_solve_arm(0, right_target, Vector3(0.45, -1.0, 0.25))
 	_solve_arm(1, left_target, Vector3(-0.45, -1.0, 0.25))
+
+
+func _shoulder(side: int) -> Vector3:
+	var sx := 1.0 if side == 0 else -1.0
+	return _pelvis.transform * (_spine.transform * Vector3(sx * 0.255, 0.47, 0.0))
+
+
+## `INF` (no weapon) blends from the hanging arm.
+func _blend_target(from: Vector3, to: Vector3, w: float) -> Vector3:
+	if from == Vector3.INF:
+		return to
+	return from.lerp(to, w)
+
+
+## Right (throwing) hand relative to the shoulder: grenade at the chest, wound back high, thrown forward, hanging.
+func _throw_hand(p: float) -> Vector3:
+	return _key3([[0.0, Vector3(0.0, -0.30, -0.28)], [0.3, Vector3(0.02, -0.14, -0.32)], [0.55, Vector3(0.06, 0.20, 0.30)], [0.62, Vector3(0.06, 0.22, 0.32)], [0.72, Vector3(-0.05, -0.02, -0.60)], [0.86, Vector3(-0.02, -0.34, -0.40)], [1.0, Vector3(0.0, -0.52, -0.06)]], p)
+
+
+## Left hand pulls the pin at the grenade, then drops.
+func _throw_left(p: float) -> Vector3:
+	return _key3([[0.0, Vector3(0.0, -0.30, -0.30)], [0.2, Vector3(-0.04, -0.16, -0.30)], [0.4, Vector3(-0.30, -0.22, -0.34)], [0.56, Vector3(-0.22, -0.38, -0.20)], [1.0, Vector3(-0.10, -0.52, -0.06)]], p)
+
+
+static func _key3(keys: Array, t: float) -> Vector3:
+	if t <= float(keys[0][0]):
+		return keys[0][1]
+	for i in range(1, keys.size()):
+		var t1: float = keys[i][0]
+		if t <= t1:
+			var t0: float = keys[i - 1][0]
+			var u := clampf((t - t0) / maxf(0.0001, t1 - t0), 0.0, 1.0)
+			u = u * u * (3.0 - 2.0 * u)
+			return (keys[i - 1][1] as Vector3).lerp(keys[i][1], u)
+	return keys[keys.size() - 1][1]
 
 
 ## Two-bone IK: shoulder -> elbow -> hand target (rig space). Bone 0 = right, 1 = left.

@@ -381,6 +381,34 @@ func _game_ui(state: String) -> void:
 		get_tree().paused = true
 		ov.update_visuals()
 		await get_tree().process_frame
+	if state == "ragdoll":
+		# ragdoll of a shotgun headshot, a figure winding up a grenade throw, one flinching from a headshot, one aiming
+		var bs: Array = []
+		for pp in MatchManager.participants.values():
+			if pp.is_bot:
+				bs.append(pp.node as Player)
+		for bn in bs:
+			bn.set_process(false)
+			(bn.get_node("BotController") as Node).set_physics_process(false)
+		var xs := [-0.2, 1.7, 3.0, 0.9]
+		for i in mini(bs.size(), 4):
+			bs[i].global_position = Vector3(xs[i], 0.1, -14.2 + (i % 2) * 1.2)
+			bs[i].rotation.y = 0.35
+		for i in 30:
+			await get_tree().physics_frame
+		MatchManager.warmup_left = 0.0
+		bs[0].take_damage(9999.0, me.id, "shotgun", bs[0].get_center(), true, local.global_position)
+		for i in 60:
+			await get_tree().physics_frame
+		get_tree().paused = true
+		if bs.size() > 1:
+			bs[1].rig.throw_progress = 0.58
+			for i in 30:
+				bs[1].rig.animate(0.05, Vector3.ZERO, true, false, false, false, 0.0, Vector3.INF, Vector3.INF)
+		if bs.size() > 2:
+			bs[2].rig.hit_react(Vector3(0, 0, -1), true, 1.2)
+			bs[2].rig.animate(0.016, Vector3.ZERO, true, false, false, false, 0.0, bs[2]._hand_target(true), bs[2]._hand_target(false))
+		await get_tree().process_frame
 	if state == "humanoids":
 		# five figures in a row: stand, run, crouch, slide, jump (poses driven directly)
 		var rows := [
