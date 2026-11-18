@@ -5,7 +5,6 @@ extends Node3D
 
 const LIFETIME := 45.0
 const PICKUP_RANGE := 2.0
-const LABEL_RANGE := 7.0
 const FALL_HEIGHT := 0.95 # the weapon drops out of the hand from about this height
 const FALL_TIME := 0.42
 
@@ -14,7 +13,6 @@ var weapon_id: String = ""
 var magazine: int = 0
 var reserve: int = 0
 var age: float = 0.0
-var _label: Label3D
 var _pivot: Node3D
 var _outline: StandardMaterial3D
 var _rest_y: float = 0.05
@@ -73,16 +71,6 @@ func _ready() -> void:
 	# rest height: the lowest point of the weapon touches the floor
 	_rest_y = 0.012 - (lowest if lowest < INF else -0.05)
 	_pivot.position.y = _rest_y + FALL_HEIGHT
-	_label = Label3D.new()
-	_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	_label.pixel_size = 0.0028
-	_label.font_size = 40
-	_label.outline_size = 10
-	_label.position = Vector3(0, 0.6, 0)
-	_label.no_depth_test = true
-	_label.modulate = Color(1, 0.9, 0.7)
-	add_child(_label)
-	_update_label(false)
 
 
 func _process(delta: float) -> void:
@@ -90,28 +78,10 @@ func _process(delta: float) -> void:
 	if age >= LIFETIME:
 		queue_free()
 		return
-	var near := false
-	var show := false
-	var me := MatchManager.get_local_participant()
-	if me != null and me.node != null and is_instance_valid(me.node) and (me.node as Player).alive:
-		var d := (me.node as Node3D).global_position.distance_to(global_position)
-		near = d <= PICKUP_RANGE + 0.3
-		show = d <= LABEL_RANGE
-	_label.visible = show
-	_update_label(near)
 	_animate_fall()
 	_outline.albedo_color.a = 0.18 + 0.2 * (0.5 + 0.5 * sin(age * 2.6))
 	if age > LIFETIME - 5.0:
 		visible = int(age * 5.0) % 2 == 0 # blinks shortly before it vanishes
-
-
-func _update_label(near: bool) -> void:
-	if _label == null:
-		return
-	var text := "%s  %d | %d" % [_title, magazine, reserve]
-	if near:
-		text += "\n[E] aufnehmen"
-	_label.text = text
 
 
 ## The weapon falls out of the hand, tumbles and lands flat on the floor (one small bounce).

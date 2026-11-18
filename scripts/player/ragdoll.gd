@@ -350,9 +350,9 @@ func _physics_process(delta: float) -> void:
 	if not _pushed and _age > 0.04: # a couple of physics steps in: the masses are known now
 		_pushed = true
 		_apply_push()
-	if not _pool_done and not _sev.is_empty() and _age >= 1.1:
+	if not _pool_done and _age >= 1.1:
 		_pool_done = true
-		BloodFx.pool(get_parent(), _bodies[0].global_position, 1.0 + 0.35 * _sev.size())
+		BloodFx.pool(get_parent(), _bodies[0].global_position, 0.8 + 0.4 * float(_sev.size()))
 	if not _frozen and _age >= FREEZE_AFTER:
 		_frozen = true
 		for bi in _bodies.size():

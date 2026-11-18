@@ -19,7 +19,7 @@ errors = []
 warnings = []
 
 ENGINE_CLASSES = set("""
-Node Node2D Node3D Control CanvasLayer CanvasItem Label Label3D Button CheckBox OptionButton HSlider LineEdit
+Key MouseButton Node Node2D Node3D Control CanvasLayer CanvasItem Label Label3D Button CheckBox OptionButton HSlider LineEdit
 RichTextLabel ColorRect PanelContainer VBoxContainer HBoxContainer GridContainer BoxContainer Container
 StyleBoxFlat StyleBox Theme Font Resource RefCounted Object PackedScene SceneTree SceneTreeTimer Tween
 CharacterBody3D RigidBody3D StaticBody3D Area3D CollisionShape3D CapsuleShape3D BoxShape3D SphereShape3D

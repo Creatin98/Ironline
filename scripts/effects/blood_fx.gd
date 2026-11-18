@@ -3,8 +3,9 @@ extends RefCounted
 ## Blood: spray particles plus splats on nearby walls/floor (world), and the procedural splat
 ## textures shared with the HUD's screen splatter. Fully procedural, no assets.
 
-const MAX_WORLD_SPLATS := 90
-const SPLAT_LIFETIME := 25.0
+const MAX_WORLD_SPLATS := 420 # the map gets used: blood stays for a long time
+const SPLAT_LIFETIME := 150.0
+const FADE_TIME := 25.0
 const VARIANTS := 4
 const TEX_SIZE := 256
 
@@ -98,19 +99,19 @@ static func burst(parent: Node3D, pos: Vector3, dir: Vector3, scale: float = 1.0
 	var space := parent.get_world_3d().direct_space_state
 	var rng := RandomNumberGenerator.new()
 	rng.randomize()
-	var count := 2 + int(round(3.0 * scale))
+	var count := 4 + int(round(4.0 * scale))
 	for i in count:
 		var d := dir
-		var reach := 3.2
+		var reach := 4.6
 		match i:
 			0:
 				d = dir
 			1:
 				d = Vector3.DOWN
-				reach = 2.4
+				reach = 2.8
 			_:
 				d = (dir + Vector3(rng.randf_range(-1, 1), rng.randf_range(-0.6, 0.8), rng.randf_range(-1, 1))).normalized()
-				reach = 2.8
+				reach = 4.2
 		var q := PhysicsRayQueryParameters3D.create(pos, pos + d * reach, 1)
 		var hit := space.intersect_ray(q)
 		if hit.is_empty() or (hit["normal"] as Vector3).length() < 0.5:
@@ -169,7 +170,88 @@ static func _place_splat(parent: Node3D, pos: Vector3, normal: Vector3, size: fl
 		var oldest = _live.pop_front()
 		if is_instance_valid(oldest):
 			oldest.queue_free()
-	parent.get_tree().create_timer(SPLAT_LIFETIME).timeout.connect(mi.queue_free)
+	_fade_later(mi, SPLAT_LIFETIME)
+	# on walls and barrels the blood runs down (slowly, ending in a bead)
+	if absf(normal.y) < 0.4 and size > 0.55 and rng.randf() < 0.7:
+		_drip(mi, pos, normal, rng)
+		if size > 0.9 and rng.randf() < 0.6:
+			_drip(mi, pos + normal.cross(Vector3.UP).normalized() * rng.randf_range(-0.12, 0.12), normal, rng)
+
+
+## Fades a node out over FADE_TIME at the end of its life and frees it (a tween bound to the node: no dangling callbacks).
+static func _fade_later(mi: GeometryInstance3D, life: float) -> void:
+	var tw := mi.create_tween()
+	tw.tween_interval(maxf(life - FADE_TIME, 0.1))
+	tw.tween_property(mi, "transparency", 1.0, FADE_TIME)
+	tw.tween_callback(mi.queue_free)
+
+
+## A run of blood on a vertical surface: a thin streak that grows downwards, thickest at the top, with a bead at its end.
+static func _drip(decal: Node3D, pos: Vector3, normal: Vector3, rng: RandomNumberGenerator) -> void:
+	var length := rng.randf_range(0.25, 0.85)
+	var width := rng.randf_range(0.018, 0.04)
+	var q := QuadMesh.new()
+	q.size = Vector2(width, 1.0)
+	q.center_offset = Vector3(0, -0.5, 0) # grows downwards from its top edge
+	var run := MeshInstance3D.new()
+	run.mesh = q
+	run.material_override = _drip_material()
+	run.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	decal.add_child(run)
+	var z := normal.normalized()
+	var x := Vector3.UP.cross(z).normalized()
+	var y := z.cross(x).normalized()
+	run.global_transform = Transform3D(Basis(x, y, z), pos + normal * 0.02)
+	run.scale = Vector3(1.0, 0.02, 1.0)
+	var bead := MeshInstance3D.new()
+	var bq := QuadMesh.new()
+	bq.size = Vector2(width * 2.1, width * 2.4)
+	bead.mesh = bq
+	bead.material_override = _drip_material(true)
+	bead.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	decal.add_child(bead)
+	bead.global_transform = Transform3D(Basis(x, y, z), pos + normal * 0.021)
+	var dur := rng.randf_range(3.0, 7.0)
+	var tw := run.create_tween().set_parallel(true)
+	tw.tween_property(run, "scale:y", length, dur).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	tw.tween_property(bead, "global_position", pos + normal * 0.021 + Vector3.DOWN * length, dur).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	_fade_later(run, SPLAT_LIFETIME)
+	_fade_later(bead, SPLAT_LIFETIME)
+
+
+static var _drip_mat: StandardMaterial3D
+static var _bead_mat: StandardMaterial3D
+
+
+static func _drip_material(bead: bool = false) -> StandardMaterial3D:
+	if _drip_mat == null:
+		var img := Image.create(16, 128, false, Image.FORMAT_RGBA8)
+		for y in 128:
+			var t := float(y) / 127.0
+			var w := lerpf(0.5, 0.18, t) # tapers towards the end
+			for x in 16:
+				var dx := absf(float(x) / 15.0 * 2.0 - 1.0)
+				var a := clampf((w * 2.0 - dx) / 0.35, 0.0, 1.0) * clampf((1.0 - t) * 6.0 + 0.4, 0.0, 1.0)
+				img.set_pixel(x, y, Color(1, 1, 1, a))
+		var m := StandardMaterial3D.new()
+		m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		m.albedo_texture = ImageTexture.create_from_image(img)
+		m.albedo_color = Color(0.28, 0.006, 0.006, 0.92)
+		m.cull_mode = BaseMaterial3D.CULL_DISABLED
+		m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		m.render_priority = 2
+		_drip_mat = m
+		var n := 24
+		var bi := Image.create(n, n, false, Image.FORMAT_RGBA8)
+		for y in n:
+			for x in n:
+				var p := Vector2(float(x) / (n - 1) * 2.0 - 1.0, float(y) / (n - 1) * 2.0 - 1.0)
+				bi.set_pixel(x, y, Color(1, 1, 1, clampf((0.95 - p.length()) / 0.2, 0.0, 1.0)))
+		var bm := m.duplicate() as StandardMaterial3D
+		bm.albedo_texture = ImageTexture.create_from_image(bi)
+		bm.albedo_color = Color(0.34, 0.01, 0.01, 0.95)
+		_bead_mat = bm
+	return _bead_mat if bead else _drip_mat
 
 
 ## A pool of blood that spreads under a body: irregular dark patch, grows over a few seconds, stays a while.
@@ -203,7 +285,7 @@ static func pool(parent: Node, pos: Vector3, size: float) -> void:
 	var tw := mi.create_tween()
 	tw.tween_property(mi, "scale", Vector3.ONE * size, 4.0).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
 	_live.append(mi)
-	parent.get_tree().create_timer(SPLAT_LIFETIME + 10.0).timeout.connect(mi.queue_free)
+	_fade_later(mi, SPLAT_LIFETIME + 30.0)
 
 
 static var _pool_tex: ImageTexture

@@ -83,9 +83,85 @@ const RESOLUTIONS: Array[Vector2i] = [
 ]
 
 
+## Actions the player may rebind (Esc / pause stays fixed) with their German names.
+const REBINDABLE: Array[Array] = [
+	["move_forward", "Vorwärts"], ["move_back", "Rückwärts"], ["move_left", "Links"], ["move_right", "Rechts"],
+	["jump", "Springen"], ["sprint", "Sprinten"], ["crouch", "Ducken / Rutschen"],
+	["fire", "Feuer"], ["aim", "Zielen"], ["reload", "Nachladen"],
+	["switch_weapon", "Waffe wechseln"], ["weapon_primary", "Primärwaffe"], ["weapon_secondary", "Sekundärwaffe"],
+	["grenade", "Granate"], ["flashbang", "Blendgranate"], ["interact", "Waffe aufnehmen"], ["scoreboard", "Punktestand"],
+]
+## action -> {"t": "key" | "mouse", "c": physical keycode | mouse button}; only deviations from the defaults are saved.
+var key_bindings: Dictionary = {}
+var default_bindings: Dictionary = {}
+
+
 func _ready() -> void:
+	_capture_default_bindings()
 	load_settings()
 	apply()
+	apply_bindings()
+
+
+static func event_to_binding(ev: InputEvent) -> Dictionary:
+	if ev is InputEventKey:
+		var k := ev as InputEventKey
+		return {"t": "key", "c": int(k.physical_keycode if k.physical_keycode != 0 else k.keycode)}
+	if ev is InputEventMouseButton:
+		return {"t": "mouse", "c": int((ev as InputEventMouseButton).button_index)}
+	return {}
+
+
+static func binding_to_event(b: Dictionary) -> InputEvent:
+	if String(b.get("t", "")) == "key":
+		var k := InputEventKey.new()
+		k.physical_keycode = int(b["c"]) as Key
+		return k
+	if String(b.get("t", "")) == "mouse":
+		var m := InputEventMouseButton.new()
+		m.button_index = int(b["c"]) as MouseButton
+		return m
+	return null
+
+
+static func binding_text(b: Dictionary) -> String:
+	if String(b.get("t", "")) == "key":
+		var k := binding_to_event(b) as InputEventKey
+		return k.as_text_physical_keycode()
+	if String(b.get("t", "")) == "mouse":
+		var names := {MOUSE_BUTTON_LEFT: "Maus links", MOUSE_BUTTON_RIGHT: "Maus rechts", MOUSE_BUTTON_MIDDLE: "Maus Mitte", MOUSE_BUTTON_XBUTTON1: "Maus 4", MOUSE_BUTTON_XBUTTON2: "Maus 5"}
+		return String(names.get(int(b["c"]), "Maus %d" % int(b["c"])))
+	return "—"
+
+
+func _capture_default_bindings() -> void:
+	default_bindings.clear()
+	for a in REBINDABLE:
+		for ev in InputMap.action_get_events(a[0]):
+			if ev is InputEventMouseButton and ((ev as InputEventMouseButton).button_index == MOUSE_BUTTON_WHEEL_UP or (ev as InputEventMouseButton).button_index == MOUSE_BUTTON_WHEEL_DOWN):
+				continue
+			default_bindings[a[0]] = event_to_binding(ev)
+			break
+
+
+## Binding of an action as the game uses it now (override or default).
+func binding_of(action: String) -> Dictionary:
+	return key_bindings.get(action, default_bindings.get(action, {}))
+
+
+## Puts the bindings into the InputMap (the mouse wheel events of the weapon switch stay).
+func apply_bindings() -> void:
+	for a in REBINDABLE:
+		var action: String = a[0]
+		var b: Dictionary = binding_of(action)
+		var ev := binding_to_event(b)
+		if ev == null:
+			continue
+		for old in InputMap.action_get_events(action):
+			if old is InputEventMouseButton and ((old as InputEventMouseButton).button_index == MOUSE_BUTTON_WHEEL_UP or (old as InputEventMouseButton).button_index == MOUSE_BUTTON_WHEEL_DOWN):
+				continue
+			InputMap.action_erase_event(action, old)
+		InputMap.action_add_event(action, ev)
 
 
 func load_settings(path: String = SAVE_PATH) -> void:
@@ -129,6 +205,12 @@ func load_settings(path: String = SAVE_PATH) -> void:
 	for key in HUD_TOGGLES:
 		set(key, cfg.get_value("hud", key, get(key)))
 	ads_sensitivity = cfg.get_value("controls", "ads_sensitivity", ads_sensitivity)
+	key_bindings.clear()
+	if cfg.has_section("bindings"):
+		for a in REBINDABLE:
+			var v: Variant = cfg.get_value("bindings", a[0], null)
+			if typeof(v) == TYPE_DICTIONARY and (v as Dictionary).has("t"):
+				key_bindings[a[0]] = v
 	player_name = cfg.get_value("player", "name", player_name)
 	preferred_team = cfg.get_value("player", "team", preferred_team)
 	preferred_class_id = cfg.get_value("player", "class_id", preferred_class_id)
@@ -169,6 +251,8 @@ func save(path: String = SAVE_PATH) -> void:
 	for key in HUD_TOGGLES:
 		cfg.set_value("hud", key, get(key))
 	cfg.set_value("controls", "ads_sensitivity", ads_sensitivity)
+	for action in key_bindings:
+		cfg.set_value("bindings", action, key_bindings[action])
 	cfg.set_value("player", "name", player_name)
 	cfg.set_value("player", "team", preferred_team)
 	cfg.set_value("player", "class_id", preferred_class_id)

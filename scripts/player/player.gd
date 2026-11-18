@@ -35,6 +35,7 @@ const SLIDE_TIME := 0.84
 const SLIDE_MIN_SPEED := 5.2
 const SLIDE_MIN_START_SPEED := 6.6
 const SLIDE_COOLDOWN := 0.9
+const SLIDE_RELOAD_FACTOR := 0.93
 
 var participant_id: int = 0
 var team: int = Teams.Team.NONE
@@ -49,6 +50,7 @@ var controls_enabled: bool = true
 var is_sprinting: bool = false
 var is_crouching: bool = false
 var is_sliding: bool = false
+var _slide_len: float = SLIDE_TIME
 ## Match over: everybody glides to a stop slowly instead of freezing (see Game._on_match_ended).
 var run_out: bool = false
 var _sprint_time: float = 0.0
@@ -587,6 +589,13 @@ func _physics_process(delta: float) -> void:
 		_apply_remote_input()
 	if not controls_enabled:
 		input.clear_all()
+	elif MatchManager.state == MatchManager.State.WARMUP:
+		# countdown at the spawn: look around and crouch, everything else waits for the start
+		var keep_crouch := input.crouch
+		var keep_look := input.look_delta
+		input.clear_all()
+		input.crouch = keep_crouch
+		input.look_delta = keep_look
 	_update_states(delta)
 	if input.look_delta != Vector2.ZERO:
 		# bots (and later remote input) deliver look deltas per physics tick
@@ -742,7 +751,7 @@ func _update_states(delta: float) -> void:
 		if input.jump_pressed:
 			input.jump_pressed = false # Space ends the slide and stands up; a second Space jumps
 			_end_slide(true)
-		elif _slide_t >= SLIDE_TIME or not is_on_floor() or horizontal_speed < 0.9 and _slide_t > 0.2:
+		elif _slide_t >= _slide_len or not is_on_floor() or horizontal_speed < 0.9 and _slide_t > 0.2:
 			_end_slide(false)
 	if not is_sliding:
 		if is_crouching and input.jump_pressed and is_on_floor():
@@ -792,6 +801,12 @@ func _start_slide() -> void:
 	_slide_t = 0.0
 	_slide_dir = flat.normalized()
 	_slide_speed = maxf(horizontal_speed * 1.28, 10.4)
+	_slide_len = SLIDE_TIME
+	var wm_w := weapon_manager.get_current_weapon()
+	if wm_w != null and wm_w.is_reloading():
+		# sliding out of a reload is allowed (the reload goes on) but a touch weaker and shorter
+		_slide_speed *= SLIDE_RELOAD_FACTOR
+		_slide_len *= SLIDE_RELOAD_FACTOR
 	_slide_entry = horizontal_speed
 	_slide_cd = SLIDE_COOLDOWN
 	is_sprinting = false
@@ -841,7 +856,7 @@ func _move(delta: float) -> void:
 			if steered.length() > 0.1:
 				_slide_dir = steered.normalized()
 		# ramps from the entry speed to the slide speed (no jolt), then glides out
-		var profile := _slide_speed * pow(maxf(0.0, 1.0 - _slide_t / SLIDE_TIME), 1.35)
+		var profile := _slide_speed * pow(maxf(0.0, 1.0 - _slide_t / _slide_len), 1.35)
 		horizontal = _slide_dir * lerpf(_slide_entry, profile, smoothstep(0.0, 0.14, _slide_t))
 		if not on_floor:
 			velocity.y -= GRAVITY * delta

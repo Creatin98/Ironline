@@ -25,7 +25,10 @@ var timer_label: Label
 var killfeed_box: VBoxContainer
 var center_label: Label
 var sub_label: Label
-var popup_box: VBoxContainer
+var medal_hud: MedalHud
+var _multi_count: int = 0
+var _last_kill_t: float = -100.0
+var _last_killer_of_me: int = 0
 var damage_fx: DamageFx # all visual damage feedback (vignette, lens blood, critical health)
 var fps_label: Label
 var hint_label: Label
@@ -190,14 +193,9 @@ func _build() -> void:
 	sub_label.position = Vector2(-500, -90)
 	sub_label.custom_minimum_size = Vector2(1000, 40)
 	add_child(sub_label)
-	# score popups (+100 Kill, +50 Assist ...) stack below the crosshair
-	popup_box = VBoxContainer.new()
-	popup_box.set_anchors_preset(Control.PRESET_CENTER)
-	popup_box.position = Vector2(-250, 70)
-	popup_box.custom_minimum_size = Vector2(500, 0)
-	popup_box.add_theme_constant_override("separation", 0)
-	popup_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(popup_box)
+	# medals (top centre) and score popups (next to the crosshair)
+	medal_hud = MedalHud.new()
+	add_child(medal_hud)
 
 	# --- bottom center: hint ---
 	hint_label = UITheme.label("", 15, UITheme.TEXT_DIM, HORIZONTAL_ALIGNMENT_CENTER)
@@ -515,7 +513,6 @@ func _on_match_state_changed(state: int) -> void:
 			_warmup = true
 			center_label.text = "Match beginnt in %d" % int(ceil(MatchManager.warmup_left))
 			sub_label.text = "%s  •  %s" % [MatchManager.mode.display_name, GameDirector.get_map_info(MatchManager.config.map_id)["name"]]
-			hint_label.text = "WASD Bewegen  •  Shift Sprint  •  Strg Ducken  •  RMT Zielen  •  R Nachladen  •  Q/1/2 Waffe  •  G Granate  •  F Blendgranate  •  E Waffe aufnehmen  •  Tab Punkte"
 		MatchManager.State.RUNNING:
 			_warmup = false
 			center_label.text = "KAMPF!"
@@ -601,38 +598,54 @@ func show_hitmarker(headshot: bool, killed: bool) -> void:
 
 
 func _on_scored(points: int, reason: String) -> void:
-	var text := "+%d  %s" % [points, reason.to_upper()]
-	var me := MatchManager.get_local_participant()
-	if reason != "Assist" and me != null and me.killstreak >= 2:
-		text += "   •   %d IN FOLGE" % me.killstreak
-	var color := UITheme.ACCENT
-	var size := 26
-	match reason:
-		"Kopfschuss":
-			color = Color(1.0, 0.32, 0.22)
-			size = 30
-		"Assist":
-			color = Color(0.5, 0.78, 1.0)
-			size = 22
-	var label := UITheme.label(text, size, color, HORIZONTAL_ALIGNMENT_CENTER)
-	label.custom_minimum_size = Vector2(500, 0)
-	label.pivot_offset = Vector2(250, size * 0.7)
-	label.scale = Vector2(1.7, 1.7)
-	label.modulate.a = 0.0
-	popup_box.add_child(label)
-	while popup_box.get_child_count() > 4:
-		popup_box.get_child(0).queue_free()
-		popup_box.remove_child(popup_box.get_child(0))
+	medal_hud.score(points, reason)
 	if reason == "Assist":
 		AudioManager.play_2d("hitmarker", -13.0, 0.0).pitch_scale = 1.5
-	# pops in big, settles, holds, floats up while fading
-	var tw := label.create_tween()
-	tw.set_parallel(true)
-	tw.tween_property(label, "scale", Vector2.ONE, 0.16).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	tw.tween_property(label, "modulate:a", 1.0, 0.05)
-	tw.chain().tween_interval(1.0)
-	tw.chain().tween_property(label, "modulate:a", 0.0, 0.45)
-	tw.chain().tween_callback(label.queue_free)
+
+
+## Medals for the local player's kills: headshot (with "One Shot One Kill" for the sniper), longshot, grenade, revenge,
+## multi kills within 4 s and kill streaks. They appear one after the other.
+func _evaluate_medals(victim_id: int, killer_id: int, weapon_id: String, headshot: bool) -> void:
+	var me := MatchManager.get_local_participant()
+	if me == null:
+		return
+	if victim_id == me.id:
+		_last_killer_of_me = killer_id
+		_multi_count = 0
+		return
+	var victim := MatchManager.get_participant(victim_id)
+	if killer_id != me.id or victim == null or victim_id == killer_id or not me.is_enemy_of(victim):
+		return
+	var now := Time.get_ticks_msec() / 1000.0
+	_multi_count = _multi_count + 1 if now - _last_kill_t < 4.0 else 1
+	_last_kill_t = now
+	var medals: Array = []
+	if headshot:
+		medals.append(["headshot", "Headshot!", "One Shot One Kill" if weapon_id == "sniper" else "", 0])
+	elif weapon_id == "sniper":
+		medals.append(["oneshot", "One Shot One Kill", "", 0])
+	if weapon_id == "grenade":
+		medals.append(["grenade", "Granatenkill", "", 0])
+	if me.node != null and victim.node != null and is_instance_valid(me.node) and is_instance_valid(victim.node):
+		var dist := (me.node as Node3D).global_position.distance_to((victim.node as Node3D).global_position)
+		if dist >= 45.0 and weapon_id != "grenade":
+			medals.append(["longshot", "Longshot", "%d m" % int(dist), 0])
+	if _last_killer_of_me == victim_id:
+		medals.append(["revenge", "Revenge", "Rache genommen", 0])
+		_last_killer_of_me = 0
+	if _multi_count >= 2:
+		var names := {2: "Double Kill", 3: "Triple Kill", 4: "Multi Kill"}
+		medals.append(["multi", String(names.get(_multi_count, "Mega Kill")), "", _multi_count])
+	if me.killstreak in [5, 7, 10, 15, 20]:
+		medals.append(["streak", "Killstreak", "%d ohne zu sterben" % me.killstreak, me.killstreak])
+	# the most important ones first (at most three, in order of the list)
+	for i in mini(medals.size(), 3):
+		var m: Array = medals[i]
+		if i > 0:
+			await get_tree().create_timer(0.45).timeout
+			if not is_inside_tree():
+				return
+		medal_hud.medal(String(m[0]), String(m[1]), String(m[2]), int(m[3]))
 
 
 func _on_weapon_changed(weapon: Node) -> void:
@@ -718,6 +731,7 @@ func _refresh_grenade_label() -> void:
 
 
 func _on_participant_killed(victim_id: int, killer_id: int, weapon_id: String, headshot: bool) -> void:
+	_evaluate_medals(victim_id, killer_id, weapon_id, headshot)
 	var victim := MatchManager.get_participant(victim_id)
 	var killer := MatchManager.get_participant(killer_id)
 	var rt := RichTextLabel.new()

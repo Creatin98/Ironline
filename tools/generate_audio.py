@@ -192,6 +192,14 @@ def make_mechanical():
     tuck = env_exp(sine(520, 0.03), 0.006)
     tuck = [t * 0.5 for t in tuck]
     write_wav("ammo_stow", concat(zip_ticks[:zn], tuck), 0.72)
+    # medal pop: dark sub thud, a short metallic strike and a faint ring (serious, cinematic, short)
+    medal_sub = gain(env_exp(sweep(110, 42, 0.42), 0.13), 1.0)
+    medal_strike = gain(env_exp(highpass(noise(0.06), 2500), 0.012), 0.35)
+    medal_ring = [0.0] * int(0.7 * SR)
+    for f, dcy, g in zip([880, 1320, 1980, 2640], [0.28, 0.22, 0.16, 0.12], [0.5, 0.4, 0.28, 0.2]):
+        for k, sm in enumerate(env_exp(sine(f, 0.7), dcy)):
+            medal_ring[k] += sm * g
+    write_wav("medal_hit", mix(medal_sub, medal_strike, gain(medal_ring, 0.22)), 0.8)
     write_wav("empty_click", click(2600, 0.04, 0.006, 0.4), 0.5)
     write_wav("grenade_pin", click(3200, 0.05, 0.01, 0.5), 0.5)
     whoosh = env_adsr(lowpass(highpass(noise(0.35), 400), 1800), 0.08, 0.1, 0.6, 0.15)

@@ -13,7 +13,7 @@ uniform float cloud_cover : hint_range(0.0, 1.0) = 0.5; // weather: overall cove
 uniform float sun_cover : hint_range(0.0, 1.0) = 0.0;   // how much the sun is behind a cloud right now
 uniform vec2 wind = vec2(1.0, 0.35);
 
-float h21(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+float h21(vec2 p) { vec3 p3 = fract(vec3(p.xyx) * 0.1031); p3 += dot(p3, p3.yzx + 33.33); return fract((p3.x + p3.y) * p3.z); } // sin-free hash: stable on every GPU
 float vnoise(vec2 p) {
 	vec2 i = floor(p); vec2 f = fract(p); f = f * f * (3.0 - 2.0 * f);
 	return mix(mix(h21(i), h21(i + vec2(1.0, 0.0)), f.x), mix(h21(i + vec2(0.0, 1.0)), h21(i + vec2(1.0, 1.0)), f.x), f.y);

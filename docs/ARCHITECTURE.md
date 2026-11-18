@@ -444,3 +444,12 @@ Python-Skripten in `tools/` erzeugt – keine Fremdinhalte, alles reproduzierbar
 * **Bot-Verhalten menschlicher (Schwierigkeitswerte unverändert):** Fadenkreuz wandert vom aktuellen Blick zum Gegner (kein Snap), folgt Bewegung mit kleinem Nachlauf, gedrosselte/geglättete Drehung,
   Zielfehler driftet, Kopf/Brust nur alle ~1 s neu gewählt, Reaktionszeit zufällig ±30 % plus Verzögerung bei Gegnern abseits der Blickachse; nach einem Kill kurze Pause; Kampfstile `HOLD/PUSH/FLANK`
   (Seitenroute über Deckungspunkte), Ausweichen und gelegentlich kurzer Rückzug bei Beschuss, Duck-Peeks, geglättetes Strafen, Seitenblicke beim Patrouillieren, ADS mit Hysterese.
+
+
+## Belohnungs-HUD, Steuerung, Countdown (Ergänzung)
+
+* **Medaillen und Punkte:** `MedalHud` (Overlay im HUD) zeigt `MedalWidget`-Medaillen (Schild + Symbol, komplett per `_draw`) oben mittig und „+100“-Punkte neben dem Fadenkreuz. `Hud._evaluate_medals` vergibt für eigene Kills: Headshot (+ „One Shot One Kill“ beim Sniper), Longshot (≥ 45 m), Granatenkill, Revenge, Double/Triple/Multi Kill (< 4 s) und Killstreaks (5/7/10/15/20). Sound `medal_hit`.
+* **Steuerung:** Reiter „STEUERUNG“ in `SettingsPanel`; Belegungen in `GameSettings.key_bindings` (nur Abweichungen, Sektion `[bindings]`), `apply_bindings()` schreibt sie in die `InputMap`; Esc bleibt fest, doppelte Tasten werden getauscht. Die Steuerungs-Hinweiszeile beim Start und die Waffenbeschriftung am Boden gibt es nicht mehr.
+* **Countdown:** Im `WARMUP` bleiben Steuerung aktiv, `Player._physics_process` filtert alles außer Umsehen und Ducken (für alle sichtbar über die normalen Snapshots).
+* **Slide/Reload:** Nachladen bricht Sprint und Slide nicht mehr ab; ein Slide aus dem Nachladen ist 7 % kürzer und langsamer (`SLIDE_RELOAD_FACTOR`).
+* **Blut in der Welt:** bis 420 Decals, 150 s Lebensdauer (Ausblenden per Tween), an Wänden laufen Streifen mit Tropfen nach unten (`BloodFx._drip`), unter jeder Leiche wächst eine Lache.

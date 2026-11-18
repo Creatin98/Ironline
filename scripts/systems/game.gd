@@ -145,7 +145,7 @@ func _begin_match_flow() -> void:
 	MatchManager.begin_warmup()
 	for p in MatchManager.participants.values():
 		_spawn_participant(p)
-		(p.node as Player).set_controls_enabled(false)
+		(p.node as Player).set_controls_enabled(not (_paused and (p.node as Player).is_local)) # warmup: look around and crouch are allowed (Player filters the rest)
 
 
 func _load_map() -> void:
@@ -333,7 +333,8 @@ func _finish_spawn(p: Participant, player: Player, t: Transform3D) -> void:
 		_end_killcam()
 	player.respawn_at(t)
 	MatchManager.mark_spawned(p.id, player)
-	if MatchManager.state != MatchManager.State.RUNNING or (_paused and player.is_local):
+	var playable := MatchManager.state == MatchManager.State.RUNNING or MatchManager.state == MatchManager.State.WARMUP
+	if not playable or (_paused and player.is_local):
 		player.set_controls_enabled(false)
 	if p.id == MatchManager.local_participant_id:
 		AudioManager.play_2d("respawn", -8.0)
@@ -1087,5 +1088,5 @@ func _close_pause() -> void:
 	_paused = false
 	pause_menu.close()
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
-	if local_player and MatchManager.state == MatchManager.State.RUNNING: # not during the countdown / after the end
+	if local_player and (MatchManager.state == MatchManager.State.RUNNING or MatchManager.state == MatchManager.State.WARMUP): # not after the end
 		local_player.set_controls_enabled(true)

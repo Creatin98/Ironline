@@ -537,6 +537,28 @@ func _game_ui(state: String) -> void:
 					(c as LensFlare).queue_redraw()
 		get_tree().paused = true
 		await get_tree().process_frame
+	if state == "medals":
+		var mh: MedalHud = game.hud.medal_hud
+		mh.medal("headshot", "Headshot!", "One Shot One Kill")
+		await get_tree().process_frame
+		mh.medal("multi", "Double Kill", "", 2)
+		mh.score(150, "Kopfschuss")
+		mh.score(100, "Kill")
+		for i in 4:
+			await get_tree().process_frame
+		for c in mh.get_children():
+			if c is MedalWidget:
+				c.age = 0.7
+				c._process(0.0)
+		for c in mh.get_children():
+			if c is MedalWidget:
+				c.age = 0.7
+		mh._process(0.5)
+		for c in mh.get_children():
+			if c is MedalWidget:
+				c.position = c.position # keep
+		get_tree().paused = true
+		await get_tree().process_frame
 	if state == "mag":
 		GameEvents.local_ammo_picked.emit(30)
 		await get_tree().process_frame

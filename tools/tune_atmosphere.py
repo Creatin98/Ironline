@@ -39,7 +39,7 @@ MAPS = {
                 "ground_horizon_color": "Color(0.7, 0.6, 0.48, 1)", "ground_bottom_color": "Color(0.3, 0.24, 0.17, 1)"},
         "env": {"ambient_light_color": "Color(0.74, 0.68, 0.6, 1)", "ambient_light_sky_contribution": "0.5", "ambient_light_energy": "0.95",
                 "fog_density": "0.0032", "fog_light_color": "Color(0.9, 0.8, 0.64, 1)",
-                "volumetric_fog_density": "0.007", "volumetric_fog_anisotropy": "0.72", "fog_sky_affect": "0.25", "volumetric_fog_albedo": "Color(0.95, 0.86, 0.7, 1)",
+                "volumetric_fog_density": "0.007", "volumetric_fog_anisotropy": "0.72", "fog_sky_affect": "0.15", "volumetric_fog_sky_affect": "0.0", "volumetric_fog_albedo": "Color(0.95, 0.86, 0.7, 1)",
                 "adjustment_contrast": "1.14", "adjustment_saturation": "1.1", "tonemap_exposure": "1.0", "tonemap_white": "5.0"},
         "sun": {"light_color": "Color(1, 0.88, 0.7, 1)", "light_energy": "1.75"},
     },

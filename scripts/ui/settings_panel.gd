@@ -8,7 +8,7 @@ extends Control
 signal closed
 signal hud_edit_requested
 
-const TAB_NAMES: Array[String] = ["GRAFIK", "SOUND", "SPIEL"]
+const TAB_NAMES: Array[String] = ["GRAFIK", "SOUND", "SPIEL", "STEUERUNG"]
 const LABEL_WIDTH := 300.0
 const VALUE_WIDTH := 86.0
 
@@ -26,6 +26,10 @@ var _preset_entry: Dictionary = {}
 var _resolution_entry: Dictionary = {}
 var _loading: bool = false
 var _volume_snapshot: Dictionary = {}
+var _key_buttons: Dictionary = {}
+var _pending_bindings: Dictionary = {}
+var _rebinding: String = ""
+var _rebind_msec: int = 0
 var _defaults: Node
 
 
@@ -80,6 +84,7 @@ func _ready() -> void:
 	_build_graphics(_pages[0])
 	_build_sound(_pages[1])
 	_build_game(_pages[2])
+	_build_keys(_pages[3])
 
 	var buttons := UITheme.hbox(16)
 	buttons.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -180,6 +185,64 @@ func _build_game(page: VBoxContainer) -> void:
 	_toggle(h, 2, "Schadensrichtung (Pfeile)", "show_damage_indicators")
 	_toggle(h, 2, "Blut auf dem Bildschirm", "show_blood_overlay")
 	_toggle(h, 2, "FPS-Anzeige", "show_fps")
+
+
+## Key bindings: one button per action; click, then press the new key or mouse button (Esc cancels).
+func _build_keys(page: VBoxContainer) -> void:
+	var g := _section(page, "Tastenbelegung")
+	for a in GameSettings.REBINDABLE:
+		var action: String = a[0]
+		var btn := UITheme.button("", 18, 240)
+		btn.pressed.connect(func() -> void: _begin_rebind(action))
+		_row(g, String(a[1]), btn, null)
+		_key_buttons[action] = btn
+	_gap(page)
+	var hint := UITheme.label("Pause (Esc) ist fest belegt. Die Änderungen gelten nach „Übernehmen“.", 16, UITheme.TEXT_DIM)
+	page.add_child(hint)
+
+
+func _refresh_keys() -> void:
+	for action in _key_buttons:
+		var b: Dictionary = _pending_bindings.get(action, GameSettings.binding_of(action))
+		var btn: Button = _key_buttons[action]
+		btn.text = "Taste drücken …" if action == _rebinding else GameSettings.binding_text(b)
+
+
+func _begin_rebind(action: String) -> void:
+	_rebinding = action
+	_rebind_msec = Time.get_ticks_msec()
+	_refresh_keys()
+
+
+func _input(event: InputEvent) -> void:
+	if _rebinding == "" or not visible:
+		return
+	if event is InputEventKey and event.pressed and not event.echo:
+		get_viewport().set_input_as_handled()
+		if (event as InputEventKey).keycode == KEY_ESCAPE:
+			_rebinding = ""
+		else:
+			_set_binding(_rebinding, GameSettings.event_to_binding(event))
+	elif event is InputEventMouseButton and event.pressed and (event as InputEventMouseButton).button_index != MOUSE_BUTTON_WHEEL_UP and (event as InputEventMouseButton).button_index != MOUSE_BUTTON_WHEEL_DOWN:
+		# the first click is the one that opened the rebinding (the button itself), so wait one frame
+		if Time.get_ticks_msec() - _rebind_msec > 150:
+			get_viewport().set_input_as_handled()
+			_set_binding(_rebinding, GameSettings.event_to_binding(event))
+	_refresh_keys()
+
+
+func _set_binding(action: String, b: Dictionary) -> void:
+	if b.is_empty():
+		_rebinding = ""
+		return
+	# another action with the same key gets the key of this one (swap), so nothing is ever double-bound
+	var mine: Dictionary = _pending_bindings.get(action, GameSettings.binding_of(action))
+	for a in GameSettings.REBINDABLE:
+		var other: String = a[0]
+		if other != action and _pending_bindings.get(other, GameSettings.binding_of(other)) == b:
+			_pending_bindings[other] = mine
+	_pending_bindings[action] = b
+	_rebinding = ""
 
 
 # ----------------------------------------------------------------------------- widgets
@@ -411,6 +474,9 @@ func open() -> void:
 	_hud_edit_btn.disabled = not in_game
 	_hud_edit_btn.text = "HUD anpassen …" if in_game else "HUD anpassen (im Spiel)"
 	_volume_snapshot = GameSettings.volumes.duplicate()
+	_pending_bindings.clear()
+	_rebinding = ""
+	_refresh_keys()
 	_load_values()
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT) # always cover the whole screen
 	_resize_panel()
@@ -428,6 +494,11 @@ func _load_values() -> void:
 ## "Reiter auf Standard": resets the controls of the current tab (applied when "Übernehmen" is pressed;
 ## sound sliders are heard at once).
 func _reset_tab() -> void:
+	if _tab == 3:
+		_pending_bindings = GameSettings.default_bindings.duplicate(true)
+		_rebinding = ""
+		_refresh_keys()
+		return
 	_loading = true
 	for e in _entries:
 		if int(e["tab"]) == _tab:
@@ -439,6 +510,12 @@ func _reset_tab() -> void:
 
 
 func _apply() -> void:
+	for action in _pending_bindings:
+		if _pending_bindings[action] == GameSettings.default_bindings.get(action):
+			GameSettings.key_bindings.erase(action)
+		else:
+			GameSettings.key_bindings[action] = _pending_bindings[action]
+	GameSettings.apply_bindings()
 	for e in _entries:
 		if e["kind"] == "volume":
 			GameSettings.set_volume(String(e["prop"]), float(_get_control(e)))
