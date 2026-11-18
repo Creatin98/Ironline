@@ -26,7 +26,7 @@ const SMG := {
 const SNIPER := {
 	"grip": Vector3(-0.030, -0.120, 0.034),
 	"belt": Vector3(-0.200, -0.320, 0.000),
-	"handle_hand": Vector3(-0.040, 0.050, 0.100),
+	"handle_hand": Vector3(-0.072, 0.022, 0.150), # beside and behind the rear scope ring, never through it
 	"handle_pull": 0.0,
 }
 const PISTOL := {

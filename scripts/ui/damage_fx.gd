@@ -144,10 +144,11 @@ func _spawn_splats(amount: float) -> void:
 			sp["size"] = randf_range(220.0, 420.0) * k
 			sp["rot"] = randf() * TAU
 		elif roll < 0.5:
-			sp["kind"] = 0 # organic blob
+			sp["kind"] = 0 # a splash: irregular body with cast-off drops (drawn procedurally, every one different)
 			sp["size"] = randf_range(90.0, 230.0) * k * (0.7 + amount / 120.0)
 			sp["rot"] = randf() * TAU
 			sp["tex"] = randi() % BloodFx.VARIANTS
+			sp["shape"] = _make_splash_shape()
 		elif roll < 0.78:
 			sp["kind"] = 1 # smear, dragged by the wipe of a glove
 			sp["size"] = randf_range(200.0, 420.0) * k
@@ -172,12 +173,6 @@ func _spawn_splats(amount: float) -> void:
 	# a few dirt specks and fine scratches on the glass
 	if randf() < 0.6:
 		splats.append({"kind": 4, "p": _edge_biased(s), "age": 0.0, "vy": 0.0, "size": randf_range(120.0, 260.0) * k, "rot": randf() * TAU})
-	if randf() < 0.4:
-		var sc := {"kind": 5, "p": _edge_biased(s), "age": 0.0, "vy": 0.0, "lines": []}
-		var ang := randf() * TAU
-		for l in randi_range(2, 4):
-			sc["lines"].append([ang + randf_range(-0.25, 0.25), randf_range(90.0, 300.0) * k, randf_range(-12.0, 12.0) * k])
-		splats.append(sc)
 	while splats.size() > MAX_SPLATS:
 		splats.pop_front()
 	canvas.queue_redraw()
@@ -204,7 +199,7 @@ func _draw_splats() -> void:
 		var sz: float = float(sp.get("size", 0.0))
 		match int(sp["kind"]):
 			0:
-				_stamp(BloodFx.splat_texture(int(sp["tex"])), p, sz * (0.72 + 0.28 * grow), 1.15, float(sp["rot"]), Color(0.48, 0.02, 0.02, a))
+				_draw_splash(sp["shape"], p, sz * (0.72 + 0.28 * grow), float(sp["rot"]), a)
 			1:
 				_stamp(_texture(String(sp.get("tex_id", "smear"))), p, sz * (0.6 + 0.4 * grow), 0.45, float(sp["rot"]), Color(0.4, 0.015, 0.015, a * 0.8))
 			2:
@@ -220,6 +215,53 @@ func _draw_splats() -> void:
 					var dir := Vector2.from_angle(float(l[0]))
 					var q := p + dir.orthogonal() * float(l[2])
 					canvas.draw_line(q, q + dir * float(l[1]), Color(0.92, 0.85, 0.85, a * 0.22), 1.3, true)
+
+
+## Random splash geometry in unit space (-1..1): a lumpy body that is stretched in one direction, cast-off drops that
+## get smaller and more elongated (tails pointing back to the body) the farther they fly, and fine mist.
+static func _make_splash_shape() -> Dictionary:
+	var bias := randf() * TAU
+	var body := PackedVector2Array()
+	var n := 22
+	var base := randf_range(0.17, 0.26)
+	var ph: Array[float] = []
+	for k in 5:
+		ph.append(randf() * TAU)
+	for i in n:
+		var a := TAU * float(i) / float(n)
+		var r := base * (1.0 + 0.28 * sin(a * 2.0 + ph[0]) + 0.18 * sin(a * 3.0 + ph[1]) + 0.12 * sin(a * 5.0 + ph[2]))
+		r += 0.14 * pow(maxf(0.0, cos(a - bias)), 4.0)
+		body.append(Vector2.from_angle(a) * r)
+	var drops: Array = []
+	for i in randi_range(18, 30):
+		var da := bias + randfn(0.0, 0.9)
+		var dist := 0.28 + pow(randf(), 1.4) * 0.66
+		var rad := lerpf(0.055, 0.014, dist) * randf_range(0.6, 1.4)
+		var tail := rad * randf_range(0.0, 3.2) * clampf(dist * 1.5, 0.0, 1.0)
+		drops.append([Vector2.from_angle(da) * dist, rad, -Vector2.from_angle(da), tail])
+	for i in randi_range(18, 34):
+		var da := bias + randfn(0.0, 1.2)
+		drops.append([Vector2.from_angle(da) * randf_range(0.3, 0.95), randf_range(0.007, 0.016), Vector2.ZERO, 0.0])
+	return {"body": body, "drops": drops}
+
+
+func _draw_splash(shape: Dictionary, p: Vector2, size: float, rot: float, a: float) -> void:
+	var col := Color(0.46, 0.02, 0.02, a)
+	var half := size * 0.5
+	var xf := Transform2D(rot, Vector2.ONE, 0.0, p)
+	var body := PackedVector2Array()
+	for v in shape["body"]:
+		body.append(xf * ((v as Vector2) * half * 2.0))
+	canvas.draw_colored_polygon(body, col)
+	for dr in shape["drops"]:
+		var c: Vector2 = xf * ((dr[0] as Vector2) * half * 2.0)
+		var rad: float = float(dr[1]) * size
+		var tail: float = float(dr[3]) * size
+		if tail > rad * 0.8:
+			var dir: Vector2 = xf.basis_xform(dr[2] as Vector2).normalized()
+			var side := dir.orthogonal() * rad
+			canvas.draw_colored_polygon(PackedVector2Array([c + side, c + dir * tail, c - side]), col)
+		canvas.draw_circle(c, rad, col)
 
 
 ## A drip: a soft stain at the top, a run with a slightly wobbling edge that thins out while it creeps down,

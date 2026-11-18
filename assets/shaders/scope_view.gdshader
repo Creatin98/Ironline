@@ -8,14 +8,21 @@ uniform sampler2D scope_tex : filter_linear;
 uniform float open : hint_range(0.0, 1.0) = 0.0;
 uniform float radius = 0.44; // of the screen height
 uniform float aspect = 1.7778; // screen width / height
+uniform vec2 lens_uv = vec2(0.5, 0.5); // where the scope's rear lens is on the screen (the circle starts there)
+uniform float lens_radius = 0.02; // its radius, in screen heights
 uniform float zoom_flash : hint_range(0.0, 1.0) = 0.0; // a short brightening when the zoom step changes
 
 void fragment() {
 	vec2 uv = SCREEN_UV;
 	vec2 p = (uv - vec2(0.5)) * vec2(aspect, 1.0); // units of the screen height, origin = screen centre
 	float iris = smoothstep(0.0, 1.0, open);
-	float r = max(radius * iris, 0.0001);
 	float d = length(p);
+	// the circle grows out of the scope's lens and travels to the middle of the screen while the weapon comes up
+	float travel = smoothstep(0.35, 1.0, open);
+	vec2 centre = mix(lens_uv, vec2(0.5), travel);
+	float r = max(mix(lens_radius, radius, pow(iris, 0.8)), 0.0001);
+	vec2 pl = (uv - centre) * vec2(aspect, 1.0);
+	float appear = smoothstep(0.0, 0.1, open);
 
 	// outside: the un-zoomed picture, blurred more and more while the scope opens
 	float blur_px = 18.0 * iris + 0.01;
@@ -30,11 +37,11 @@ void fragment() {
 	vec3 outside = mix(base, blurred, smoothstep(0.0, 0.5, iris));
 	// the scope tube shades the surroundings: darker towards the edges and right around the lens
 	float shade = mix(1.0, 0.42, iris * smoothstep(0.0, 0.9, d / max(radius, 0.01)));
-	shade *= mix(1.0, 0.55, iris * (1.0 - smoothstep(r, r + 0.10, d)));
+	shade *= mix(1.0, 0.55, iris * (1.0 - smoothstep(r, r + 0.10, length(pl))));
 	outside *= shade;
 
 	// inside: the zoomed picture
-	vec2 q = p / r; // -1..1 over the lens
+	vec2 q = pl / r; // -1..1 over the lens
 	vec3 inside = texture(scope_tex, q * 0.5 + vec2(0.5)).rgb;
 	float rr = length(q);
 	inside *= mix(1.0, 0.5, smoothstep(0.55, 1.0, rr)); // lens vignette
@@ -65,6 +72,6 @@ void fragment() {
 	float lens = 1.0 - smoothstep(1.0 - px * 1.5, 1.0, rr);
 	float ring = smoothstep(0.972, 0.99, rr) * lens;
 	inside = mix(inside, vec3(0.0), ring);
-	vec3 col = mix(outside, inside, lens);
+	vec3 col = mix(outside, inside, lens * appear);
 	COLOR = vec4(col, 1.0);
 }

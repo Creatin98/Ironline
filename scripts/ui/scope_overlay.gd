@@ -102,6 +102,17 @@ func _process(delta: float) -> void:
 		_cam.far = main_cam.far
 		_cam.global_transform = main_cam.global_transform
 	var size := get_viewport().get_visible_rect().size
+	# the circle starts at the scope's rear lens on the weapon and travels to the middle while the weapon comes up
+	var lens_uv := Vector2(0.5, 0.5)
+	var lens_r := 0.02
+	if not replay_view and w != null and w.model != null and main_cam != null:
+		var lens := w.model.get_node_or_null("ScopeLensRear") as Node3D
+		if lens != null and not main_cam.is_position_behind(lens.global_position):
+			lens_uv = main_cam.unproject_position(lens.global_position) / size
+			var edge := main_cam.unproject_position(lens.global_position + main_cam.global_transform.basis.x * 0.025)
+			lens_r = clampf(absf(edge.x - lens_uv.x * size.x) / maxf(size.y, 1.0), 0.008, 0.2)
+	_material.set_shader_parameter("lens_uv", lens_uv)
+	_material.set_shader_parameter("lens_radius", lens_r)
 	_material.set_shader_parameter("open", open)
 	_material.set_shader_parameter("aspect", size.x / maxf(size.y, 1.0))
 	_material.set_shader_parameter("zoom_flash", _zoom_flash)
