@@ -121,6 +121,10 @@ var _est_vel: Vector3 = Vector3.ZERO
 var _death_tween: Tween
 var _hands_pitch: float = 0.0
 var _last_hit_react_msec: int = 0
+## What the last death looked like (read by the replay recorder so the killcams show the same gore).
+var last_death: Dictionary = {}
+var _replay_ragdoll: Ragdoll
+var _last_hit_pos: Vector3 = Vector3.INF # where the last hit landed (world), host/local only
 var _last_damage_source: Vector3 = Vector3.INF # where the last damage came from (explosion centre), host/local only
 ## Weapon -> how hard the body is thrown when it dies (ragdoll).
 const DEATH_PUSH := {"pistol": 0.7, "mp5": 0.8, "ak47": 1.0, "shotgun": 1.7, "sniper": 1.8, "grenade": 2.0, "flashbang": 0.6}
@@ -238,13 +242,21 @@ func replay_pose(pos: Vector3, yaw: float, pitch: float, crouch: bool) -> void:
 
 
 ## alive=false with `instant`: just hide; alive=false animated: fall down; alive=true: stand up again.
-func replay_set_alive(is_alive: bool, instant: bool) -> void:
+## `death` (from the recorded kill): the body goes down as the same ragdoll with the same torn-off parts as in the match.
+func replay_set_alive(is_alive: bool, instant: bool, death: Dictionary = {}) -> void:
 	_kill_death_tween()
+	if _replay_ragdoll != null and is_instance_valid(_replay_ragdoll):
+		_replay_ragdoll.queue_free()
+	_replay_ragdoll = null
 	body.rotation = Vector3.ZERO
 	body.position = Vector3.ZERO
 	if is_alive:
 		body.visible = true
 	elif instant:
+		body.visible = false
+	elif not death.is_empty():
+		body.visible = true
+		_replay_ragdoll = Ragdoll.spawn(rig, get_parent(), Vector3.ZERO, death["push"], float(death["strength"]), bool(death["headshot"]), death["gore"])
 		body.visible = false
 	else:
 		body.visible = true
@@ -442,8 +454,45 @@ func _play_death_animation(attacker_id: int = 0, weapon_id: String = "", headsho
 	var push := from.normalized() if from.length() > 0.1 else (global_transform.basis * Vector3(0, 0, 1)) # no shooter: falls backwards
 	if weapon_id in ["shotgun", "sniper", "grenade"] or headshot:
 		BloodFx.burst(get_parent(), get_center(), push, 1.5) # a heavy kill: extra spray
-	Ragdoll.spawn(rig, get_parent(), _est_vel, push, float(DEATH_PUSH.get(weapon_id, 1.0)), headshot)
+	var gore := _pick_gore(weapon_id, headshot)
+	last_death = {"push": push, "strength": float(DEATH_PUSH.get(weapon_id, 1.0)), "headshot": headshot, "gore": gore}
+	Ragdoll.spawn(rig, get_parent(), _est_vel, push, float(DEATH_PUSH.get(weapon_id, 1.0)), headshot, gore)
 	body.hide()
+
+
+## Gore: which parts are torn off when this player dies (ragdoll segment indices: head 2, thighs 3/7, shins 4/8,
+## upper arms 5/9, forearms 6/10). Heavy weapons often take a limb - the one nearest to where the last hit landed,
+## when that is known - grenades always tear off several parts and sometimes the whole body apart.
+func _pick_gore(weapon_id: String, headshot: bool) -> Array:
+	if headshot:
+		return []
+	var chance: float = {"pistol": 0.06, "mp5": 0.1, "ak47": 0.18, "shotgun": 0.55, "sniper": 0.7, "grenade": 1.0}.get(weapon_id, 0.0)
+	if randf() > chance:
+		return []
+	if weapon_id == "grenade":
+		if randf() < 0.3:
+			return [2, 3, 7, 5, 9] # everything comes apart
+		var all := [3, 7, 4, 8, 5, 9, 6, 10]
+		all.shuffle()
+		return all.slice(0, randi_range(2, 3)) + ([2] if randf() < 0.2 else [])
+	var rel := Vector3.ZERO
+	var known := _last_hit_pos != Vector3.INF
+	if known:
+		rel = _last_hit_pos - global_position
+	var side := 0 if (known and rel.dot(global_transform.basis.x) > 0.0) or (not known and randf() < 0.5) else 1
+	var arm := randf() < 0.5
+	if known:
+		arm = rel.y > 0.95 or (rel.y > 0.7 and randf() < 0.5)
+	var whole := randf() < 0.55
+	var idx: int
+	if arm:
+		idx = (5 if side == 0 else 9) if whole else (6 if side == 0 else 10)
+	else:
+		idx = (3 if side == 0 else 7) if whole else (4 if side == 0 else 8)
+	var out := [idx]
+	if weapon_id == "shotgun" and randf() < 0.3:
+		out.append((9 if side == 0 else 5) if arm else (7 if side == 0 else 3))
+	return out
 
 
 ## Authority: a shot that does not kill makes the body flinch - on every machine (event, nothing per frame).
@@ -486,6 +535,7 @@ func take_damage(amount: float, attacker_id: int, weapon_id: String, hit_positio
 	if attacker != null and me != null and attacker_id != participant_id and not attacker.is_enemy_of(me):
 		return false # kein Friendly Fire
 	_last_damage_source = source_position
+	_last_hit_pos = hit_position
 	var killed := health.apply_damage(amount, attacker_id, weapon_id, headshot)
 	if not killed:
 		_announce_hit_react(source_position, amount, headshot)

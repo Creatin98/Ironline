@@ -24,23 +24,44 @@ var _push: Vector3 = Vector3.ZERO
 var _strength: float = 1.0
 var _headshot: bool = false
 var _pushed: bool = false
+var _sev: Array[int] = [] # segment indices that are torn off (head 2, thighs 3/7, shins 4/8, upper arms 5/9, forearms 6/10)
+var _centers: Dictionary = {}
+var _pool_done: bool = false
+var _chunk_n: int = 0
+var _events: Array = [] # delayed effects, run from _physics_process (no lambdas that could outlive this node)
+
+
+## All corpses go away (a killcam replays the past: no bodies of the present may lie around).
+static func clear_all() -> void:
+	for r in _alive:
+		if is_instance_valid(r):
+			(r as Ragdoll).queue_free()
+	_alive.clear()
 
 
 ## `push`: horizontal direction away from the killer; `strength` ~0.6 (pistol) .. 2 (explosion).
-static func spawn(rig: HumanoidRig, parent: Node, velocity: Vector3, push: Vector3, strength: float, headshot: bool) -> Ragdoll:
+static func spawn(rig: HumanoidRig, parent: Node, velocity: Vector3, push: Vector3, strength: float, headshot: bool, severed: Array = []) -> Ragdoll:
 	_alive = _alive.filter(func(r: Variant) -> bool: return is_instance_valid(r))
 	while _alive.size() >= MAX_ALIVE:
 		(_alive.pop_front() as Ragdoll).queue_free()
 	var rd := Ragdoll.new()
 	parent.add_child(rd)
 	rd.global_transform = Transform3D.IDENTITY
-	rd._build(rig, velocity, push, strength, headshot)
+	rd._build(rig, velocity, push, strength, headshot, severed)
 	_alive.append(rd)
 	return rd
 
 
-func _build(rig: HumanoidRig, velocity: Vector3, push: Vector3, strength: float, headshot: bool) -> void:
+func _build(rig: HumanoidRig, velocity: Vector3, push: Vector3, strength: float, headshot: bool, severed: Array) -> void:
 	var segs := rig.ragdoll_segments()
+	_sev.clear()
+	for idx in severed:
+		if int(idx) > 1 and int(idx) < segs.size() and not _sev.has(int(idx)):
+			_sev.append(int(idx))
+	if headshot and not _sev.has(2):
+		_sev.append(2)
+	for i in segs.size():
+		_centers[i] = segs[i]["center"]
 	var phys := PhysicsMaterial.new()
 	phys.friction = 0.9
 	phys.bounce = 0.05
@@ -90,8 +111,8 @@ func _build(rig: HumanoidRig, velocity: Vector3, push: Vector3, strength: float,
 	for i in segs.size():
 		var seg: Dictionary = segs[i]
 		var pi: int = seg["parent"]
-		if pi < 0 or (headshot and i == 2):
-			continue # a severed head has no joint any more
+		if pi < 0 or _sev.has(i):
+			continue # torn-off parts have no joint any more
 		var a := _bodies[pi]
 		var b := _bodies[i]
 		var joint := Generic6DOFJoint3D.new()
@@ -108,27 +129,145 @@ func _build(rig: HumanoidRig, velocity: Vector3, push: Vector3, strength: float,
 	_push = push
 	_strength = strength
 	_headshot = headshot
-	if headshot:
-		_sever_head()
+	for idx in _sev:
+		_sever(idx, segs[idx]["parent"])
 
 
-## Headshot kill: a raw neck stump on the torso and fountains of blood from the neck and the flying head.
-func _sever_head() -> void:
-	var torso := _bodies[1]
-	var stump := MeshInstance3D.new()
-	var bm := BoxMesh.new()
-	bm.size = Vector3(0.11, 0.07, 0.11)
-	stump.mesh = bm
-	var m := StandardMaterial3D.new()
-	m.albedo_color = Color(0.32, 0.015, 0.015)
-	m.roughness = 0.35
-	stump.material_override = m
-	stump.position = Vector3(0, 0.55, 0)
-	torso.add_child(stump)
-	_visuals.append(stump)
-	_emit_blood(torso, Vector3(0, 0.57, 0), 1.6, 70)
-	_emit_blood(_bodies[2], Vector3(0, 0.03, 0), 0.8, 36)
-	BloodFx.burst(get_parent(), torso.global_transform * Vector3(0, 0.57, 0), Vector3.UP, 1.8)
+## A part is torn off: raw stump (with a bit of bone) on the body, a red cut surface on the part, blood that keeps
+## pumping out of the stump in weakening spurts - also while the body already lies on the floor.
+func _sever(idx: int, parent_idx: int) -> void:
+	var a := _bodies[parent_idx]
+	var b := _bodies[idx]
+	var at := a.to_local(b.global_position)
+	var flesh := StandardMaterial3D.new()
+	flesh.albedo_color = Color(0.3, 0.012, 0.012)
+	flesh.roughness = 0.3
+	var bone := StandardMaterial3D.new()
+	bone.albedo_color = Color(0.82, 0.78, 0.7)
+	var sz := 0.11 if idx != 2 else 0.1
+	for pair in [[a, at], [b, Vector3.ZERO]]:
+		var host: Node3D = pair[0]
+		var stump := MeshInstance3D.new()
+		var bm := BoxMesh.new()
+		bm.size = Vector3(sz, sz * 0.7, sz)
+		stump.mesh = bm
+		stump.material_override = flesh
+		stump.position = pair[1]
+		host.add_child(stump)
+		_visuals.append(stump)
+		var bn := MeshInstance3D.new()
+		var bbm := BoxMesh.new()
+		bbm.size = Vector3(0.035, 0.05, 0.035)
+		bn.mesh = bbm
+		bn.material_override = bone
+		bn.position = pair[1] + Vector3(randf_range(-0.02, 0.02), 0.03, randf_range(-0.02, 0.02))
+		host.add_child(bn)
+		_visuals.append(bn)
+		if idx == 2 and host == b:
+			_head_visuals.append(stump)
+			_head_visuals.append(bn)
+	var dir := Vector3.UP
+	if idx != 2:
+		dir = (a.to_local(b.global_transform * (_centers[idx] as Vector3)) - at).normalized()
+	_emit_blood(a, at, 1.2, 60)
+	_spurts(a, at, dir)
+	if idx == 2:
+		_emit_blood(b, Vector3(0, 0.03, 0), 0.8, 36)
+	_chunk_n += 3 if _strength >= 1.7 else 1
+	BloodFx.burst(get_parent(), b.global_position, dir, 1.6)
+
+
+func _later(delay: float, kind: String, node: Node, args: Dictionary = {}) -> void:
+	_events.append({"t": _age + delay, "kind": kind, "node": node, "args": args})
+
+
+func _run_events() -> void:
+	var i := 0
+	while i < _events.size():
+		var e: Dictionary = _events[i]
+		if _age < float(e["t"]):
+			i += 1
+			continue
+		_events.remove_at(i)
+		var n: Node = e["node"]
+		if not is_instance_valid(n):
+			continue
+		match String(e["kind"]):
+			"free":
+				n.queue_free()
+			"stop":
+				(n as CPUParticles3D).emitting = false
+			"pulse":
+				var a: Dictionary = e["args"]
+				_pulse(n as Node3D, a["at"], a["dir"], int(a["amount"]))
+
+
+## Blood pumps out in spurts with the heartbeat: strong at first, weaker and weaker, over several seconds.
+func _spurts(body: Node3D, at: Vector3, dir: Vector3) -> void:
+	for k in 9:
+		var t := 0.35 + float(k) * 0.42
+		var amount := maxi(5, int(30.0 * (1.0 - float(k) / 9.0)))
+		_later(t, "pulse", body, {"at": at, "dir": dir, "amount": amount})
+
+
+func _pulse(body: Node3D, at: Vector3, dir: Vector3, amount: int) -> void:
+	var p := CPUParticles3D.new()
+	var mesh := SphereMesh.new()
+	mesh.radius = 0.012
+	mesh.height = 0.024
+	mesh.radial_segments = 5
+	mesh.rings = 2
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color(0.42, 0.015, 0.015)
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mesh.material = mat
+	p.mesh = mesh
+	p.one_shot = true
+	p.explosiveness = 0.9
+	p.amount = maxi(4, int(float(amount) * GameSettings.effects_scale()))
+	p.lifetime = 0.55
+	p.direction = dir
+	p.spread = 22.0
+	p.initial_velocity_min = 1.2
+	p.initial_velocity_max = 3.6
+	p.gravity = Vector3(0.0, -10.0, 0.0)
+	p.scale_amount_min = 0.5
+	p.scale_amount_max = 1.5
+	body.add_child(p)
+	p.position = at
+	p.emitting = true
+	_later(1.0, "free", p)
+
+
+## Small flesh chunks flying off.
+func _spawn_chunks(origin: Vector3, dir: Vector3, n: int) -> void:
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color(0.34, 0.03, 0.025)
+	mat.roughness = 0.4
+	for i in mini(n, 14):
+		var c := RigidBody3D.new()
+		c.collision_layer = LAYER
+		c.collision_mask = 1
+		c.mass = 0.4
+		c.linear_damp = 0.3
+		c.angular_damp = 0.6
+		var cs := CollisionShape3D.new()
+		var bs := BoxShape3D.new()
+		var sz := randf_range(0.05, 0.12)
+		bs.size = Vector3(sz, sz * randf_range(0.6, 1.0), sz * randf_range(0.7, 1.2))
+		cs.shape = bs
+		c.add_child(cs)
+		var mi := MeshInstance3D.new()
+		var bm := BoxMesh.new()
+		bm.size = bs.size
+		mi.mesh = bm
+		mi.material_override = mat
+		c.add_child(mi)
+		add_child(c)
+		c.global_position = origin + Vector3(randf_range(-0.15, 0.15), randf_range(0.0, 0.3), randf_range(-0.15, 0.15))
+		c.linear_velocity = dir * randf_range(2.0, 6.0) + Vector3(randf_range(-2.5, 2.5), randf_range(1.5, 5.0), randf_range(-2.5, 2.5))
+		c.angular_velocity = Vector3(randf_range(-12, 12), randf_range(-12, 12), randf_range(-12, 12))
+		_later(5.5 + randf() * 1.5, "free", c)
 
 
 func _emit_blood(body: Node3D, at: Vector3, seconds: float, amount: int) -> void:
@@ -156,9 +295,7 @@ func _emit_blood(body: Node3D, at: Vector3, seconds: float, amount: int) -> void
 	p.emitting = true
 	body.add_child(p)
 	p.position = at
-	get_tree().create_timer(seconds).timeout.connect(func() -> void:
-		if is_instance_valid(p):
-			p.emitting = false)
+	_later(seconds, "stop", p)
 
 
 ## The push (after the first physics step: only then the bodies know their mass, an earlier impulse would act on 1 kg).
@@ -175,6 +312,14 @@ func _apply_push() -> void:
 		head.apply_central_impulse((dir * 5.5 + Vector3.UP * 1.8) * head.mass)
 		head.angular_velocity = Vector3(randf_range(-9.0, 9.0), randf_range(-5.0, 5.0), randf_range(-9.0, 9.0))
 		torso.apply_central_impulse(dir * 1.8 * torso.mass)
+	for idx in _sev:
+		if idx == 2:
+			continue
+		var limb := _bodies[idx]
+		limb.apply_central_impulse((dir * randf_range(2.5, 5.5) * maxf(strength, 1.0) + Vector3.UP * randf_range(1.0, 3.0) + Vector3(randf_range(-1, 1), 0, randf_range(-1, 1))) * limb.mass)
+		limb.angular_velocity = Vector3(randf_range(-10.0, 10.0), randf_range(-6.0, 6.0), randf_range(-10.0, 10.0))
+	if _chunk_n > 0:
+		_spawn_chunks(torso.global_position + Vector3(0, 0.3, 0), dir, _chunk_n)
 	if strength > 1.7: # explosion: thrown up
 		torso.apply_central_impulse((Vector3.UP * 4.2 + dir * 2.0) * torso.mass)
 		torso.apply_torque_impulse(Vector3(randf_range(-1, 1), randf_range(-1, 1), randf_range(-1, 1)) * torso.mass * 0.6)
@@ -201,9 +346,13 @@ func _limit(joint: Generic6DOFJoint3D, axis: int, lower: float, upper: float) ->
 
 func _physics_process(delta: float) -> void:
 	_age += delta
+	_run_events()
 	if not _pushed and _age > 0.04: # a couple of physics steps in: the masses are known now
 		_pushed = true
 		_apply_push()
+	if not _pool_done and not _sev.is_empty() and _age >= 1.1:
+		_pool_done = true
+		BloodFx.pool(get_parent(), _bodies[0].global_position, 1.0 + 0.35 * _sev.size())
 	if not _frozen and _age >= FREEZE_AFTER:
 		_frozen = true
 		for bi in _bodies.size():

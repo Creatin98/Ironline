@@ -71,7 +71,11 @@ func _record() -> void:
 
 
 func note_kill(victim_id: int, killer_id: int, weapon_id: String, headshot: bool) -> void:
-	_kills.append({"t": _now(), "killer": killer_id, "victim": victim_id, "weapon": weapon_id, "headshot": headshot, "assists": MatchManager.kill_assists.get(victim_id, [])})
+	var death := {}
+	var vp := MatchManager.get_participant(victim_id)
+	if vp != null and vp.node != null and is_instance_valid(vp.node):
+		death = (vp.node as Player).last_death.duplicate()
+	_kills.append({"t": _now(), "killer": killer_id, "victim": victim_id, "weapon": weapon_id, "headshot": headshot, "assists": MatchManager.kill_assists.get(victim_id, []), "death": death})
 
 
 ## The most recent kill that counts for the winner (team or player) and is still covered by the recording.
@@ -154,6 +158,7 @@ func _begin(final_kill: Dictionary, camera: Camera3D, ghosts: bool, parent: Node
 	_cursor = maxf(first_t, kill_t - pre)
 	_prev_cursor = _cursor
 	_end_time = kill_t + post
+	Ragdoll.clear_all()
 	_alive_state.clear()
 	killer_aim = 0.0
 	_killer_aim_target = 0.0
@@ -235,6 +240,7 @@ func killer_scope_fov() -> float:
 
 func _clear_targets() -> void:
 	killer_aim = 0.0
+	Ragdoll.clear_all() # corpses of the replay
 	var glass := GlassField.find(get_tree())
 	if glass != null:
 		glass.replay_end() # back to the real state of the windows
@@ -339,7 +345,7 @@ func _apply(t: float, first: bool) -> void:
 		var alive: bool = sa[4]
 		if first or _alive_state.get(id) != alive:
 			var was_alive: bool = _alive_state.has(id) and bool(_alive_state[id])
-			n.replay_set_alive(alive, first or not (was_alive and not alive))
+			n.replay_set_alive(alive, first or not (was_alive and not alive), kill.get("death", {}) if int(id) == int(kill["victim"]) else {})
 			_alive_state[id] = alive
 		n.weapon_manager.set_remote_weapon_index(int(sa[5]))
 	# fire events (muzzle flash + sound) of the frames we passed since the last call
@@ -372,7 +378,7 @@ func _apply(t: float, first: bool) -> void:
 		_victim_dead_shown = true
 		var victim: Player = _targets.get(int(kill["victim"]))
 		if victim != null and is_instance_valid(victim) and bool(_alive_state.get(int(kill["victim"]), true)):
-			victim.replay_set_alive(false, false)
+			victim.replay_set_alive(false, false, kill.get("death", {}))
 			_alive_state[int(kill["victim"])] = false
 	# the camera sits in the killer's eyes (holds the last pose if the data ends)
 	if a["p"].has(_killer_id) and _targets.has(_killer_id):

@@ -425,6 +425,11 @@ func _game_ui(state: String) -> void:
 				(rec._targets[rec._killer_id] as Player).replay_aim(1.0, game._cam.global_transform)
 				game._cam.fov = lerpf(GameSettings.fov, rec.killer_ads_fov(), 1.0)
 				game._cam_cross.queue_redraw()
+			if "--gore=1" in OS.get_cmdline_user_args():
+				rec._cursor = float(rec.kill["t"]) + 0.02
+				rec._apply(rec._cursor, false)
+				for i in 50:
+					await get_tree().physics_frame # the replayed body falls apart
 			get_tree().paused = true # software rendering is slow: freeze the moment
 		"outro":
 			bot_node.health.max_health = 100000.0 # survives the shots until the explicit kill
@@ -566,6 +571,35 @@ func _game_ui(state: String) -> void:
 				await get_tree().process_frame
 			Engine.time_scale = 1.0
 			game.flash_overlay.clear() # watching only: no whiteout in the picture
+		get_tree().paused = true
+		await get_tree().process_frame
+	if state == "gore":
+		# three kills: grenade, sniper (limb), shotgun
+		var gb: Array = []
+		for pp in MatchManager.participants.values():
+			if pp.is_bot:
+				gb.append(pp.node as Player)
+		for bn in gb:
+			bn.set_process(false)
+			(bn.get_node("BotController") as Node).set_physics_process(false)
+		var gx := [-0.4, 1.6, 3.2]
+		for i in mini(gb.size(), 3):
+			gb[i].global_position = Vector3(gx[i] * 0.7, 0.1, -4.5)
+			gb[i].rotation.y = 0.35
+		local.global_position = Vector3(0.7, 0.1, -1.6)
+		local.rotation.y = 0.0
+		local.head.set_pitch(-0.3)
+		for i in 30:
+			await get_tree().physics_frame
+		MatchManager.warmup_left = 0.0
+		var ctr: Vector3 = gb[0].global_position + Vector3(0.3, 0.3, 0.8)
+		gb[0].take_damage(9999.0, me.id, "grenade", gb[0].get_center(), false, ctr)
+		if gb.size() > 1:
+			gb[1].take_damage(9999.0, me.id, "sniper", gb[1].global_position + Vector3(0.3, 1.3, 0), false, local.global_position)
+		if gb.size() > 2:
+			gb[2].take_damage(9999.0, me.id, "shotgun", gb[2].global_position + Vector3(-0.3, 0.4, 0), false, local.global_position)
+		for i in int(float(OS.get_environment("GORE_FRAMES")) if OS.get_environment("GORE_FRAMES") != "" else 80):
+			await get_tree().physics_frame
 		get_tree().paused = true
 		await get_tree().process_frame
 	if state == "ragdoll":

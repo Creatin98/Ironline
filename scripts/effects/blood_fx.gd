@@ -6,7 +6,7 @@ extends RefCounted
 const MAX_WORLD_SPLATS := 90
 const SPLAT_LIFETIME := 25.0
 const VARIANTS := 4
-const TEX_SIZE := 160
+const TEX_SIZE := 256
 
 static var _textures: Array[ImageTexture] = []
 static var _materials: Array[StandardMaterial3D] = []
@@ -25,48 +25,35 @@ static func splat_texture(i: int) -> ImageTexture:
 	return _textures[i % VARIANTS]
 
 
-## A realistic splash: an irregular main body that stretches in one direction and a spray of cast-off drops
-## (round near the body, elongated with a tail towards the body farther out) plus fine mist. Different per variant.
+## Fine spatter: a few tiny irregular cores and a lot of small cast-off drops that fly in one direction - round near the
+## source, long thin streaks with a tail pointing back to the source farther out - plus a haze of mist. Every drop has its
+## own opacity, so it reads as wet spray on the surface instead of a paint blob. Different per variant.
 static func _make_texture(rng: RandomNumberGenerator) -> ImageTexture:
 	var img := Image.create(TEX_SIZE, TEX_SIZE, false, Image.FORMAT_RGBA8)
 	var bias := rng.randf() * TAU
-	var base := rng.randf_range(0.15, 0.23)
-	var phases: Array[float] = []
-	var amps: Array[float] = []
-	for k in 6:
-		phases.append(rng.randf() * TAU)
-		amps.append(rng.randf_range(0.2, 0.5) * base / (1.0 + k * 0.5))
-	var stretch := rng.randf_range(0.04, 0.16)
-	for y in TEX_SIZE:
-		for x in TEX_SIZE:
-			var px := (float(x) / (TEX_SIZE - 1)) * 2.0 - 1.0
-			var py := (float(y) / (TEX_SIZE - 1)) * 2.0 - 1.0
-			var r := sqrt(px * px + py * py)
-			var ang := atan2(py, px)
-			var edge := base + stretch * pow(maxf(0.0, cos(ang - bias)), 3.0)
-			for k in amps.size():
-				edge += amps[k] * sin(ang * float(k + 2) + phases[k])
-			var a := clampf((edge - r) / 0.035, 0.0, 1.0)
-			if a > 0.0:
-				img.set_pixel(x, y, Color(1, 1, 1, a))
-	# cast-off drops: mostly in the direction of the splash
-	for i in rng.randi_range(26, 40):
-		var dir_a := bias + rng.randfn(0.0, 0.85)
-		var dist := 0.2 + pow(rng.randf(), 1.5) * 0.72
-		var radius := lerpf(0.05, 0.012, dist) * rng.randf_range(0.6, 1.5)
+	var bdir := Vector2(cos(bias), sin(bias))
+	# a small ragged core at the impact point
+	for i in rng.randi_range(2, 4):
+		var c := Vector2(rng.randfn(0.0, 0.05), rng.randfn(0.0, 0.05))
+		_drop(img, c, rng.randf_range(0.028, 0.055), rng.randf_range(0.0, 0.1), -bdir, rng.randf_range(0.8, 1.0))
+	# cast-off drops along the direction, wide scatter
+	for i in rng.randi_range(70, 110):
+		var dir_a := bias + rng.randfn(0.0, 0.55)
+		var dist := 0.08 + pow(rng.randf(), 1.25) * 0.88
+		var radius := lerpf(0.026, 0.005, dist) * rng.randf_range(0.5, 1.3)
 		var c := Vector2(cos(dir_a), sin(dir_a)) * dist
-		var tail := radius * rng.randf_range(0.0, 3.5) * clampf(dist * 1.6, 0.0, 1.0)
-		_drop(img, c, radius, tail, -Vector2(cos(dir_a), sin(dir_a)))
-	# fine mist
-	for i in rng.randi_range(30, 55):
-		var dir_a := bias + rng.randfn(0.0, 1.25)
-		var dist := rng.randf_range(0.25, 0.95)
-		_drop(img, Vector2(cos(dir_a), sin(dir_a)) * dist, rng.randf_range(0.006, 0.013), 0.0, Vector2.ZERO)
+		var tail := radius * rng.randf_range(0.5, 7.0) * clampf(dist * 1.8, 0.0, 1.0)
+		_drop(img, c, radius, tail, -Vector2(cos(dir_a), sin(dir_a)), rng.randf_range(0.55, 1.0))
+	# mist
+	for i in rng.randi_range(60, 110):
+		var dir_a := bias + rng.randfn(0.0, 1.0)
+		var dist := rng.randf_range(0.1, 0.97)
+		_drop(img, Vector2(cos(dir_a), sin(dir_a)) * dist, rng.randf_range(0.0035, 0.008), 0.0, Vector2.ZERO, rng.randf_range(0.4, 0.9))
 	return ImageTexture.create_from_image(img)
 
 
 ## A drop (optionally with a tail that points to `tail_dir`) at `c` (-1..1 space), only the pixels near it are touched.
-static func _drop(img: Image, c: Vector2, radius: float, tail: float, tail_dir: Vector2) -> void:
+static func _drop(img: Image, c: Vector2, radius: float, tail: float, tail_dir: Vector2, opacity: float = 1.0) -> void:
 	var half := float(TEX_SIZE - 1) * 0.5
 	var reach := radius + tail + 0.02
 	var x0 := clampi(int((c.x - reach + 1.0) * half), 0, TEX_SIZE - 1)
@@ -81,7 +68,7 @@ static func _drop(img: Image, c: Vector2, radius: float, tail: float, tail_dir: 
 				t = clampf((p - c).dot(tail_dir) / tail, 0.0, 1.0)
 			var centre := c + tail_dir * tail * t
 			var rr := radius * (1.0 - 0.75 * t)
-			var a := clampf((rr - p.distance_to(centre)) / 0.01, 0.0, 1.0)
+			var a := clampf((rr - p.distance_to(centre)) / 0.006, 0.0, 1.0) * opacity
 			if a > img.get_pixel(x, y).a:
 				img.set_pixel(x, y, Color(1, 1, 1, a))
 
@@ -92,7 +79,7 @@ static func _material(i: int) -> StandardMaterial3D:
 			var m := StandardMaterial3D.new()
 			m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 			m.albedo_texture = splat_texture(v)
-			m.albedo_color = Color(0.36, 0.015, 0.015, 0.92)
+			m.albedo_color = Color(0.3, 0.008, 0.008, 0.95)
 			m.cull_mode = BaseMaterial3D.CULL_DISABLED
 			m.roughness = 1.0
 			m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
@@ -129,15 +116,15 @@ static func burst(parent: Node3D, pos: Vector3, dir: Vector3, scale: float = 1.0
 		if hit.is_empty():
 			continue
 		var dist := pos.distance_to(hit["position"])
-		var size := rng.randf_range(0.35, 0.7) * lerpf(1.0, 0.6, clampf(dist / reach, 0.0, 1.0)) * (0.65 + 0.35 * scale)
+		var size := rng.randf_range(0.7, 1.4) * lerpf(1.0, 0.7, clampf(dist / reach, 0.0, 1.0)) * (0.65 + 0.35 * scale)
 		_place_splat(parent, hit["position"], hit["normal"], size, rng)
 
 
 static func _spawn_particles(parent: Node3D, pos: Vector3, dir: Vector3, scale: float) -> void:
 	if _particle_mesh == null:
 		_particle_mesh = SphereMesh.new()
-		_particle_mesh.radius = 0.03
-		_particle_mesh.height = 0.06
+		_particle_mesh.radius = 0.011
+		_particle_mesh.height = 0.022
 		_particle_mesh.radial_segments = 6
 		_particle_mesh.rings = 3
 		_particle_mat = StandardMaterial3D.new()
@@ -148,7 +135,7 @@ static func _spawn_particles(parent: Node3D, pos: Vector3, dir: Vector3, scale: 
 	p.mesh = _particle_mesh
 	p.one_shot = true
 	p.explosiveness = 0.95
-	p.amount = maxi(4, int(36.0 * scale * GameSettings.effects_scale()))
+	p.amount = maxi(4, int(60.0 * scale * GameSettings.effects_scale()))
 	p.lifetime = 0.7
 	p.direction = dir
 	p.spread = 38.0
@@ -156,7 +143,7 @@ static func _spawn_particles(parent: Node3D, pos: Vector3, dir: Vector3, scale: 
 	p.initial_velocity_max = 7.5
 	p.gravity = Vector3(0.0, -11.0, 0.0)
 	p.scale_amount_min = 0.5
-	p.scale_amount_max = 1.8
+	p.scale_amount_max = 1.6
 	p.emitting = true
 	parent.add_child(p)
 	p.global_position = pos
@@ -183,3 +170,61 @@ static func _place_splat(parent: Node3D, pos: Vector3, normal: Vector3, size: fl
 		if is_instance_valid(oldest):
 			oldest.queue_free()
 	parent.get_tree().create_timer(SPLAT_LIFETIME).timeout.connect(mi.queue_free)
+
+
+## A pool of blood that spreads under a body: irregular dark patch, grows over a few seconds, stays a while.
+static func pool(parent: Node, pos: Vector3, size: float) -> void:
+	if parent == null or not parent.is_inside_tree():
+		return
+	var space := (parent as Node3D).get_world_3d().direct_space_state
+	var hit := space.intersect_ray(PhysicsRayQueryParameters3D.create(pos + Vector3(0, 0.5, 0), pos + Vector3(0, -2.0, 0), 1))
+	if hit.is_empty():
+		return
+	var n: Vector3 = hit["normal"]
+	if n.dot(Vector3.UP) < 0.7:
+		return
+	var quad := QuadMesh.new()
+	quad.size = Vector2.ONE
+	var mi := MeshInstance3D.new()
+	mi.mesh = quad
+	var m := StandardMaterial3D.new()
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	m.albedo_texture = _pool_texture()
+	m.albedo_color = Color(0.26, 0.005, 0.005, 0.9)
+	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	m.cull_mode = BaseMaterial3D.CULL_DISABLED
+	m.render_priority = 1
+	mi.material_override = m
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	parent.add_child(mi)
+	mi.global_position = hit["position"] + Vector3(0, 0.014, 0)
+	mi.rotation = Vector3(-PI * 0.5, randf() * TAU, 0.0)
+	mi.scale = Vector3.ONE * 0.1
+	var tw := mi.create_tween()
+	tw.tween_property(mi, "scale", Vector3.ONE * size, 4.0).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	_live.append(mi)
+	parent.get_tree().create_timer(SPLAT_LIFETIME + 10.0).timeout.connect(mi.queue_free)
+
+
+static var _pool_tex: ImageTexture
+
+
+static func _pool_texture() -> ImageTexture:
+	if _pool_tex != null:
+		return _pool_tex
+	var n := 128
+	var img := Image.create(n, n, false, Image.FORMAT_RGBA8)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 4711
+	var ph: Array[float] = []
+	for k in 5:
+		ph.append(rng.randf() * TAU)
+	for y in n:
+		for x in n:
+			var p := Vector2(float(x) / (n - 1) * 2.0 - 1.0, float(y) / (n - 1) * 2.0 - 1.0)
+			var ang := atan2(p.y, p.x)
+			var edge := 0.62 + 0.13 * sin(ang * 3.0 + ph[0]) + 0.09 * sin(ang * 5.0 + ph[1]) + 0.06 * sin(ang * 8.0 + ph[2])
+			var a := clampf((edge - p.length()) / 0.12, 0.0, 1.0)
+			img.set_pixel(x, y, Color(1, 1, 1, a))
+	_pool_tex = ImageTexture.create_from_image(img)
+	return _pool_tex
