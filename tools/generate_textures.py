@@ -388,6 +388,20 @@ def water():
     save("water", base, h, np.full((SIZE, SIZE), 0.10) + 0.08 * foam, 9.0)
 
 
+def cloth():
+    """Woven fabric detail (multiplies the clothing colour): thread weave, ripstop grid, soft dirt."""
+    yy, xx = np.mgrid[0:SIZE, 0:SIZE]
+    k = 2 * np.pi * 32 / SIZE
+    weave = (np.sin(xx * k) * 0.5 + 0.5) * (np.sin(yy * k + np.pi * ((xx * 32 // SIZE) % 2)) * 0.5 + 0.5)
+    thread = np.sin(xx * k) * np.sin(yy * k)
+    rip = grid_lines(8, 8, 1.2)
+    dirt = fbm(5, 3, 0.6, seed=161)
+    base = 0.80 + 0.12 * weave + 0.05 * rip - 0.18 * np.clip(dirt - 0.5, 0, 1) * 2
+    base = np.stack([base, base, base], -1)
+    save("cloth", base, thread * 0.5 + weave * 0.3 + rip * 0.3, 0.9 - 0.1 * weave, 3.0)
+
+
 if __name__ == "__main__":
     for fn in (asphalt, concrete, brick, plaster, metal_panel, wood_planks, roof_shingles, dirt, grass, crate, rubber, tiles, ship_hull, water):
         fn()
+    cloth()

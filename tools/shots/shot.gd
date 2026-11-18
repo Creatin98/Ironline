@@ -84,6 +84,8 @@ func _run() -> void:
 		await _game_ui(target.substr(5))
 	elif target.begins_with("map_"):
 		await _map_preview(target.substr(4))
+	elif target.begins_with("rig"):
+		await _rig_view()
 	elif target.begins_with("view_"):
 		await _map_view(target.substr(5))
 	elif target.begins_with("class_"):
@@ -200,6 +202,48 @@ func _map_view(map_id: String) -> void:
 	cam.global_position = pos
 	cam.look_at(look, Vector3.UP)
 	cam.current = true
+
+
+## Close-up of the third-person soldier (front, side and back) with outline.
+func _rig_view() -> void:
+	var root := Node3D.new()
+	get_tree().root.add_child.call_deferred(root)
+	await get_tree().process_frame
+	var env := Environment.new()
+	env.background_mode = Environment.BG_COLOR
+	env.background_color = Color(0.35, 0.42, 0.5)
+	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+	env.ambient_light_color = Color(0.6, 0.62, 0.66)
+	env.ambient_light_energy = 0.8
+	var we := WorldEnvironment.new()
+	we.environment = env
+	root.add_child(we)
+	var sun := DirectionalLight3D.new()
+	sun.rotation_degrees = Vector3(-40.0, 35.0, 0.0)
+	sun.light_energy = 1.5
+	root.add_child(sun)
+	var ground := MeshInstance3D.new()
+	var pm := PlaneMesh.new()
+	pm.size = Vector2(20, 20)
+	ground.mesh = pm
+	root.add_child(ground)
+	for i in 3:
+		var rig := HumanoidRig.new()
+		rig.setup_look(11 + i * 5)
+		rig.position = Vector3(-1.3 + 1.3 * i, 0, 0)
+		rig.rotation_degrees.y = [0.0, 70.0, 180.0][i]
+		root.add_child(rig)
+		if i == 0:
+			rig.set_outline_color(Color(1, 0.2, 0.15))
+			rig.set_outline_visible(true)
+	var cam := Camera3D.new()
+	cam.fov = 40.0
+	root.add_child(cam)
+	cam.position = Vector3(0, 1.1, 4.6)
+	cam.look_at(Vector3(0, 0.95, 0), Vector3.UP)
+	cam.current = true
+	for i in 3:
+		await get_tree().process_frame
 
 
 func _class_preview(class_id: String) -> void:

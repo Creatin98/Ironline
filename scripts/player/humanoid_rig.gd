@@ -13,18 +13,20 @@ const THIGH := 0.44
 const SHIN := 0.42
 const UPPER_ARM := 0.29
 const FORE_ARM := 0.27
-const OUTLINE_GROW := 0.024
 const OUTLINE_SHADER := "shader_type spatial;
 render_mode unshaded, cull_front, depth_draw_never;
 uniform vec4 col : source_color = vec4(1.0, 0.2, 0.15, 0.6);
 uniform float energy = 2.2;
+uniform float grow = 0.013;
+void vertex() {
+	VERTEX += NORMAL * grow;
+}
 void fragment() {
 	ALBEDO = col.rgb * energy;
 	ALPHA = col.a;
 }"
 
 static var _outline_shader: Shader
-static var _cloth_cache: Dictionary = {}
 
 var skin_color: Color = Color(0.9, 0.74, 0.6)
 var _pelvis: Node3D
@@ -105,37 +107,116 @@ func _apply_colors(hair: Color, shirt: Color, pants: Color) -> void:
 			"hair": m.albedo_color = hair
 			"shirt": m.albedo_color = shirt
 			"pants": m.albedo_color = pants
+			"pants_dark": m.albedo_color = pants * 0.8
+
+
+const CLOTH_KEYS := ["shirt", "pants", "pants_dark", "vest", "helmet", "webbing"]
+static var _cloth_tex: Texture2D
+static var _cloth_nrm: Texture2D
+static var _unit_box: BoxMesh
+static var _unit_cyl: CylinderMesh
+
+var _groups: Dictionary = {} # "<pivot id>:<material key>" -> {"pivot", "key", "st"}
 
 
 func _material(key: String, color: Color) -> StandardMaterial3D:
 	if not _mats.has(key):
 		var m := StandardMaterial3D.new()
 		m.albedo_color = color
-		m.roughness = 0.9
+		m.roughness = 0.92
+		if key in CLOTH_KEYS:
+			if _cloth_tex == null:
+				_cloth_tex = load("res://assets/textures/cloth.png")
+				_cloth_nrm = load("res://assets/textures/cloth_n.png")
+			m.albedo_texture = _cloth_tex
+			m.normal_enabled = true
+			m.normal_texture = _cloth_nrm
+			m.normal_scale = 0.5
+			m.uv1_triplanar = true # object space: the weave sticks to the limbs while they move
+			m.uv1_scale = Vector3(3.0, 3.0, 3.0)
+		match key:
+			"skin":
+				m.roughness = 0.62
+				m.metallic_specular = 0.45
+			"metal":
+				m.metallic = 0.8
+				m.roughness = 0.35
+			"plate":
+				m.metallic = 0.3
+				m.roughness = 0.5
+			"boots", "rubber":
+				m.roughness = 0.62
+			"lens":
+				m.roughness = 0.12
+				m.metallic = 0.4
 		_mats[key] = m
 	return _mats[key]
 
 
-func _box(parent: Node3D, size: Vector3, center: Vector3, mat: StandardMaterial3D, outline: bool = true) -> MeshInstance3D:
-	var mi := MeshInstance3D.new()
-	var mesh := BoxMesh.new()
-	mesh.size = size
-	mi.mesh = mesh
-	mi.position = center
-	mi.material_override = mat
-	parent.add_child(mi)
-	_parts.append(mi)
-	if outline:
+## Adds a box (or cylinder) to the merged mesh of (pivot, material). One draw call per pivot and material.
+func _part(pivot: Node3D, size: Vector3, center: Vector3, key: String, rot_deg: Vector3 = Vector3.ZERO, cylinder: bool = false) -> void:
+	var gk := "%d:%s" % [pivot.get_instance_id(), key]
+	if not _groups.has(gk):
+		var st := SurfaceTool.new()
+		st.begin(Mesh.PRIMITIVE_TRIANGLES)
+		_groups[gk] = {"pivot": pivot, "key": key, "st": st}
+	if _unit_box == null:
+		_unit_box = BoxMesh.new()
+		_unit_cyl = CylinderMesh.new()
+		_unit_cyl.top_radius = 0.5
+		_unit_cyl.bottom_radius = 0.5
+		_unit_cyl.height = 1.0
+		_unit_cyl.radial_segments = 10
+		_unit_cyl.rings = 1
+	var basis := Basis.from_euler(Vector3(deg_to_rad(rot_deg.x), deg_to_rad(rot_deg.y), deg_to_rad(rot_deg.z)))
+	var xf := Transform3D(basis.scaled_local(size), center)
+	((_groups[gk]["st"]) as SurfaceTool).append_from(_unit_cyl if cylinder else _unit_box, 0, xf)
+
+
+## Turns the collected parts into one MeshInstance3D per (pivot, material), each with an outline copy.
+func _commit_parts() -> void:
+	for gk in _groups:
+		var g: Dictionary = _groups[gk]
+		var mesh: ArrayMesh = (g["st"] as SurfaceTool).commit()
+		var mi := MeshInstance3D.new()
+		mi.mesh = mesh
+		mi.material_override = _mats[g["key"]]
+		(g["pivot"] as Node3D).add_child(mi)
+		_parts.append(mi)
+		if g["key"] == "eye" or g["key"] == "lens":
+			continue
 		var ol := MeshInstance3D.new()
-		var om := BoxMesh.new()
-		om.size = size + Vector3.ONE * OUTLINE_GROW
-		ol.mesh = om
+		ol.mesh = _outline_mesh(mesh)
 		ol.material_override = _outline_mat
 		ol.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		ol.visible = false
 		mi.add_child(ol)
 		_outlines.append(ol)
-	return mi
+	_groups.clear()
+
+
+## Copy of a mesh with smoothed normals (shared corners averaged), so the outline shader can push it outwards without cracks.
+func _outline_mesh(mesh: ArrayMesh) -> ArrayMesh:
+	var arrays := mesh.surface_get_arrays(0)
+	var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+	var sums: Dictionary = {}
+	for i in verts.size():
+		var k := Vector3i(roundi(verts[i].x * 1000.0), roundi(verts[i].y * 1000.0), roundi(verts[i].z * 1000.0))
+		sums[k] = sums.get(k, Vector3.ZERO) + normals[i]
+	var smooth := PackedVector3Array()
+	smooth.resize(verts.size())
+	for i in verts.size():
+		var k := Vector3i(roundi(verts[i].x * 1000.0), roundi(verts[i].y * 1000.0), roundi(verts[i].z * 1000.0))
+		smooth[i] = (sums[k] as Vector3).normalized()
+	var out := ArrayMesh.new()
+	var oa: Array = []
+	oa.resize(Mesh.ARRAY_MAX)
+	oa[Mesh.ARRAY_VERTEX] = verts
+	oa[Mesh.ARRAY_NORMAL] = smooth
+	oa[Mesh.ARRAY_INDEX] = arrays[Mesh.ARRAY_INDEX]
+	out.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, oa)
+	return out
 
 
 func _pivot(parent: Node3D, pos: Vector3) -> Node3D:
@@ -151,41 +232,97 @@ func _build() -> void:
 		_outline_shader.code = OUTLINE_SHADER
 	_outline_mat = ShaderMaterial.new()
 	_outline_mat.shader = _outline_shader
-	var skin := _material("skin", skin_color)
-	var hair := _material("hair", _hair_color)
-	var shirt := _material("shirt", _shirt_color)
-	var pants := _material("pants", _pants_color)
-	var boots := _material("boots", Color(0.07, 0.07, 0.08))
-	var eye := _material("eye", Color(0.04, 0.04, 0.05))
+	_material("skin", skin_color)
+	_material("hair", _hair_color)
+	_material("shirt", _shirt_color)
+	_material("pants", _pants_color)
+	_material("pants_dark", _pants_color * 0.8)
+	_material("boots", Color(0.09, 0.08, 0.07))
+	_material("rubber", Color(0.04, 0.04, 0.045))
+	_material("eye", Color(0.03, 0.03, 0.04))
+	_material("lip", Color(0.5, 0.26, 0.24))
+	_material("vest", Color(0.17, 0.18, 0.16))
+	_material("plate", Color(0.1, 0.11, 0.11))
+	_material("webbing", Color(0.2, 0.2, 0.17))
+	_material("helmet", Color(0.2, 0.22, 0.18))
+	_material("metal", Color(0.35, 0.36, 0.38))
+	_material("lens", Color(0.12, 0.2, 0.26))
 
 	_pelvis = _pivot(self, Vector3(0, HIP_H, 0))
-	_box(_pelvis, Vector3(0.36, 0.2, 0.22), Vector3(0, 0.0, 0), pants)
+	_part(_pelvis, Vector3(0.36, 0.2, 0.22), Vector3.ZERO, "pants")
+	# belt with buckle, magazine pouches and a holster
+	_part(_pelvis, Vector3(0.375, 0.055, 0.24), Vector3(0, 0.095, 0), "webbing")
+	_part(_pelvis, Vector3(0.06, 0.04, 0.012), Vector3(0, 0.095, -0.123), "metal")
+	for x in [-0.1, 0.1]:
+		_part(_pelvis, Vector3(0.075, 0.1, 0.05), Vector3(x, 0.07, -0.14), "vest")
+	_part(_pelvis, Vector3(0.06, 0.2, 0.13), Vector3(0.205, -0.07, -0.01), "webbing")
+	_part(_pelvis, Vector3(0.05, 0.1, 0.1), Vector3(-0.2, 0.07, 0.04), "vest")
 	_spine = _pivot(_pelvis, Vector3.ZERO)
-	_box(_spine, Vector3(0.40, 0.52, 0.24), Vector3(0, 0.27, 0), shirt)
+	_part(_spine, Vector3(0.40, 0.52, 0.24), Vector3(0, 0.27, 0), "shirt")
+	# plate carrier: shoulder straps, plates, three magazine pouches, radio, small assault pack
+	_part(_spine, Vector3(0.425, 0.36, 0.265), Vector3(0, 0.33, 0), "vest")
+	for x in [-0.12, 0.12]:
+		_part(_spine, Vector3(0.09, 0.05, 0.27), Vector3(x, 0.53, 0), "vest")
+	_part(_spine, Vector3(0.3, 0.25, 0.03), Vector3(0, 0.37, -0.14), "plate")
+	_part(_spine, Vector3(0.3, 0.25, 0.03), Vector3(0, 0.37, 0.14), "plate")
+	for x in [-0.11, 0.0, 0.11]:
+		_part(_spine, Vector3(0.095, 0.115, 0.065), Vector3(x, 0.2, -0.155), "webbing")
+		_part(_spine, Vector3(0.085, 0.02, 0.055), Vector3(x, 0.265, -0.158), "vest")
+	_part(_spine, Vector3(0.05, 0.11, 0.04), Vector3(-0.17, 0.47, -0.12), "metal")
+	_part(_spine, Vector3(0.012, 0.1, 0.012), Vector3(-0.17, 0.57, -0.12), "rubber")
+	_part(_spine, Vector3(0.3, 0.32, 0.12), Vector3(0, 0.31, 0.2), "vest")
+	_part(_spine, Vector3(0.26, 0.05, 0.1), Vector3(0, 0.49, 0.2), "webbing")
+	_part(_spine, Vector3(0.14, 0.06, 0.15), Vector3(0, 0.555, 0), "shirt") # collar
 	_head = _pivot(_spine, Vector3(0, 0.55, 0))
-	_box(_head, Vector3(0.10, 0.08, 0.10), Vector3(0, 0.0, 0), skin, false) # neck
-	_box(_head, Vector3(0.23, 0.24, 0.23), Vector3(0, 0.14, 0), skin)
-	_box(_head, Vector3(0.25, 0.07, 0.25), Vector3(0, 0.27, 0.005), hair)
-	_box(_head, Vector3(0.25, 0.14, 0.05), Vector3(0, 0.2, 0.1), hair, false) # hair at the back
-	_box(_head, Vector3(0.045, 0.03, 0.02), Vector3(-0.055, 0.16, -0.118), eye, false)
-	_box(_head, Vector3(0.045, 0.03, 0.02), Vector3(0.055, 0.16, -0.118), eye, false)
+	_part(_head, Vector3(0.115, 0.1, 0.115), Vector3(0, 0.02, 0), "skin") # neck
+	_part(_head, Vector3(0.23, 0.24, 0.23), Vector3(0, 0.14, 0), "skin")
+	_part(_head, Vector3(0.20, 0.07, 0.21), Vector3(0, 0.035, 0.0), "skin") # jaw
+	_part(_head, Vector3(0.036, 0.05, 0.045), Vector3(0, 0.12, -0.13), "skin") # nose
+	for sx in [-1.0, 1.0]:
+		_part(_head, Vector3(0.022, 0.06, 0.04), Vector3(sx * 0.122, 0.14, 0.01), "skin") # ears
+		_part(_head, Vector3(0.062, 0.014, 0.02), Vector3(sx * 0.055, 0.19, -0.121), "hair", Vector3(0, 0, sx * -8.0)) # brows
+		_part(_head, Vector3(0.045, 0.026, 0.02), Vector3(sx * 0.055, 0.16, -0.118), "eye")
+	_part(_head, Vector3(0.07, 0.012, 0.012), Vector3(0, 0.07, -0.118), "lip")
+	_part(_head, Vector3(0.25, 0.12, 0.05), Vector3(0, 0.17, 0.11), "hair") # hair at the back
+	# helmet with brim, side rails, chin strap and goggles pushed up on the shell
+	_part(_head, Vector3(0.27, 0.1, 0.285), Vector3(0, 0.285, 0.01), "helmet")
+	_part(_head, Vector3(0.28, 0.055, 0.29), Vector3(0, 0.225, 0.015), "helmet")
+	_part(_head, Vector3(0.24, 0.03, 0.045), Vector3(0, 0.252, -0.155), "helmet")
+	_part(_head, Vector3(0.26, 0.04, 0.2), Vector3(0, 0.315, -0.02), "helmet")
+	_part(_head, Vector3(0.265, 0.04, 0.05), Vector3(0, 0.248, -0.12), "rubber") # goggle strap
+	_part(_head, Vector3(0.12, 0.05, 0.03), Vector3(0, 0.285, -0.145), "lens")
+	for sx in [-1.0, 1.0]:
+		_part(_head, Vector3(0.014, 0.15, 0.014), Vector3(sx * 0.106, 0.1, -0.03), "webbing")
+		_part(_head, Vector3(0.016, 0.03, 0.2), Vector3(sx * 0.14, 0.27, 0.01), "metal")
 	for side in 2:
 		var sx := -1.0 if side == 0 else 1.0
-		# legs: thigh -> knee -> shin, boot
+		# legs: thigh -> knee -> shin, boot with sole, pockets and knee pad
 		var hip := _pivot(_pelvis, Vector3(sx * 0.1, -0.02, 0))
-		_box(hip, Vector3(0.16, THIGH, 0.17), Vector3(0, -THIGH * 0.5, 0), pants)
+		_part(hip, Vector3(0.16, THIGH, 0.17), Vector3(0, -THIGH * 0.5, 0), "pants")
+		_part(hip, Vector3(0.045, 0.15, 0.12), Vector3(sx * 0.1, -0.2, -0.01), "pants_dark")
+		_part(hip, Vector3(0.05, 0.02, 0.1), Vector3(sx * 0.1, -0.13, -0.01), "webbing")
 		var knee := _pivot(hip, Vector3(0, -THIGH, 0))
-		_box(knee, Vector3(0.135, SHIN, 0.145), Vector3(0, -SHIN * 0.5, 0), pants)
-		_box(knee, Vector3(0.145, 0.09, 0.27), Vector3(0, -SHIN - 0.0, -0.05), boots)
+		_part(knee, Vector3(0.135, SHIN, 0.145), Vector3(0, -SHIN * 0.5, 0), "pants")
+		_part(knee, Vector3(0.14, 0.12, 0.05), Vector3(0, -0.03, -0.09), "vest") # knee pad
+		_part(knee, Vector3(0.152, 0.17, 0.168), Vector3(0, -SHIN + 0.07, 0), "boots") # boot shaft over the trousers
+		_part(knee, Vector3(0.146, 0.08, 0.27), Vector3(0, -SHIN - 0.005, -0.05), "boots")
+		_part(knee, Vector3(0.152, 0.03, 0.285), Vector3(0, -SHIN - 0.055, -0.052), "rubber") # sole
+		_part(knee, Vector3(0.14, 0.05, 0.05), Vector3(0, -SHIN - 0.01, -0.19), "rubber") # toe cap
 		_thigh.append(hip)
 		_knee.append(knee)
 		# arms: bones are pivots in rig space (solved by IK), meshes extend along -Z
 		var up := _pivot(self, Vector3.ZERO)
-		_box(up, Vector3(0.115, 0.115, UPPER_ARM), Vector3(0, 0, -UPPER_ARM * 0.5), shirt)
+		_part(up, Vector3(0.115, 0.115, UPPER_ARM), Vector3(0, 0, -UPPER_ARM * 0.5), "shirt")
+		_part(up, Vector3(0.14, 0.04, 0.1), Vector3(0, 0.06, -0.04), "vest") # shoulder pad
 		var low := _pivot(self, Vector3.ZERO)
-		_box(low, Vector3(0.098, 0.098, FORE_ARM), Vector3(0, 0, -FORE_ARM * 0.5), skin)
+		var sleeve := FORE_ARM - 0.1
+		_part(low, Vector3(0.1, 0.1, sleeve), Vector3(0, 0, -sleeve * 0.5), "shirt")
+		_part(low, Vector3(0.108, 0.04, 0.1), Vector3(0, 0.055, 0.0), "vest") # elbow pad
+		_part(low, Vector3(0.108, 0.108, 0.03), Vector3(0, 0, -sleeve - 0.015), "webbing") # cuff
+		_part(low, Vector3(0.088, 0.088, 0.085), Vector3(0, 0, -FORE_ARM + 0.035), "skin") # hand
 		_arm_up.append(up)
 		_arm_low.append(low)
+	_commit_parts()
 	# the grenade in the throwing hand (visible during a throw until it is released)
 	_nade = MeshInstance3D.new()
 	var nm := BoxMesh.new()
