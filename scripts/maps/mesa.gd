@@ -25,6 +25,7 @@ const C_SAND := Color(0.88, 0.80, 0.66)
 const C_WHITE := Color(0.93, 0.91, 0.86)
 const C_TERRA := Color(0.82, 0.68, 0.52) # perimeter walls: warm sandstone
 const C_WOOD := Color(0.72, 0.56, 0.40)
+const C_CEIL := Color(0.9, 0.82, 0.68) # light timber ceilings
 const C_DARK := Color(0.26, 0.27, 0.30)
 const C_STONE := Color(0.76, 0.70, 0.60)
 const C_GRASS := Color(0.62, 0.64, 0.38)
@@ -184,15 +185,15 @@ func _hall(b: Array, sgn: float) -> void:
 	_bx(b, sgn, -12.7, 1.1, 9.8, 0.4, 2.2, 2.4, "wood_planks", C_WOOD)   # bookcase
 	_bx(b, sgn, -5.6, 0.35, 16.0, 1.0, 0.7, 1.8, "plaster", C_DARK)      # armchair
 	# upper floor slabs with the stair well (west room), balcony over the atrium
-	_bx(b, sgn, -11.575, 3.35, 12.75, 3.15, SLAB, 8.8, "wood_planks", C_WOOD)
-	_bx(b, sgn, 3.075, 3.35, 12.75, 20.15, SLAB, 8.8, "wood_planks", C_WOOD)
-	_bx(b, sgn, -8.5, 3.35, 16.075, 3.0, SLAB, 2.15, "wood_planks", C_WOOD)
-	_bx(b, sgn, -8.5, 3.35, 8.675, 3.0, SLAB, 0.65, "wood_planks", C_WOOD)
+	_bx(b, sgn, -11.575, 3.35, 12.75, 3.15, SLAB, 8.8, "wood_planks", C_CEIL)
+	_bx(b, sgn, 3.075, 3.35, 12.75, 20.15, SLAB, 8.8, "wood_planks", C_CEIL)
+	_bx(b, sgn, -8.5, 3.35, 16.075, 3.0, SLAB, 2.15, "wood_planks", C_CEIL)
+	_bx(b, sgn, -8.5, 3.35, 8.675, 3.0, SLAB, 0.65, "wood_planks", C_CEIL)
 	_rp(b, sgn, Vector3(-8.5, 0, 9.2), Vector3(-8.5, TOP, 15.0), 3.0, "wood_planks", 0.3, C_WOOD)
 	_bx(b, sgn, -10.05, TOP + 0.5, 12.0, 0.1, 1.0, 6.0, "metal_panel", C_DARK)
 	_bx(b, sgn, -6.95, TOP + 0.5, 12.0, 0.1, 1.0, 6.0, "metal_panel", C_DARK)
 	_bx(b, sgn, -8.5, TOP + 0.5, 9.05, 3.0, 1.0, 0.1, "metal_panel", C_DARK)
-	_bx(b, sgn, 0, 3.35, 7.475, 10.0, SLAB, 1.75, "wood_planks", C_WOOD)
+	_bx(b, sgn, 0, 3.35, 7.475, 10.0, SLAB, 1.75, "wood_planks", C_CEIL)
 	_bx(b, sgn, 0, TOP + 0.5, 6.65, 10.0, 1.0, 0.1, "metal_panel", C_WHITE)
 	for sx in [-5.0, 5.0]:
 		_bx(b, sgn, sx, TOP + 0.5, 7.5, 0.1, 1.0, 1.8, "metal_panel", C_WHITE)

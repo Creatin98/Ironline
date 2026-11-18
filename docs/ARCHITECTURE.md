@@ -127,6 +127,7 @@ Garagenflügel haben je einen eigenen Charakter. Mitte: Haupthaus (2 Geschosse, 
 und versenkter Innenhof mit vier Rampen. Querverbindungen: Seitentüren, Hof-Rampen, Garagenkorridor (z −2..2), Service-Gasse
 (x 27..31), Außentreppen zu Loft und Garagen-Dach. Spawns liegen hinter Mauern und Sichtblenden (Hintertüren ohne Blick in den
 Spawn). Vegetation (`vegetation.gd`): Palmen, Büsche und Hügel als MultiMesh; `foliage.gdshader` bewegt Wedel und Büsche im Wind.
+Mesa-Dekor (`mesa_scenery.gd`, rein visuell ohne Kollision, Layout/Navigation unberührt): roter Spiralturm im Innenhof, Holzfassaden und auskragende Dächer, LED-Linien, Team-Banner und Wimpelketten (`cloth.gdshader`, Wind im Vertex-Shader), Staub-Partikel (CPUParticles3D), Wolkenebene (`clouds.gdshader`), Blumenbeete, Felsen, Kletterpflanzen, Pooldeck, Innenräume und Leben auf den Hügeln (Büsche/Palmen anhand der Hügelhöhe, ferne Villen). God Rays kommen aus dem volumetrischen Nebel (Forward+, Dichte/Anisotropie in `tools/tune_atmosphere.py`).
 
 **Navigation.** Jede Map backt beim Laden ein `NavigationMesh` aus den statischen Collidern
 (Zelle 0.25 m, Agent-Radius 0.5 m, max. Steigung 42°, Stufe 0.5 m). Der Nav-Server iteriert Maps

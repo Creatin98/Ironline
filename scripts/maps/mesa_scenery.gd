@@ -8,7 +8,7 @@ const PIT := -1.2
 const RED := Color(0.86, 0.22, 0.13)
 const RED_DARK := Color(0.66, 0.14, 0.09)
 const CONCRETE := Color(0.82, 0.8, 0.76)
-const WOOD := Color(0.62, 0.42, 0.26)
+const WOOD := Color(0.86, 0.62, 0.4)
 const CLOTH_SHADER := "res://assets/shaders/cloth.gdshader"
 const CLOUD_SHADER := "res://assets/shaders/clouds.gdshader"
 
@@ -61,7 +61,7 @@ static func facades(d: MapDetail) -> void:
 		for z in [17.22, 8.28]:
 			for x in [-4.9, 4.9]:
 				d.add_box(Vector3(x, 1.5, sgn * z), Vector3(6.0, 2.9, 0.07), "wood_planks", WOOD)
-				d.add_box(Vector3(x, 5.0, sgn * z), Vector3(6.0, 2.7, 0.07), "wood_planks", Color(0.7, 0.5, 0.32))
+				d.add_box(Vector3(x, 5.0, sgn * z), Vector3(6.0, 2.7, 0.07), "wood_planks", Color(0.92, 0.7, 0.46))
 				for i in 7: # thin vertical battens
 					d.add_box(Vector3(x - 2.6 + float(i) * 0.87, 3.25, sgn * (z + (0.05 if z > 10.0 else -0.05))), Vector3(0.05, 6.1, 0.05), "wood_planks", Color(0.36, 0.24, 0.15))
 		# garage wing: wood strips + a floating canopy over the bays
