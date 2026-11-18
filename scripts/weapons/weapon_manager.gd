@@ -325,6 +325,10 @@ func is_action_active() -> bool:
 	return (w != null and w.is_reloading()) or _grenade_timer > 0.0
 
 
+func is_grenade_active() -> bool:
+	return _grenade_timer > 0.0
+
+
 ## Sprint cancels reload and grenade animations (Call-of-Duty style).
 func cancel_for_sprint() -> void:
 	var w := get_current_weapon()
@@ -458,9 +462,6 @@ func _update_tp_reload(delta: float) -> void:
 	if w == null or current_index >= _tp_rigs.size():
 		_tp_reload_progress = -1.0
 		return
-	if player.is_sprinting:
-		_stop_tp_reload()
-		return
 	var cycle_time: float = w.data.shell_reload_time if w.data.reload_single_shells else w.data.reload_time
 	var before := floorf(_tp_reload_progress)
 	_tp_reload_progress += delta / maxf(0.05, cycle_time)
@@ -503,7 +504,7 @@ func _process(delta: float) -> void:
 	_ads_blend = player.head.get_ads_blend()
 	holder.visible = not (w.data.scoped and _ads_blend > SCOPE_HIDE_AT)
 	# same pace as the camera's sprint zoom (PlayerCamera.SPRINT_BLEND_SPEED), eased
-	_sprint_blend = move_toward(_sprint_blend, 1.0 if player.is_sprinting else 0.0, delta * PlayerCamera.SPRINT_BLEND_SPEED)
+	_sprint_blend = move_toward(_sprint_blend, 1.0 if player.is_sprinting and not w.is_reloading() else 0.0, delta * PlayerCamera.SPRINT_BLEND_SPEED)
 	var sprint_s := _sprint_blend * _sprint_blend * (3.0 - 2.0 * _sprint_blend)
 	var lowered := _switch_state == SwitchState.LOWERING or (_switch_state == SwitchState.RAISING and _switch_timer > w.data.draw_time * 0.5) or _grenade_timer > 0.0
 	_lower_blend = move_toward(_lower_blend, 1.0 if lowered else 0.0, delta * 12.0)

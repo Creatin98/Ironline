@@ -106,7 +106,11 @@ func _on_body_entered(body: Node) -> void:
 	if _bounce_cooldown > 0.0 or linear_velocity.length() < 1.5:
 		return
 	_bounce_cooldown = BOUNCE_SOUND_COOLDOWN
-	AudioManager.play_3d("grenade_bounce", global_position, -1.0, 0.1, 30.0)
+	# bouncing off a teammate (or the thrower): dull thud, no damage and no hitmarker
+	var dull := body is Player and (body as Player).participant_id == thrower_id
+	if body is Player and MatchManager.mode.uses_teams and thrower_team != Teams.Team.NONE and (body as Player).team == thrower_team:
+		dull = true
+	AudioManager.play_3d("grenade_thud" if dull else "grenade_bounce", global_position, -1.0, 0.1, 30.0)
 
 
 ## A grenade that flies into an enemy hurts a little and gives a hitmarker (once per grenade and player).

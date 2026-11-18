@@ -9,6 +9,7 @@ signal respawned
 
 const WALK_SPEED := 5.6
 const SPRINT_SPEED := 7.7
+const RELOAD_SPRINT_FACTOR := 0.9 # sprinting while reloading is a little slower
 const CROUCH_SPEED := 2.9
 const JUMP_VELOCITY := 5.6
 const COYOTE_TIME := 0.08 # seconds after leaving an edge in which a jump still works
@@ -717,11 +718,12 @@ func _update_states(delta: float) -> void:
 			if AudioCategories.effective_volume("breath", GameSettings.volumes) > 0.001:
 				AudioManager.play_2d("breath_heavy", -12.0, 0.03)
 		_sprint_time = 0.0
-	# pressing sprint breaks off a reload / grenade throw (like in Call of Duty); a sprint key that was already
+	# pressing sprint breaks off a grenade throw (like in Call of Duty); a sprint key that was already
 	# down when the action began only takes effect after the action has ended
 	var sprint_pressed := input.sprint and not _prev_sprint_in
 	_prev_sprint_in = input.sprint
-	if wants_sprint and weapon_manager.is_action_active():
+	# (a reload does not stop the sprint any more - it only slows it down a little, see _move)
+	if wants_sprint and weapon_manager.is_grenade_active():
 		if sprint_pressed:
 			weapon_manager.cancel_for_sprint()
 		else:
@@ -775,6 +777,8 @@ func _move(delta: float) -> void:
 	var w := weapon_manager.get_current_weapon()
 	if w:
 		speed *= w.data.move_speed_multiplier
+		if is_sprinting and w.is_reloading():
+			speed *= RELOAD_SPRINT_FACTOR
 		if is_aiming:
 			speed *= w.data.ads_speed_multiplier
 	var target := wish_dir * speed

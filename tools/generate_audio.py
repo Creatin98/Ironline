@@ -505,6 +505,12 @@ def make_grenade_sounds():
         gain(env_exp(sweep(150, 70, 0.08), 0.03), 0.8),
     )
     write_wav("grenade_bounce", bounce, 0.7)
+    # a grenade bouncing off a person: dull, soft thud (no metal ring)
+    thud = mix(
+        gain(env_exp(sweep(120, 55, 0.14), 0.05), 0.9),
+        gain(env_exp(lowpass(nz(0.1), 700), 0.025), 0.7),
+    )
+    write_wav("grenade_thud", thud, 0.75)
 
 
 def make_reload_sounds():

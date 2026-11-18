@@ -1087,5 +1087,5 @@ func _close_pause() -> void:
 	_paused = false
 	pause_menu.close()
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
-	if local_player and MatchManager.state != MatchManager.State.ENDED:
+	if local_player and MatchManager.state == MatchManager.State.RUNNING: # not during the countdown / after the end
 		local_player.set_controls_enabled(true)
