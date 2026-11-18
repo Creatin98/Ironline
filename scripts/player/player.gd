@@ -315,7 +315,7 @@ func add_primary_magazine() -> void:
 	if is_local:
 		weapon_manager._emit_local_state()
 		GameEvents.local_ammo_picked.emit(w.data.magazine_size)
-		AudioManager.play_2d("reload_mag_in", -8.0, 0.05)
+		AudioManager.play_2d("ammo_stow", -4.0, 0.04)
 
 
 func swap_primary(weapon_id: String, mag: int, res: int) -> void:

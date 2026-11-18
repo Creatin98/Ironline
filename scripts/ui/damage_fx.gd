@@ -143,25 +143,16 @@ func _spawn_splats(amount: float) -> void:
 			sp["kind"] = 2
 			sp["size"] = randf_range(220.0, 420.0) * k
 			sp["rot"] = randf() * TAU
-		elif roll < 0.34:
-			sp["kind"] = 0 # a splash: irregular body with cast-off drops (drawn procedurally, every one different)
-			sp["size"] = randf_range(80.0, 190.0) * k * (0.7 + amount / 160.0)
-			sp["rot"] = randf() * TAU
-			sp["tex"] = randi() % BloodFx.VARIANTS
-			sp["shape"] = _make_splash_shape()
-		elif roll < 0.66:
+		elif roll < 0.7:
 			sp["kind"] = 1 # smear, dragged by the wipe of a glove
 			sp["size"] = randf_range(200.0, 420.0) * k
 			sp["rot"] = randf() * TAU
 			sp["vy"] = 0.0
 		else:
-			sp["kind"] = 3 # drip: a stain with a run that creeps down and ends in a bead
-			sp["size"] = randf_range(70.0, 190.0) * k
-			sp["w"] = randf_range(15.0, 28.0) * k
-			sp["vy"] = 0.0 # the stain stays, the run grows (see _draw_splats)
+			sp["kind"] = 6 # grit: coarse spray instead of drips
+			sp["size"] = randf_range(180.0, 380.0) * k
 			sp["rot"] = randf() * TAU
-			sp["tex"] = randi() % BloodFx.VARIANTS
-			sp["seed"] = randf() * 10.0
+			sp["vy"] = 0.0
 		if int(sp["kind"]) == 1:
 			sp["tex_id"] = "smear" if randf() < 0.5 else "smear2"
 		splats.append(sp)
@@ -171,7 +162,7 @@ func _spawn_splats(amount: float) -> void:
 	if randf() < 0.35:
 		splats.append({"kind": 2, "p": _edge_biased(s), "age": 0.0, "vy": randf_range(4.0, 14.0) * k, "size": randf_range(120.0, 200.0) * k, "rot": randf() * TAU})
 	# a few dirt specks and fine scratches on the glass
-	if randf() < 0.6:
+	if randf() < 0.9:
 		splats.append({"kind": 4, "p": _edge_biased(s), "age": 0.0, "vy": 0.0, "size": randf_range(120.0, 260.0) * k, "rot": randf() * TAU})
 	while splats.size() > MAX_SPLATS:
 		splats.pop_front()

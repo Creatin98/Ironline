@@ -172,6 +172,12 @@ def make_mechanical():
     write_wav("shell_insert", concat(click(1900, 0.05, 0.012, 0.4), silence(0.02), click(2400, 0.04, 0.008, 0.3)), 0.6)
     write_wav("pump", concat(gain(slide(0.1, 3000), 0.7), click(800, 0.06, 0.02), silence(0.05), gain(slide(0.08, 3000), 0.7), click(1000, 0.06, 0.018)), 0.85)
     write_wav("weapon_switch", concat(gain(slide(0.07, 2500), 0.5), click(1000, 0.06, 0.015, 0.5)), 0.6)
+    # magazine stowed: cloth rustle, quick zipper closing (ratchet of tiny clicks, rising), soft pouch thump
+    rustle = env_adsr(lowpass(highpass(noise(0.08), 700), 3500), 0.2, 0.3, 0.4, 0.4)
+    zipper = concat(*[click(2800 + i * 110, 0.015, 0.0035, 0.8) for i in range(15)])
+    zip_bed = env_adsr(lowpass(highpass(noise(0.225), 2500), 6500), 0.1, 0.2, 0.6, 0.3)
+    thump = env_exp(lowpass(noise(0.07), 500), 0.03)
+    write_wav("ammo_stow", concat(gain(rustle, 0.6), mix(zipper, gain(zip_bed, 0.35)), gain(thump, 0.8)), 0.7)
     write_wav("empty_click", click(2600, 0.04, 0.006, 0.4), 0.5)
     write_wav("grenade_pin", click(3200, 0.05, 0.01, 0.5), 0.5)
     whoosh = env_adsr(lowpass(highpass(noise(0.35), 400), 1800), 0.08, 0.1, 0.6, 0.15)
