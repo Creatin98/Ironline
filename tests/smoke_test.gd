@@ -42,6 +42,7 @@ func _ready() -> void:
 	await _simulate_slide()
 	await _check_maps()
 	await _simulate_bots()
+	await _simulate_bots("mesa")
 	AudioManager.stop_all()
 	await get_tree().process_frame
 	if _failures.is_empty():
@@ -1161,7 +1162,7 @@ func _check_end_screen_sequence() -> void:
 	# 6 s vote: the final phase is half of it, so it starts after 3 s (the real vote: 10 s + 10 s)
 	if t_results < 2.5 or t_results > 3.8:
 		_fail("Scoreboard-Phase dauerte %.1f s (erwartet ca. 3.0 s bei 6 s Abstimmung)" % t_results)
-	if screen._phase != MatchEndScreen.Phase.FINAL or screen._cards.size() != 3 or not screen._stage.visible:
+	if screen._phase != MatchEndScreen.Phase.FINAL or screen._cards.size() != GameDirector.ROTATION_MAPS.size() or not screen._stage.visible:
 		_fail("Finale Abstimmung startete nicht (Phase %d, Karten %d)" % [screen._phase, screen._cards.size()])
 	await get_tree().create_timer(1.4).timeout
 	if screen._content.visible or screen.vote_picker.modulate.a > 0.05:
@@ -1739,10 +1740,10 @@ func _simulate_cams() -> void:
 
 ## Runs a Free-for-All with hard bots on Frontier at 4x speed and checks that the
 ## bots move, shoot and score.
-func _simulate_bots() -> void:
+func _simulate_bots(map_id: String = "frontier") -> void:
 	var cfg := MatchConfig.new()
 	cfg.mode_id = MatchConfig.MODE_FFA
-	cfg.map_id = "frontier"
+	cfg.map_id = map_id
 	cfg.bots_enabled = true
 	cfg.bot_count = 7
 	cfg.bot_difficulty = MatchConfig.DIFFICULTY_HARD
@@ -1790,7 +1791,7 @@ func _simulate_bots() -> void:
 		_fail("%d Bots haben sich nicht bewegt" % stuck_bots)
 	if bot_kills == 0:
 		_fail("Bots haben in %d s keinen Kill erzielt" % int(sim_seconds))
-	print("Bot-Simulation (%d s, Frontier, FFA, schwer): %d Schuesse, %d Bot-Kills, Bewegung gesamt %.0f m, %d stehende Bots" % [int(sim_seconds), shots, bot_kills, moved_total, stuck_bots])
+	print("Bot-Simulation (%d s, %s, FFA, schwer): %d Schuesse, %d Bot-Kills, Bewegung gesamt %.0f m, %d stehende Bots" % [int(sim_seconds), map_id, shots, bot_kills, moved_total, stuck_bots])
 	game.free()
 	await get_tree().process_frame
 

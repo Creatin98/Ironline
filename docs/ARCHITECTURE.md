@@ -118,7 +118,15 @@ triplanar (Welt-UVs), daher braucht keine Box UV-Mapping.
 | Harbor | 30 × 64 m | Yacht: Bug (Rot), Heck (Blau), Kabinen, Salon, Maschinenraum | Backbord / Aufbau / Steuerbord | Sonnendeck über zwei Treppen |
 | Frontier | 60 × 46 m | Kleinstadt: Tankstelle (Rot), Laderampe (Blau), Gassen, Läden | Gasse mit Garagen / Hauptstraße mit Kiosk / Ladenzeile | Zwei Dächer mit Außentreppen |
 | Suburb | 56 × 44 m | Vorstadt: zwei zweistöckige Häuser diagonal, Sackgasse mit Bus | Hinterhöfe / Straße / Garagen | Obergeschosse mit Balkon, Außentreppen |
+| Mesa | 64 × 56 m | Villenanwesen am Wüstenhang (an z = 0 gespiegelt): Spawn-Plätze Nord/Süd | Garten mit Sonnenterrasse (+1.8) / Haupthaus + versenkter Innenhof (−1.2) / Garagentrakt mit Gasse | Loft + Balkon (+3.5), Katwalk, Dachterrasse, Innen- und Außentreppen |
 | Testarena | 60 × 44 m | Trainingsmap | drei Lanes | Catwalk, erhöhter Raum |
+
+**Mesa** (`mesa.gd`, Grundriss im Kopfkommentar): Alle Bauteile sind einmal für die „lokale“ Hälfte (z' = Abstand zur
+Mittellinie) geschrieben und per Spiegelhelfer (`_bx`, `_room`, `_rp`, `sgn`) für beide Teams platziert; fair, aber Garten und
+Garagenflügel haben je einen eigenen Charakter. Mitte: Haupthaus (2 Geschosse, Salon, Innentreppe, Balkon über dem Innenhof)
+und versenkter Innenhof mit vier Rampen. Querverbindungen: Seitentüren, Hof-Rampen, Garagenkorridor (z −2..2), Service-Gasse
+(x 27..31), Außentreppen zu Loft und Garagen-Dach. Spawns liegen hinter Mauern und Sichtblenden (Hintertüren ohne Blick in den
+Spawn). Vegetation (`vegetation.gd`): Palmen, Büsche und Hügel als MultiMesh; `foliage.gdshader` bewegt Wedel und Büsche im Wind.
 
 **Navigation.** Jede Map backt beim Laden ein `NavigationMesh` aus den statischen Collidern
 (Zelle 0.25 m, Agent-Radius 0.5 m, max. Steigung 42°, Stufe 0.5 m). Der Nav-Server iteriert Maps

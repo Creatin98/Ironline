@@ -21,6 +21,11 @@ const PROFILES := {
 		"birds": ["amb_bird_2", "amb_bird_3"], "bird_interval": Vector2(9.0, 20.0),
 		"plane_interval": Vector2(80.0, 160.0),
 	},
+	"mesa": {
+		"loops": {"amb_wind": -27.0},
+		"birds": ["amb_bird_1", "amb_bird_2", "amb_bird_3"], "bird_interval": Vector2(6.0, 14.0),
+		"plane_interval": Vector2(90.0, 170.0),
+	},
 	"test_arena": {
 		"loops": {"amb_wind": -32.0},
 		"birds": [], "bird_interval": Vector2(10.0, 20.0),

@@ -211,7 +211,7 @@ def plaster():
     base = mix(base, col(0.42, 0.37, 0.3), cr * 0.7)
     peel = (noise(5, 2, 55) > 0.80).astype(float)
     base = mix(base, col(0.62, 0.52, 0.45), blur(peel, 2) * 0.35) # plaster chipped down to the brick
-    save("plaster", base, h * 0.7 - cr * 0.6 - peel * 0.5, 0.86 + 0.1 * h, 6.0)
+    save("plaster", base, h * 0.7 - cr * 0.3 - peel * 0.12, 0.86 + 0.1 * h, 5.0)
 
 
 def metal_panel():
@@ -427,6 +427,45 @@ def weapon_wood():
     dings = (blur(speckle(0.002, 193), 1) > 0.05).astype(float)
     base = 0.72 + 0.28 * grain - 0.25 * dings
     save("weapon_wood", np.stack([base] * 3, -1), grain * 0.5 - dings * 0.6, 0.52 + 0.2 * grain, 4.0)
+
+
+def palm_frond():
+    """RGBA palm frond (u across, v from the base 0 to the tip 1): rib, slanted leaflets, soft colour variation."""
+    h, w = 512, 256
+    v, u = np.mgrid[0:h, 0:w]
+    v = v / (h - 1.0)
+    du = (u / (w - 1.0) - 0.5) * 2.0
+    width = 0.97 * np.sin(np.pi * np.clip(0.06 + 0.9 * v, 0, 1)) ** 0.55
+    phase = v * 34.0 + np.abs(du) * 6.0
+    leaflet = ((phase % 1.0) < 0.6) & (np.abs(du) < width) & (np.abs(du) > 0.035)
+    rib = np.abs(du) < 0.03 * (1.15 - v)
+    alpha = (leaflet | rib).astype(float)
+    n = fbm(4, 6, 0.6, seed=211)[:h, :w] if SIZE >= h else np.tile(fbm(4, 6, 0.6, seed=211), (1, 1))[:h, :w]
+    shade = 0.75 + 0.4 * n + 0.18 * (1 - np.abs(du))
+    base = np.stack([0.20 * shade, 0.40 * shade, 0.12 * shade], -1)
+    base[rib] = [0.42, 0.5, 0.2]
+    rgba = np.dstack([np.clip(base, 0, 1), alpha])
+    os.makedirs(OUT_DIR, exist_ok=True)
+    Image.fromarray((rgba * 255).astype(np.uint8), "RGBA").save(os.path.join(OUT_DIR, "palm_frond.png"), optimize=True)
+    print("wrote palm_frond")
+
+
+def foliage():
+    """Leafy bush texture: dark gaps, light leaf speckle, tileable."""
+    h = fbm(5, 8, 0.6, seed=221)
+    leaf = blur(speckle(0.3, 222), 1)
+    base = 0.45 + 0.5 * h + 0.35 * leaf
+    save("foliage", np.stack([np.clip(base, 0, 1)] * 3, -1) * np.array([0.95, 1.0, 0.85]), h * 0.8 + leaf, np.full((SIZE, SIZE), 0.9), 5.0)
+
+
+def bark():
+    """Palm trunk: vertical fibres with ring scars (rings every 1/10 of the tile height)."""
+    yy, xx = np.mgrid[0:SIZE, 0:SIZE]
+    fib = np.repeat(fbm(3, 40, 0.5, seed=231)[:1, :], SIZE, axis=0) * 0.5 + fbm(4, 10, 0.5, seed=232) * 0.5
+    ring = (np.abs(((yy / SIZE) * 10.0) % 1.0 - 0.5) > 0.44).astype(float)
+    base = mix(col(0.55, 0.47, 0.37), col(0.34, 0.28, 0.22), fib)
+    base = mix(base, col(0.2, 0.16, 0.12), ring * 0.7)
+    save("bark", base, fib * 0.6 - ring * 0.8, 0.88 + 0.1 * fib, 5.0)
 
 
 if __name__ == "__main__":

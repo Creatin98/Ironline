@@ -24,6 +24,12 @@ const MAPS: Dictionary = {
 		"description": "Bunte Vorstadtsiedlung. Zwei Haeuser, Strasse, Gaerten und Garagen.",
 		"color": Color(0.4, 0.7, 0.4),
 	},
+	"mesa": {
+		"name": "Mesa",
+		"scene": "res://scenes/maps/mesa.tscn",
+		"description": "Villenanwesen am Wuestenhang. Versenkter Innenhof, Haupthaus, Garten und Garagentrakt.",
+		"color": Color(0.85, 0.62, 0.4),
+	},
 	"test_arena": {
 		"name": "Testarena",
 		"scene": "res://scenes/maps/test_arena.tscn",
@@ -33,7 +39,7 @@ const MAPS: Dictionary = {
 }
 
 ## Maps that take part in rotation and voting (the test arena is not one of them).
-const ROTATION_MAPS: Array[String] = ["harbor", "frontier", "suburb"]
+const ROTATION_MAPS: Array[String] = ["harbor", "frontier", "suburb", "mesa"]
 
 const CLASSES: Dictionary = {
 	"assault": "res://resources/classes/class_assault.tres",

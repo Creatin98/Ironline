@@ -97,7 +97,7 @@ func build(blocks: Array) -> void:
 			continue
 		var p: Vector3 = b["pos"]
 		var s: Vector3 = b["size"]
-		if p.y - s.y * 0.5 < 0.05 and p.y + s.y * 0.5 < 1.6 and p.y + s.y * 0.5 > 0.35:
+		if s.y <= 1.4 and p.y + s.y * 0.5 > 0.35:
 			sills.append(b)
 	for b in blocks:
 		if b.get("kind", "") == "car":
@@ -197,10 +197,12 @@ func _frame_opening(b: Dictionary, sills: Array, along_x: bool, length: float, t
 	for sb in sills:
 		var sp: Vector3 = sb["pos"]
 		var ss: Vector3 = sb["size"]
-		if absf(sp.x - p.x) < 0.06 and absf(sp.z - p.z) < 0.06:
-			sill_top = sp.y + ss.y * 0.5
+		var st := sp.y + ss.y * 0.5
+		if absf(sp.x - p.x) < 0.06 and absf(sp.z - p.z) < 0.06 and st < bottom - 0.4 and st > sill_top - 0.001 and (st > 0.35):
+			sill_top = st
 			is_window = true
-			break
+	if not is_window and bottom > 3.0:
+		return # upper-floor door without a sill: no frame (the ground is far below)
 	var h := bottom - sill_top
 	if h < 0.4:
 		return
@@ -349,6 +351,31 @@ func wire(a: Vector3, b: Vector3, sag: float = 0.4, thickness: float = 0.03) -> 
 		x = x.normalized()
 		var y := z.cross(x).normalized()
 		add_box((p0 + p1) * 0.5, Vector3(thickness, thickness, len), "metal_panel", Color(0.05, 0.05, 0.06), Basis(x, y, z))
+
+
+## Straight bar (beam, pipe, strut) from a to b with a square-ish cross section (w x h).
+func bar(a: Vector3, b: Vector3, w: float, h: float, mat: String, tint = null) -> void:
+	var dir := b - a
+	var len := dir.length()
+	if len < 0.01:
+		return
+	var z := dir / len
+	var x := z.cross(Vector3.UP)
+	if x.length() < 0.01:
+		x = Vector3.RIGHT
+	x = x.normalized()
+	var y := z.cross(x).normalized()
+	add_box((a + b) * 0.5, Vector3(w, h, len), mat, tint, Basis(x, y, z))
+
+
+## Rooftop solar panel on a tilted stand (visual only, for roofs nobody can reach).
+func solar_panel(base: Vector3, yaw: float = 0.0) -> void:
+	var basis := Basis(Vector3.UP, yaw)
+	var tilt := basis * Basis(Vector3.RIGHT, deg_to_rad(-18.0))
+	add_box(base + basis * Vector3(0, 0.3, 0), Vector3(1.7, 0.05, 1.0), "metal_panel", Color(0.1, 0.16, 0.3), tilt)
+	add_box(base + basis * Vector3(0, 0.29, 0), Vector3(1.76, 0.04, 1.06), "metal_panel", Color(0.75, 0.77, 0.8), tilt)
+	for x in [-0.7, 0.7]:
+		add_box(base + basis * Vector3(x, 0.14, 0.2), Vector3(0.05, 0.28, 0.05), "metal_panel", Color(0.5, 0.52, 0.55), basis)
 
 
 ## Ceiling lamp: emissive fixture plus a soft fill light (no shadows, cheap).

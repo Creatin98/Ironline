@@ -300,8 +300,9 @@ func _finish_offline_vote() -> void:
 
 func _final_rects() -> Array[Rect2]:
 	var n := maxi(1, _vote_maps.size())
-	var w := clampf(size.x * 0.25, 240.0, 560.0)
-	var gap := clampf(size.x * 0.045, 20.0, 100.0)
+	var gap := clampf(size.x * 0.03, 16.0, 100.0)
+	# up to 25 % of the width per card, but all of them (4 maps) must fit with a margin
+	var w := clampf(minf(size.x * 0.25, (size.x * 0.92 - gap * float(n - 1)) / float(n)), 200.0, 560.0)
 	var h := w / VoteCard.ASPECT
 	var total := n * w + (n - 1) * gap
 	var x0 := (size.x - total) * 0.5

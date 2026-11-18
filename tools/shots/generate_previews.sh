@@ -5,7 +5,7 @@ GODOT="$1"
 cd "$(dirname "$0")/../.." || exit 1
 OUT=assets/ui/previews
 mkdir -p "$OUT"
-for m in harbor frontier suburb test_arena; do
+for m in harbor frontier suburb mesa test_arena; do
   tools/shots/run.sh "$GODOT" "map_$m" "$(pwd)/$OUT/map_$m.png" 800x450
 done
 for c in assault smg shotgun sniper; do

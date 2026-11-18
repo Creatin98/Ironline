@@ -10,7 +10,7 @@ vier Klassen, drei Drei-Wege-Maps, Team Deathmatch und Free for All, Bots und On
 | 1 | Projektstruktur, First-Person-Controller, Testarena | fertig |
 | 2 | AK-47, MP5, Shotgun, Sniper, Pistole, Granate, Blendgranate, Hitscan, Schaden, Tod | fertig |
 | 3 | Team Deathmatch, Free for All, Respawn, Killlimit, Scoreboard, HUD | fertig |
-| 4 | Maps Harbor, Frontier, Suburb, Bot-Navigation | fertig |
+| 4 | Maps Harbor, Frontier, Suburb, Mesa, Bot-Navigation | fertig |
 | 5 | Bot-KI | fertig |
 | 6 | Online-Multiplayer (ENet, Host spielt mit, serverautoritativ) | fertig |
 | 7 | Lobby (Team/Klasse/Bots), Map-Voting nach jeder Runde | fertig |
@@ -55,7 +55,7 @@ Ein Spieler ist Host (Server und Mitspieler zugleich), die anderen treten bei.
 2. Mitspieler: **Online** → IP-Adresse des Hosts und Port eintragen → **Beitreten**.
 3. Jeder wählt in der Lobby Team (nur Team Deathmatch) und Klasse. Der Host stellt Modus, Map und Bots ein und startet das Match.
 4. Die Klasse kann jederzeit gewechselt werden (Lobby, Pausemenü, Endbildschirm) und gilt ab dem nächsten Respawn.
-5. Nach dem Match stimmen alle 20 Sekunden (10 s Scoreboard, 10 s finale Abstimmung mit Klassenwahl) über die nächste Karte ab (Harbor, Frontier, Suburb). Bei Gleichstand oder ohne Stimmen entscheidet der Zufall. Der Host kann stattdessen **Zur Lobby** wählen. Offline wählst du die nächste Karte direkt im Endbildschirm.
+5. Nach dem Match stimmen alle 20 Sekunden (10 s Scoreboard, 10 s finale Abstimmung mit Klassenwahl) über die nächste Karte ab (Harbor, Frontier, Suburb, Mesa). Bei Gleichstand oder ohne Stimmen entscheidet der Zufall. Der Host kann stattdessen **Zur Lobby** wählen. Offline wählst du die nächste Karte direkt im Endbildschirm.
 
 Im selben WLAN/LAN genügt die lokale IP des Hosts (z. B. `192.168.x.x`). Über das Internet muss der Host
 den **UDP**-Port am Router an seinen Rechner weiterleiten (Port-Forwarding) und die öffentliche IP weitergeben;
