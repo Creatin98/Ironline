@@ -18,6 +18,7 @@ var fade_time: float = 0.0
 var level: float = 0.0
 
 var _material: ShaderMaterial
+var replay_driven: bool = false # a killcam shows the killer's flash: driven by the recording, not by the local player
 
 
 func _ready() -> void:
@@ -82,7 +83,26 @@ func _screen_position(pl: Player, center: Vector3) -> Vector2:
 	return Vector2(clampf(p.x, 0.05, 0.95), clampf(p.y, 0.05, 0.95))
 
 
+## Killcam: the recorded flash state of the killer (age since the hit, intensity) - the same picture as in the real view.
+func replay_drive(age: float, i: float) -> void:
+	if age < 0.0:
+		if replay_driven:
+			clear()
+		return
+	if not replay_driven or absf(intensity - i) > 0.001:
+		intensity = clampf(i, 0.0, 1.0)
+		blind_time = FlashMath.blind_time(intensity)
+		fade_time = FlashMath.fade_time(intensity)
+		_material.set_shader_parameter("spot", Vector2(0.5, 0.4))
+		_material.set_shader_parameter("spot_size", 0.12 + 0.12 * intensity)
+	replay_driven = true
+	elapsed = age
+	rect.visible = true
+	update_visuals()
+
+
 func clear() -> void:
+	replay_driven = false
 	elapsed = -1.0
 	level = 0.0
 	if rect != null:
@@ -103,7 +123,7 @@ func level_at(t: float) -> float:
 
 
 func _process(delta: float) -> void:
-	if not is_active():
+	if replay_driven or not is_active():
 		return
 	var me := MatchManager.get_local_participant()
 	if me == null or not me.alive or MatchManager.state == MatchManager.State.ENDED:

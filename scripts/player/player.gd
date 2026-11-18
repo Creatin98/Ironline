@@ -124,6 +124,8 @@ var rig: HumanoidRig
 var _coyote: float = 0.0
 ## Flashbang reaction (0..1): the arm goes up in front of the face (visible for everybody, drives the first-person arm too).
 var flash_cover: float = 0.0
+var _flash_i: float = 0.0
+var _flash_age: float = -1.0 # seconds since the last flash hit (the whiteout lasts longer than the raised arm)
 var flash_daze: float = 0.0 # dazed vision (own view): follows the arm cover but fades out more slowly
 var _flash_t: float = -1.0
 var _flash_hold: float = 0.0
@@ -779,11 +781,35 @@ func _animate_body(delta: float) -> void:
 func flash_react(i: float) -> void:
 	_flash_t = 0.0
 	_flash_hold = 0.6 + 2.0 * clampf(i, 0.0, 1.0)
+	_flash_i = clampf(i, 0.0, 1.0)
+	_flash_age = 0.0
+
+
+## [seconds since the last flash hit (-1 = none), its intensity]: recorded for the killcams, which show the killer's
+## flashed view exactly as it was (whiteout, daze, arm in front of the eyes).
+func flash_snapshot() -> Array:
+	return [_flash_age, _flash_i]
+
+
+## Killcam: puts this (ghost) player into the recorded flash state.
+func set_flash_state(age: float, i: float) -> void:
+	_flash_i = i
+	_flash_age = age
+	if age < 0.0:
+		_flash_t = -1.0
+		return
+	_flash_hold = 0.6 + 2.0 * clampf(i, 0.0, 1.0)
+	_flash_t = age
 
 
 func _update_flash_cover(delta: float) -> void:
-	if not alive:
+	if not alive and not replay_mode:
 		_flash_t = -1.0
+		_flash_age = -1.0
+	if _flash_age >= 0.0:
+		_flash_age += delta
+		if _flash_age > FlashMath.blind_time(_flash_i) + FlashMath.fade_time(_flash_i) * 1.3:
+			_flash_age = -1.0
 	if _flash_t < 0.0:
 		flash_cover = move_toward(flash_cover, 0.0, delta * 4.0)
 	else:

@@ -108,6 +108,7 @@ func _ready() -> void:
 	add_child(recorder)
 	recorder.finished.connect(_on_replay_finished)
 	recorder.killer_hit.connect(_on_replay_hit)
+	recorder.killer_flash.connect(func(age: float, i: float) -> void: flash_overlay.replay_drive(age, i))
 	GameEvents.participant_killed.connect(recorder.note_kill)
 	GameEvents.participant_killed.connect(_on_participant_killed_skull)
 	_build_cam_overlay()
@@ -328,6 +329,8 @@ func _process(delta: float) -> void:
 		var dz := 0.0
 		if local_player != null and is_instance_valid(local_player) and local_player.alive and not _replay_active:
 			dz = local_player.flash_daze
+		elif (_replay_active or _killcam_active) and recorder.playing:
+			dz = recorder.killer_daze() # the killer's dazed view in the replay
 		daze_overlay.set_amount(dz, delta)
 	_update_gray()
 	_update_killcam(delta)

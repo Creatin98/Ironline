@@ -11,6 +11,8 @@ extends Node
 signal finished
 ## The killer's shot hit an enemy in the replay (hitmarker + sounds of the killer's view).
 signal killer_hit(headshot: bool, killed: bool)
+## The killer's flash state at this moment of the replay (age < 0 = not flashed): drives the whiteout 1:1 like the real view.
+signal killer_flash(age: float, intensity: float)
 
 const WINDOW := 12.0
 const RATE := 30.0
@@ -62,7 +64,7 @@ func _record() -> void:
 		var n := p.node as Player
 		if n == null or not is_instance_valid(n) or n.replay_mode:
 			continue
-		snap[p.id] = [n.global_position, n.rotation.y, n.head.pitch, n.is_crouching, n.alive, n.weapon_manager.current_index, n.consume_shot_flag(), n.is_aiming, n.consume_hit_flag(), n.weapon_manager.get_current_weapon().is_reloading()]
+		snap[p.id] = [n.global_position, n.rotation.y, n.head.pitch, n.is_crouching, n.alive, n.weapon_manager.current_index, n.consume_shot_flag(), n.is_aiming, n.consume_hit_flag(), n.weapon_manager.get_current_weapon().is_reloading(), n.flash_snapshot()]
 	var t := _now()
 	_frames.append({"t": t, "p": snap})
 	while _frames.size() > 2 and float(_frames[0]["t"]) < t - WINDOW:
@@ -240,6 +242,12 @@ func killer_scope_fov() -> float:
 
 
 ## The killer's arms in the killcam picture: the same first-person arms as in the game, solved to the wrists of the weapon hands.
+## The killer's current dazed amount (for the screen effect of the replay).
+func killer_daze() -> float:
+	var kn: Player = _targets.get(_killer_id)
+	return kn.flash_daze if kn != null and is_instance_valid(kn) else 0.0
+
+
 func _update_arms(killer: Player) -> void:
 	if _arms == null or not is_instance_valid(_arms):
 		_arms = FirstPersonArms.new()
@@ -248,7 +256,7 @@ func _update_arms(killer: Player) -> void:
 		_arms.set_colors(killer.rig.get_skin_color(), killer.rig.get_shirt_color())
 	_arms.visible = killer.hands.visible
 	var wr: Array = killer.replay_arm_wrists(_camera.global_transform)
-	_arms.update(wr[0], wr[1])
+	_arms.update(wr[0], wr[1], killer.flash_cover)
 
 
 func _clear_targets() -> void:
@@ -256,6 +264,12 @@ func _clear_targets() -> void:
 	if _arms != null and is_instance_valid(_arms):
 		_arms.queue_free()
 	_arms = null
+	killer_flash.emit(-1.0, 0.0) # the flash effect of the killer's view ends with the replay
+	if not ghost_mode:
+		for id in _targets:
+			var fn: Player = _targets[id]
+			if fn != null and is_instance_valid(fn):
+				fn.set_flash_state(-1.0, 0.0)
 	Ragdoll.clear_all() # corpses of the replay
 	var glass := GlassField.find(get_tree())
 	if glass != null:
@@ -307,6 +321,11 @@ func _process(delta: float) -> void:
 		_finish()
 		return
 	_apply(_cursor, false)
+	if ghost_mode:
+		for id in _targets: # the ghosts do not run their own animation: advance the flash envelope (arm in front of the eyes) here
+			var gn: Player = _targets[id]
+			if gn != null and is_instance_valid(gn):
+				gn._update_flash_cover(delta)
 
 
 func _finish() -> void:
@@ -364,6 +383,11 @@ func _apply(t: float, first: bool) -> void:
 			n.replay_set_alive(alive, first or not (was_alive and not alive), kill.get("death", {}) if int(id) == int(kill["victim"]) else {})
 			_alive_state[id] = alive
 		n.weapon_manager.set_remote_weapon_index(int(sa[5]))
+		if sa.size() > 10:
+			var fs: Array = sa[10]
+			n.set_flash_state(float(fs[0]), float(fs[1]))
+			if int(id) == _killer_id:
+				killer_flash.emit(float(fs[0]), float(fs[1]))
 	# fire events (muzzle flash + sound) of the frames we passed since the last call
 	if not first:
 		for f in range(_index_at(_prev_cursor) + 1, i + 1):
