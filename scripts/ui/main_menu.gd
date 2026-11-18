@@ -144,8 +144,11 @@ func _build_quick_play() -> void:
 	v.add_child(UITheme.spacer(10))
 	var buttons := UITheme.hbox(20)
 	var start := UITheme.button("Match starten", 24, 300)
-	start.pressed.connect(_start_match)
+	start.pressed.connect(func() -> void: _start_match(false))
 	buttons.add_child(start)
+	var spec := UITheme.button("Zuschauer (freie Kamera)", 20, 300)
+	spec.pressed.connect(func() -> void: _start_match(true))
+	buttons.add_child(spec)
 	var back := UITheme.button("Zurück", 24, 200)
 	back.pressed.connect(func() -> void: _quick_panel.visible = false)
 	buttons.add_child(back)
@@ -175,16 +178,17 @@ func _show_quick_play() -> void:
 	_quick_panel.visible = true
 
 
-func _start_match() -> void:
+func _start_match(spectate: bool = false) -> void:
 	var cfg := MatchConfig.new()
+	cfg.spectator = spectate
 	cfg.mode_id = MatchConfig.MODE_TDM if _mode_opt.selected == 0 else MatchConfig.MODE_FFA
 	cfg.map_id = _map_picker.selected_id
 	cfg.local_team = Teams.Team.RED if _team_opt.selected == 0 else Teams.Team.BLUE
 	cfg.local_class_id = _class_picker.selected_id
 	GameSettings.preferred_class_id = cfg.local_class_id
 	GameSettings.save()
-	cfg.bots_enabled = _bots_check.button_pressed
-	cfg.bot_count = int(_bot_count.value)
+	cfg.bots_enabled = _bots_check.button_pressed or spectate
+	cfg.bot_count = int(_bot_count.value) if not spectate else cfg.max_participants()
 	cfg.bot_difficulty = _bot_diff.selected
 	cfg.time_limit = 600.0
 	GameDirector.start_match(cfg, true)

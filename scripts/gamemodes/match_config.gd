@@ -18,6 +18,7 @@ var bot_difficulty: int = DIFFICULTY_NORMAL
 var time_limit: float = 600.0 # Sekunden, 0 = unbegrenzt
 var local_team: int = Teams.Team.RED
 var local_class_id: String = "assault"
+var spectator: bool = false # free-fly spectator of a bot match (offline)
 
 
 func max_participants() -> int:
@@ -37,7 +38,7 @@ func duplicate_config() -> MatchConfig:
 func to_dict() -> Dictionary:
 	return {
 		"mode_id": mode_id, "map_id": map_id, "map_voting": map_voting,
-		"bots_enabled": bots_enabled, "bot_count": bot_count, "bot_difficulty": bot_difficulty,
+		"spectator": spectator, "bots_enabled": bots_enabled, "bot_count": bot_count, "bot_difficulty": bot_difficulty,
 		"time_limit": time_limit, "local_team": local_team, "local_class_id": local_class_id,
 	}
 
@@ -47,6 +48,7 @@ func apply_dict(d: Dictionary) -> void:
 	map_id = d.get("map_id", map_id)
 	map_voting = d.get("map_voting", map_voting)
 	bots_enabled = d.get("bots_enabled", bots_enabled)
+	spectator = d.get("spectator", spectator)
 	bot_count = d.get("bot_count", bot_count)
 	bot_difficulty = d.get("bot_difficulty", bot_difficulty)
 	time_limit = d.get("time_limit", time_limit)

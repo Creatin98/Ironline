@@ -18,6 +18,7 @@ var health_label: Label
 var ammo_label: Label
 var weapon_label: Label
 var silhouette: WeaponSilhouette
+var _spectator: bool = false
 var _banner: Label
 var _banner_tween: Tween
 var grenade_label: Label
@@ -703,7 +704,20 @@ func _update_reload_hint(delta: float) -> void:
 
 
 ## The weapon name drops in above the ammo panel, stays a moment and slides away again (round start, weapon change).
+## Spectator: no health, ammo or crosshair, only the scores, the killfeed and the map.
+func set_spectator(on: bool) -> void:
+	_spectator = on
+	for k in ["health", "ammo"]:
+		(_blocks[k]["node"] as Control).visible = not on
+	crosshair.visible = not on
+	if on:
+		hint_label.text = "ZUSCHAUER   WASD fliegen  •  Leertaste hoch  •  Strg runter  •  Shift schnell  •  Mausrad Tempo  •  F1 HUD aus/an  •  F2 Screenshot"
+		get_tree().create_timer(12.0).timeout.connect(func() -> void: if is_instance_valid(hint_label): hint_label.text = "")
+
+
 func _show_weapon_banner(text: String) -> void:
+	if _spectator:
+		return
 	var panel: Control = _blocks["ammo"]["node"]
 	if _banner == null:
 		_banner = UITheme.label("", 22, Color(0.92, 0.92, 0.9), HORIZONTAL_ALIGNMENT_RIGHT)

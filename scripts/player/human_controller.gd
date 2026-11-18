@@ -47,6 +47,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		player.apply_look(d)
 		return
 	if event is InputEventMouseButton and event.pressed and (event.button_index == MOUSE_BUTTON_WHEEL_UP or event.button_index == MOUSE_BUTTON_WHEEL_DOWN):
+		if player.spectating:
+			player.fly_speed = clampf(player.fly_speed * (1.15 if event.button_index == MOUSE_BUTTON_WHEEL_UP else 0.87), 2.0, 80.0)
+			return
 		# scope: wheel up = more zoom, wheel down = less
 		if player.is_aiming:
 			var cw := player.weapon_manager.get_current_weapon()

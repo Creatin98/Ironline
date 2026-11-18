@@ -51,6 +51,8 @@ var is_sprinting: bool = false
 var is_crouching: bool = false
 var is_sliding: bool = false
 var _slide_len: float = SLIDE_TIME
+var spectating: bool = false
+var fly_speed: float = 14.0
 var _slide_buffer: float = 0.0
 var _air_sprint: bool = false
 ## Match over: everybody glides to a stop slowly instead of freezing (see Game._on_match_ended).
@@ -543,6 +545,8 @@ func _kill_death_tween() -> void:
 ## Authoritative damage entry point used by weapons and grenades.
 ## Returns true if this damage killed the player.
 func take_damage(amount: float, attacker_id: int, weapon_id: String, hit_position: Vector3, headshot: bool, source_position: Vector3) -> bool:
+	if spectating:
+		return false
 	if not alive or not MatchManager.is_authority():
 		return false
 	if MatchManager.state != MatchManager.State.RUNNING:
@@ -575,6 +579,18 @@ func _on_health_changed(current: float, maximum: float) -> void:
 
 
 ## Body zone of a world-space hit point (see HitZones).
+## Spectator: invisible free-fly camera that nobody can see, hit or target.
+func set_spectator() -> void:
+	spectating = true
+	remove_from_group("players")
+	collision_layer = 0
+	collision_mask = 0
+	rig.visible = false
+	hands.visible = false
+	weapon_manager.visible = false
+	name_label.visible = false
+
+
 func get_hit_zone(world_pos: Vector3) -> Dictionary:
 	var local := Basis(Vector3.UP, rotation.y).inverse() * (world_pos - global_position)
 	return HitZones.classify(local, current_height)
@@ -607,6 +623,9 @@ func get_ads_sensitivity_scale() -> float:
 # ----------------------------------------------------------------------------- per frame
 
 func _physics_process(delta: float) -> void:
+	if spectating and alive:
+		_fly(delta)
+		return
 	if not alive or not has_movement_authority():
 		return
 	if is_remote_human_on_server():
@@ -862,6 +881,21 @@ func _end_slide(stand: bool) -> void:
 		if _can_stand_up():
 			is_crouching = false
 			_set_height(STAND_HEIGHT)
+
+
+func _fly(delta: float) -> void:
+	var dir := Vector3.ZERO
+	if controls_enabled:
+		var b := camera.global_transform.basis
+		dir = -b.z * input.move.y + b.x * input.move.x
+		if Input.is_action_pressed("jump"):
+			dir += Vector3.UP
+		if Input.is_action_pressed("crouch"):
+			dir += Vector3.DOWN
+	var speed := fly_speed * (3.0 if Input.is_action_pressed("sprint") else 1.0)
+	velocity = velocity.lerp(dir.normalized() * speed if dir.length() > 0.01 else Vector3.ZERO, minf(1.0, delta * 7.0))
+	global_position += velocity * delta
+	input.clear_one_shot()
 
 
 func _move(delta: float) -> void:

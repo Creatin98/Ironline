@@ -17,6 +17,7 @@ var score: int = 0
 var killstreak: int = 0
 var alive: bool = false
 var node: Node = null # The Player node while spawned
+var is_spectator: bool = false # free-fly camera only: invisible, untouchable, never an enemy
 
 
 func is_human() -> bool:
@@ -24,7 +25,7 @@ func is_human() -> bool:
 
 
 func is_enemy_of(other: Participant) -> bool:
-	if other == null or other.id == id:
+	if other == null or other.id == id or is_spectator or other.is_spectator:
 		return false
 	if team == Teams.Team.NONE or other.team == Teams.Team.NONE:
 		return true

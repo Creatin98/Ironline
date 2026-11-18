@@ -44,6 +44,7 @@ func _ready() -> void:
 	await _check_reload_cancel_and_coyote()
 	await _check_weapon_pickup()
 	_check_hit_zones()
+	await _check_spectator()
 	await _check_maps()
 	await _check_glass()
 	await _simulate_bots()
@@ -2350,3 +2351,46 @@ func _check_hit_zones() -> void:
 	if String(HitZones.classify(Vector3(0, 1.0, 0), 1.2)["zone"]) != "head":
 		_fail("Trefferzone: Kopf in der Hocke")
 	print("Trefferzonen: Kopf, Brust, Bauch, Arme, Beine, Hocke OK")
+
+
+func _check_spectator() -> void:
+	var cfg := MatchConfig.new()
+	cfg.mode_id = MatchConfig.MODE_TDM
+	cfg.map_id = "test_arena"
+	cfg.spectator = true
+	cfg.bots_enabled = true
+	cfg.bot_count = 12
+	cfg.time_limit = 0.0
+	MatchManager.prepare_match(cfg)
+	var game: Node = (load("res://scenes/game/game.tscn") as PackedScene).instantiate()
+	add_child(game)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	MatchManager.warmup_left = 0.05
+	for i in 40:
+		await get_tree().physics_frame
+	var me := MatchManager.get_local_participant()
+	var pl: Player = me.node as Player if me != null else null
+	if pl == null or not pl.spectating:
+		_fail("Zuschauer: lokaler Spieler ist kein Zuschauer")
+	else:
+		if pl.is_in_group("players") or pl.rig.visible:
+			_fail("Zuschauer muss unsichtbar und fuer Bots unauffindbar sein")
+		var p0 := pl.global_position
+		pl.input.move = Vector2(0, 1)
+		for i in 20:
+			await get_tree().physics_frame
+		pl.input.move = Vector2.ZERO
+		if pl.global_position.distance_to(p0) < 1.0:
+			_fail("Zuschauer: freie Kamera bewegt sich nicht")
+		if pl.take_damage(100.0, 10001, "ak47", pl.global_position, false, pl.global_position):
+			_fail("Zuschauer darf keinen Schaden nehmen")
+	var bots := 0
+	for p in MatchManager.participants.values():
+		if p.is_bot:
+			bots += 1
+	if bots != 12:
+		_fail("Zuschauer-Match: 12 Bots erwartet, %d" % bots)
+	game.free()
+	await get_tree().process_frame
+	print("Zuschauer: freie Kamera, unsichtbar, unverwundbar, 12 Bots OK")
