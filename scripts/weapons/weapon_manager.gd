@@ -619,6 +619,15 @@ func play_remote_shot(impacts: Array) -> void:
 		w.play_remote_shot(impacts)
 
 
+## Killcam: the recorded reload of the killer starts or ends (the third-person model with its hands plays it).
+func replay_reload(starting: bool) -> void:
+	if starting:
+		var w := get_current_weapon()
+		begin_tp_reload(false, 3 if w != null and w.data.reload_single_shells else 1)
+	else:
+		_stop_tp_reload()
+
+
 func play_remote_event(event: String) -> void:
 	var pos := player.global_position + Vector3.UP
 	match event:

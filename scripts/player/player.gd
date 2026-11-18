@@ -106,6 +106,8 @@ var _sprint_block_timer: float = 0.0
 var _team_material: StandardMaterial3D
 var rig: HumanoidRig
 var _replay_aiming: bool = false
+var _replay_kick: float = 0.0
+var _replay_kick_ms: int = 0
 var _last_pos: Vector3 = Vector3.ZERO
 var _est_vel: Vector3 = Vector3.ZERO
 var _death_tween: Tween
@@ -265,10 +267,33 @@ func replay_aim(a: float, cam_xf: Transform3D = Transform3D.IDENTITY) -> void:
 	hands.global_transform = hip_xf.interpolate_with(ads_xf, a)
 
 
+## Killcam: the killer's weapon exactly where the first-person view model sits (hip and sights, relative to the
+## camera `cam_xf`), with the recoil kick of the shots; `a` = 0 (hip) .. 1 (sights).
+func replay_viewmodel(a: float, cam_xf: Transform3D) -> void:
+	_replay_aiming = a > 0.001
+	var w := weapon_manager.get_current_weapon()
+	if w == null:
+		return
+	hands.visible = not (w.data.scoped and a > REPLAY_SCOPE_HIDE_AT)
+	var now_ms := Time.get_ticks_msec()
+	var dt := clampf(float(now_ms - _replay_kick_ms) / 1000.0, 0.0, 0.1)
+	_replay_kick_ms = now_ms
+	_replay_kick = lerpf(_replay_kick, 0.0, minf(1.0, dt * w.data.recoil_recovery))
+	var k := _replay_kick * lerpf(1.0, 0.15, a)
+	var pos := w.data.hip_position.lerp(w.data.ads_position, a_smooth(a)) + Vector3(0.0, k * 0.25, k)
+	var rot := Basis.from_euler(Vector3(k * 1.8, 0.0, 0.0))
+	hands.global_transform = cam_xf * Transform3D(rot, pos)
+
+
+static func a_smooth(a: float) -> float:
+	return a * a * (3.0 - 2.0 * a)
+
+
 func replay_shot() -> void:
 	weapon_manager.flash_third_person()
 	var w := weapon_manager.get_current_weapon()
 	if w != null:
+		_replay_kick = minf(_replay_kick + w.data.recoil_kick_back, 0.26)
 		AudioManager.play_3d(w.data.shot_sound, global_position + Vector3.UP, w.data.shot_volume_db, 0.05, 120.0)
 
 

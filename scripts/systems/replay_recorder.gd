@@ -61,7 +61,7 @@ func _record() -> void:
 		var n := p.node as Player
 		if n == null or not is_instance_valid(n) or n.replay_mode:
 			continue
-		snap[p.id] = [n.global_position, n.rotation.y, n.head.pitch, n.is_crouching, n.alive, n.weapon_manager.current_index, n.consume_shot_flag(), n.is_aiming, n.consume_hit_flag()]
+		snap[p.id] = [n.global_position, n.rotation.y, n.head.pitch, n.is_crouching, n.alive, n.weapon_manager.current_index, n.consume_shot_flag(), n.is_aiming, n.consume_hit_flag(), n.weapon_manager.get_current_weapon().is_reloading()]
 	var t := _now()
 	_frames.append({"t": t, "p": snap})
 	while _frames.size() > 2 and float(_frames[0]["t"]) < t - WINDOW:
@@ -352,6 +352,13 @@ func _apply(t: float, first: bool) -> void:
 					var shooter: Player = _targets.get(int(id))
 					if shooter != null and is_instance_valid(shooter):
 						shooter.replay_shot()
+				# a reload that starts / ends in this frame (the killer's hands show it)
+				if st.size() > 9 and f > 0:
+					var prev_st: Variant = (_frames[f - 1]["p"] as Dictionary).get(id)
+					if prev_st != null and (prev_st as Array).size() > 9 and bool(st[9]) != bool((prev_st as Array)[9]):
+						var rp: Player = _targets.get(int(id))
+						if rp != null and is_instance_valid(rp):
+							rp.weapon_manager.replay_reload(bool(st[9]))
 				if int(id) == _killer_id and st.size() > 8 and int(st[8]) != 0:
 					var code := int(st[8])
 					killer_hit.emit(code & HitFeedback.HEAD != 0, code & HitFeedback.KILL != 0)
@@ -379,4 +386,4 @@ func _apply(t: float, first: bool) -> void:
 		_camera.global_transform = Transform3D(Basis.from_euler(Vector3(kpitch, kyaw, 0.0), EULER_ORDER_YXZ), kpos + Vector3(0.0, eye, 0.0))
 		var kn: Player = _targets[_killer_id]
 		if kn != null and is_instance_valid(kn):
-			kn.replay_aim(killer_aim, _camera.global_transform)
+			kn.replay_viewmodel(killer_aim, _camera.global_transform)
