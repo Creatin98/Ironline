@@ -102,6 +102,15 @@ func get_blocks() -> Array:
 
 
 func build_detail(d: MapDetail) -> void:
+	# light atmosphere: lit rooms and porch lamps
+	d.lamp(Vector3(-11, 2.85, -11), Color(1.0, 0.82, 0.52), 1.0, 7.0)
+	d.lamp(Vector3(11, 2.85, 11), Color(0.85, 0.92, 1.0), 1.0, 7.0)
+	d.lamp(Vector3(-9.5, 5.75, -11), Color(1.0, 0.7, 0.4), 0.9, 6.0)
+	d.lamp(Vector3(9.5, 5.75, 11), Color(1.0, 0.8, 0.55), 0.9, 6.0)
+	d.bulb(Vector3(-12.5, 2.5, -6.4), Color(1.0, 0.8, 0.45), 1.3, 1.4, 5.0)
+	d.bulb(Vector3(9.5, 2.5, 6.6), Color(1.0, 0.8, 0.45), 1.3, 1.4, 5.0)
+	d.lamp(Vector3(13, 2.7, -13), Color(0.9, 0.95, 1.0), 0.9, 6.0)
+	d.lamp(Vector3(-13, 2.7, 13), Color(0.9, 0.95, 1.0), 0.9, 6.0)
 	# school bus: window band, black rub rails, lights, bumpers, wheels
 	var bus := Vector3(0, 0, 0)
 	for sx in [-1.31, 1.31]:

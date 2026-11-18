@@ -383,6 +383,22 @@ func get_cover_points() -> Array:
 # ----------------------------------------------------------------------------- visual extras
 
 func build_detail(d: MapDetail) -> void:
+	# light atmosphere: warm string lights along the pergolas, glowing pool, uplit fountain and palms, balcony lights
+	for sgn in [-1.0, 1.0]:
+		for i in range(-5, 6):
+			if absf(float(i)) >= 3.5:
+				d.bulb(Vector3(float(i) * 1.55, 3.18, sgn * 7.8), Color(1.0, 0.72, 0.38), 0.9, 0.5, 3.0)
+		d.bulb(Vector3(-21.0, 0.3, sgn * 15.5), Color(0.2, 0.9, 1.0), 3.2, 3.0, 8.0) # pool light
+		d.bulb(Vector3(-18.4, 0.25, sgn * 15.5), Color(0.2, 0.9, 1.0), 1.4, 1.2, 4.0)
+		d.bulb(Vector3(0.0, 3.6, sgn * 6.9), Color(1.0, 0.8, 0.5), 1.8, 1.5, 6.0) # under the balcony
+		d.bulb(Vector3(-12.2, 0.25, sgn * 8.0), Color(1.0, 0.65, 0.3), 1.2, 1.0, 4.0) # palm uplights
+		d.bulb(Vector3(-17.2, 0.25, sgn * 20.0), Color(1.0, 0.65, 0.3), 1.2, 1.0, 4.0)
+		d.bulb(Vector3(25.0, TOP + 2.2, sgn * 6.0), Color(0.6, 0.9, 1.0), 1.0, 1.0, 5.0)
+	d.bulb(Vector3(0, -0.1, 0), Color(1.0, 0.75, 0.45), 2.6, 3.0, 8.0) # fountain
+	d.bulb(Vector3(4.2, -0.15, 4.2), Color(1.0, 0.7, 0.4), 1.4, 1.0, 4.0)
+	d.bulb(Vector3(-4.2, -0.15, -4.2), Color(1.0, 0.7, 0.4), 1.4, 1.0, 4.0)
+	d.bulb(Vector3(-4.2, -0.15, 4.2), Color(1.0, 0.7, 0.4), 1.4, 1.0, 4.0)
+	d.bulb(Vector3(4.2, -0.15, -4.2), Color(1.0, 0.7, 0.4), 1.4, 1.0, 4.0)
 	# pergola over the atrium rim, fountain rim, tiles ring
 	for sz in [-7.8, 7.8]:
 		for sx in [-1.0, 1.0]:

@@ -3,7 +3,7 @@ import re
 
 COMMON_ENV = {
     "ssao_radius": "1.6", "ssao_intensity": "2.0", "ssao_power": "1.6", "ssao_detail": "0.6",
-    "glow_intensity": "0.28", "glow_bloom": "0.0", "glow_hdr_threshold": "1.25", "glow_hdr_scale": "2.0",
+    "glow_intensity": "0.5", "glow_bloom": "0.03", "glow_hdr_threshold": "1.05", "glow_hdr_scale": "2.4",
     "fog_sun_scatter": "0.12", "fog_aerial_perspective": "0.25", "fog_sky_affect": "0.6",
     "volumetric_fog_enabled": "true", "volumetric_fog_length": "70.0", "volumetric_fog_ambient_inject": "0.0",
     "volumetric_fog_anisotropy": "0.55", "volumetric_fog_detail_spread": "2.0",

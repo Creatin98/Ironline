@@ -158,6 +158,18 @@ func get_blocks() -> Array:
 
 
 func build_detail(d: MapDetail) -> void:
+	# light atmosphere: LED strips along the deck, navigation lights, warning lights in the engine room, glowing jacuzzis
+	d.led_strip(Vector3(-14.55, 0.1, -31.0), Vector3(-14.55, 0.1, 31.0), Color(0.3, 0.75, 1.0), 4.0)
+	d.led_strip(Vector3(14.55, 0.1, -31.0), Vector3(14.55, 0.1, 31.0), Color(0.3, 0.75, 1.0), 4.0)
+	d.bulb(Vector3(-14.6, 1.25, -31.0), Color(1.0, 0.1, 0.08), 1.6, 1.4, 5.0)
+	d.bulb(Vector3(14.6, 1.25, -31.0), Color(0.1, 1.0, 0.25), 1.6, 1.4, 5.0)
+	for z in [5.5, 11.5]:
+		d.bulb(Vector3(-6.4, 2.75, z), Color(1.0, 0.45, 0.1), 1.4, 1.3, 5.5)
+		d.bulb(Vector3(6.4, 2.75, z), Color(1.0, 0.45, 0.1), 1.4, 1.3, 5.5)
+	d.bulb(Vector3(0, 1.0, -24), Color(0.2, 0.9, 1.0), 2.6, 2.4, 7.0)
+	d.bulb(Vector3(0, ROOF_Y + 1.0, 9.0), Color(0.2, 0.9, 1.0), 2.6, 2.4, 7.0)
+	d.bulb(Vector3(0, ROOF_Y + 1.0, -9.0), Color(0.2, 0.9, 1.0), 2.6, 2.4, 7.0)
+	d.glow(Vector3(0, ROOF_Y + 6.4, 0), Color(1.0, 0.15, 0.1), 1.3) # mast light
 	# deck railings with posts and handrails (all four sides, plus the sun deck)
 	d.rail(Vector3(-14.82, 0.0, -31.9), Vector3(-14.82, 0.0, 31.9))
 	d.rail(Vector3(14.82, 0.0, -31.9), Vector3(14.82, 0.0, 31.9))

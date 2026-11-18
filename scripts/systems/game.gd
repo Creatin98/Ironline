@@ -155,6 +155,15 @@ func _load_map() -> void:
 	map_container.add_child(map)
 	hud.minimap.build_from(map)
 	GameSettings.apply_scene(map)
+	# lens flare of the sun (own canvas layer below HUD and damage effects)
+	var suns := map.find_children("*", "DirectionalLight3D", true, false)
+	if not suns.is_empty():
+		var flare_layer := CanvasLayer.new()
+		flare_layer.layer = 0
+		add_child(flare_layer)
+		var flare := LensFlare.new()
+		flare.sun = suns[0] as DirectionalLight3D
+		flare_layer.add_child(flare)
 	GameSettings.settings_changed.connect(_on_settings_changed)
 	var ambience := AmbienceSystem.new()
 	ambience.name = "Ambience"
@@ -572,21 +581,21 @@ func _build_bars() -> void:
 	_bar_top.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
 	_bar_top.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var top_style := UITheme.panel_style(bar_bg, 0)
-	top_style.border_width_bottom = 3
+	top_style.border_width_bottom = 2
 	top_style.border_color = UITheme.ACCENT
 	_bar_top.add_theme_stylebox_override("panel", top_style)
 	_bars.add_child(_bar_top)
-	var title_row := UITheme.hbox(26)
+	var title_row := UITheme.hbox(20)
 	title_row.alignment = BoxContainer.ALIGNMENT_CENTER
 	title_row.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	for side in 3:
 		if side == 1:
-			_bar_title = UITheme.label("LETZTER ABSCHUSS", 56, UITheme.ACCENT, HORIZONTAL_ALIGNMENT_CENTER)
+			_bar_title = UITheme.label("LETZTER ABSCHUSS", 34, UITheme.ACCENT, HORIZONTAL_ALIGNMENT_CENTER)
 			title_row.add_child(_bar_title)
 		else:
 			var rule := ColorRect.new()
 			rule.color = Color(0.97, 0.63, 0.16, 0.7)
-			rule.custom_minimum_size = Vector2(160, 3)
+			rule.custom_minimum_size = Vector2(110, 2)
 			rule.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 			title_row.add_child(rule)
 	_bar_top.add_child(title_row)
@@ -594,7 +603,7 @@ func _build_bars() -> void:
 	_bar_bottom.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
 	_bar_bottom.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var bottom_style := UITheme.panel_style(bar_bg, 0)
-	bottom_style.border_width_top = 3
+	bottom_style.border_width_top = 2
 	bottom_style.border_color = UITheme.ACCENT
 	_bar_bottom.add_theme_stylebox_override("panel", bottom_style)
 	_bars.add_child(_bar_bottom)
@@ -603,22 +612,27 @@ func _build_bars() -> void:
 	_plate_panel = PanelContainer.new()
 	_plate_panel.add_theme_stylebox_override("panel", UITheme.panel_style(Color(0.07, 0.08, 0.1, 0.94), 5, Color(1, 1, 1, 0.18), 2))
 	center.add_child(_plate_panel)
-	var row := UITheme.hbox(16)
+	var row := UITheme.hbox(12)
 	_plate_panel.add_child(row)
 	_plate_stripe = ColorRect.new()
-	_plate_stripe.custom_minimum_size = Vector2(8, 0)
+	_plate_stripe.custom_minimum_size = Vector2(5, 0)
 	row.add_child(_plate_stripe)
-	var col := UITheme.vbox(2)
-	col.custom_minimum_size = Vector2(420, 0)
+	var col := UITheme.vbox(0)
+	col.custom_minimum_size = Vector2(300, 0)
 	row.add_child(col)
-	_plate_name = UITheme.label("", 38, UITheme.TEXT)
+	_plate_name = UITheme.label("", 22, UITheme.TEXT)
 	col.add_child(_plate_name)
-	_plate_detail = UITheme.label("", 20, UITheme.TEXT_DIM)
+	_plate_detail = UITheme.label("", 14, UITheme.TEXT_DIM)
 	col.add_child(_plate_detail)
-	_plate_assist = UITheme.label("", 17, Color(0.5, 0.78, 1.0))
+	_plate_assist = UITheme.label("", 12, Color(0.5, 0.78, 1.0))
 	col.add_child(_plate_assist)
-	_plate_hint = UITheme.label("", 17, UITheme.TEXT_DIM)
-	col.add_child(_plate_hint)
+	# hint (respawn countdown, skip) floats centred just above the bottom bar, not inside the name banner
+	_plate_hint = UITheme.label("", 18, Color(1, 1, 1, 0.8), HORIZONTAL_ALIGNMENT_CENTER)
+	_plate_hint.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
+	_plate_hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_plate_hint.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.9))
+	_plate_hint.add_theme_constant_override("outline_size", 6)
+	_bars.add_child(_plate_hint)
 
 
 ## Last kill cam vs. killcam: which labels are shown.
@@ -652,6 +666,7 @@ func _fill_plate(kill: Dictionary) -> void:
 		if a != null:
 			names.append(a.display_name)
 	_plate_assist.text = ("Assist: %s" % ", ".join(names)) if not names.is_empty() else ""
+	_plate_assist.visible = not names.is_empty()
 	_plate_panel.add_theme_stylebox_override("panel", UITheme.panel_style(Color(0.07, 0.08, 0.1, 0.94), 5, col.darkened(0.2), 2))
 
 
@@ -661,8 +676,7 @@ func _update_bars(delta: float) -> void:
 		return
 	_bars_anim = move_toward(_bars_anim, 1.0, delta / maxf(Engine.time_scale, 0.05) * 2.2)
 	var vp := _cam_ui.size
-	var wide := vp.x / (21.0 / 9.0)
-	var bar_h := maxf(150.0, (vp.y - wide) * 0.5)
+	var bar_h := clampf(vp.y * 0.095, 74.0, 112.0) # slim, modern bars
 	var k := _bars_anim * _bars_anim * (3.0 - 2.0 * _bars_anim)
 	_bar_top.custom_minimum_size = Vector2(0, bar_h)
 	_bar_bottom.custom_minimum_size = Vector2(0, bar_h)
@@ -670,6 +684,8 @@ func _update_bars(delta: float) -> void:
 	_bar_top.offset_top = -bar_h * (1.0 - k)
 	_bar_bottom.offset_top = -bar_h * k
 	_bar_bottom.offset_bottom = bar_h * (1.0 - k)
+	_plate_hint.offset_top = -bar_h * k - 36.0
+	_plate_hint.offset_bottom = -bar_h * k - 8.0
 
 
 ## Fills the bottom block: killer name (team colour), weapon + headshot, assists.

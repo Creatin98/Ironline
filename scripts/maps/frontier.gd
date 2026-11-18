@@ -191,6 +191,15 @@ func get_blocks() -> Array:
 
 
 func build_detail(d: MapDetail) -> void:
+	# light atmosphere: warm rooms behind the windows, glowing pump displays and price sign
+	for p in [Vector3(-8, 3.45, -9), Vector3(-8, 3.45, 9), Vector3(8, 3.45, -9), Vector3(8, 3.45, 9)]:
+		d.lamp(p, Color(1.0, 0.8, 0.5), 1.0, 7.0)
+	d.glow(Vector3(-11.5, 5.0, -13.35), Color(1.0, 0.85, 0.3), 4.5)
+	d.bulb(Vector3(-11.5, 4.6, -13.3), Color(1.0, 0.85, 0.3), 1.5, 1.6, 6.0)
+	for x in [-3.0, 3.0]:
+		d.glow(Vector3(x, 1.25, -18.6), Color(0.3, 1.0, 0.5), 1.0)
+	d.bulb(Vector3(0, 3.1, -22.0), Color(1.0, 0.2, 0.15), 1.6, 1.4, 6.0) # red accent under the canopy
+	d.bulb(Vector3(0, 2.2, 22.5), Color(1.0, 0.55, 0.2), 1.6, 1.4, 6.0) # dock gate lamp
 	# gas station: fascia, lights, pump screens, hoses, price pole
 	d.add_box(Vector3(0, 3.6, -15.45), Vector3(14.3, 0.4, 0.12), "plaster", C_RED)
 	d.add_box(Vector3(0, 3.6, -22.55), Vector3(14.3, 0.4, 0.12), "plaster", C_RED)

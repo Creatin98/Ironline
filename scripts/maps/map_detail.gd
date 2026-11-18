@@ -13,6 +13,9 @@ var _box_mesh := BoxMesh.new()
 var _cyl_mesh := CylinderMesh.new()
 var _cyl_hi := CylinderMesh.new() # map blocks: smoother than the small props
 var _lights: Array = []
+var _glows: Array = [] # {pos, color, size}
+static var _glow_tex: GradientTexture2D
+static var _glow_mats: Dictionary = {}
 ## Glass panes found at window openings (for GlassField): {center, size, axis_x}
 var windows: Array = []
 
@@ -122,6 +125,18 @@ func flush(parent: Node3D) -> void:
 	for l in _lights:
 		root.add_child(l)
 	_lights.clear()
+	var quad := QuadMesh.new()
+	quad.size = Vector2.ONE
+	for g in _glows:
+		var mi := MeshInstance3D.new()
+		mi.mesh = quad
+		mi.material_override = _glow_material(g["color"])
+		mi.position = g["pos"]
+		mi.scale = Vector3.ONE * float(g["size"])
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		mi.visibility_range_end = 140.0
+		root.add_child(mi)
+	_glows.clear()
 	_parts.clear()
 
 
@@ -155,6 +170,16 @@ func _detail_car(b: Dictionary) -> void:
 	for sx in [-0.62, 0.62]:
 		add_box(c + basis * Vector3(sx, 0.78, -2.21), Vector3(0.36, 0.16, 0.05), "lamp", Color(1.0, 0.96, 0.82), basis)
 		add_box(c + basis * Vector3(sx, 0.78, 2.21), Vector3(0.36, 0.14, 0.05), "lamp", Color(0.9, 0.1, 0.08), basis)
+		glow(c + basis * Vector3(sx, 0.78, -2.3), Color(1.0, 0.95, 0.8), 1.5)
+		glow(c + basis * Vector3(sx, 0.78, 2.3), Color(1.0, 0.12, 0.08), 1.0)
+	spot(c + basis * Vector3(0, 0.78, -2.4), basis * Vector3(0, -0.08, -1.0), Color(1.0, 0.96, 0.84), 6.0, 15.0, 30.0)
+	var tail := OmniLight3D.new()
+	tail.position = c + basis * Vector3(0, 0.9, 2.6)
+	tail.light_color = Color(1.0, 0.1, 0.06)
+	tail.light_energy = 1.4
+	tail.omni_range = 4.0
+	tail.shadow_enabled = false
+	_lights.append(tail)
 	for z in [-2.24, 2.24]:
 		add_box(c + basis * Vector3(0, 0.3, z), Vector3(1.96, 0.2, 0.1), "metal_panel", Color(0.12, 0.13, 0.14), basis)
 	add_box(c + basis * Vector3(0, 0.62, -2.21), Vector3(0.9, 0.2, 0.04), "metal_panel", Color(0.06, 0.06, 0.07), basis)
@@ -352,7 +377,10 @@ func lamp_post(base: Vector3, height: float = 5.0, yaw: float = 0.0) -> void:
 	add_cylinder(base + Vector3(0, height * 0.5, 0), 0.14, height, "metal_panel", Color(0.22, 0.24, 0.26))
 	add_cylinder(base + Vector3(0, 0.2, 0), 0.3, 0.4, "metal_panel", Color(0.18, 0.2, 0.22))
 	add_box(base + basis * Vector3(0.45, height + 0.02, 0), Vector3(1.0, 0.1, 0.18), "metal_panel", Color(0.22, 0.24, 0.26), basis)
-	add_box(base + basis * Vector3(0.85, height - 0.05, 0), Vector3(0.4, 0.08, 0.3), "metal_panel", Color(0.7, 0.68, 0.55), basis)
+	add_box(base + basis * Vector3(0.85, height - 0.05, 0), Vector3(0.4, 0.08, 0.3), "lamp", Color(1.0, 0.86, 0.6), basis)
+	var head := base + basis * Vector3(0.85, height - 0.12, 0)
+	glow(head, Color(1.0, 0.82, 0.5), 3.2)
+	spot(head, Vector3.DOWN, Color(1.0, 0.86, 0.62), 5.0, 11.0, 62.0)
 
 
 ## Railing along a line: posts every `spacing` m, top rail and mid rail, slightly proud of the surface it follows.
@@ -421,14 +449,86 @@ func solar_panel(base: Vector3, yaw: float = 0.0) -> void:
 		add_box(base + basis * Vector3(x, 0.14, 0.2), Vector3(0.05, 0.28, 0.05), "metal_panel", Color(0.5, 0.52, 0.55), basis)
 
 
-## Ceiling lamp: emissive fixture plus a soft fill light (no shadows, cheap).
-func lamp(pos: Vector3, color: Color = Color(1.0, 0.88, 0.66), energy: float = 1.0, light_range: float = 9.0) -> void:
-	add_box(pos, Vector3(0.6, 0.07, 0.25), "lamp", color)
+## Additive halo sprite (always faces the camera, hidden behind walls) for lamps, headlights and signs.
+func glow(pos: Vector3, color: Color, size: float = 1.5) -> void:
+	_glows.append({"pos": pos, "color": color, "size": size})
+
+
+static func _glow_material(color: Color) -> StandardMaterial3D:
+	var key := color.to_html()
+	if _glow_mats.has(key):
+		return _glow_mats[key]
+	if _glow_tex == null:
+		var grad := Gradient.new()
+		grad.offsets = PackedFloat32Array([0.0, 0.18, 0.5, 1.0])
+		grad.colors = PackedColorArray([Color(1, 1, 1, 1), Color(1, 1, 1, 0.55), Color(1, 1, 1, 0.12), Color(1, 1, 1, 0)])
+		_glow_tex = GradientTexture2D.new()
+		_glow_tex.gradient = grad
+		_glow_tex.fill = GradientTexture2D.FILL_RADIAL
+		_glow_tex.fill_from = Vector2(0.5, 0.5)
+		_glow_tex.fill_to = Vector2(1.0, 0.5)
+		_glow_tex.width = 128
+		_glow_tex.height = 128
+	var m := StandardMaterial3D.new()
+	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	m.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	m.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+	m.albedo_texture = _glow_tex
+	m.albedo_color = color
+	m.disable_receive_shadows = true
+	m.no_depth_test = false
+	m.render_priority = 2
+	_glow_mats[key] = m
+	return m
+
+
+## Spot light with a visible beam source (car headlights, street lamps).
+func spot(pos: Vector3, dir: Vector3, color: Color, energy: float, light_range: float, angle_deg: float) -> void:
+	var l := SpotLight3D.new()
+	l.position = pos
+	l.light_color = color
+	l.light_energy = energy
+	l.spot_range = light_range
+	l.spot_angle = angle_deg
+	l.spot_attenuation = 1.1
+	l.shadow_enabled = false
+	l.look_at_from_position(pos, pos + dir, Vector3.UP if absf(dir.normalized().y) < 0.95 else Vector3.RIGHT)
+	_lights.append(l)
+
+
+## Small bulb: emissive body, halo and a small coloured light (garden lights, string lights, signs).
+func bulb(pos: Vector3, color: Color, size: float = 1.1, energy: float = 1.2, light_range: float = 5.0) -> void:
+	add_box(pos, Vector3(0.12, 0.12, 0.12), "lamp", color)
+	glow(pos, color * 0.9, size)
 	var l := OmniLight3D.new()
-	l.position = pos - Vector3(0, 0.25, 0)
+	l.position = pos
 	l.light_color = color
 	l.light_energy = energy
 	l.omni_range = light_range
+	l.omni_attenuation = 1.4
+	l.shadow_enabled = false
+	_lights.append(l)
+
+
+## Emissive strip (LED line) with halos every `spacing` metres.
+func led_strip(a: Vector3, b: Vector3, color: Color, spacing: float = 4.0) -> void:
+	bar(a, b, 0.05, 0.05, "lamp", color)
+	var len := a.distance_to(b)
+	var n := maxi(1, int(len / spacing))
+	for i in n + 1:
+		glow(a.lerp(b, float(i) / float(n)), color * 0.8, 1.2)
+
+
+## Ceiling lamp: emissive fixture plus a soft fill light (no shadows, cheap).
+func lamp(pos: Vector3, color: Color = Color(1.0, 0.88, 0.66), energy: float = 1.0, light_range: float = 9.0) -> void:
+	add_box(pos, Vector3(0.6, 0.07, 0.25), "lamp", color)
+	glow(pos - Vector3(0, 0.15, 0), color, 2.4)
+	var l := OmniLight3D.new()
+	l.position = pos - Vector3(0, 0.25, 0)
+	l.light_color = color
+	l.light_energy = energy * 2.2 # richer, more visible pools of coloured light
+	l.omni_range = light_range * 1.2
 	l.omni_attenuation = 1.3
 	l.shadow_enabled = false
 	_lights.append(l)

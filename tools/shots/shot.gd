@@ -515,6 +515,23 @@ func _game_ui(state: String) -> void:
 		get_tree().paused = true
 		ov.update_visuals()
 		await get_tree().process_frame
+	if state == "sunflare":
+		# looking towards the sun (the lens flare is drawn at full strength)
+		var sp := me.node as Player
+		sp.human_controller.deactivate()
+		sp.rotation.y = -2.45 + 0.35
+		sp.head.set_pitch(0.58)
+		for i in 10:
+			await get_tree().physics_frame
+		for n in game.get_children():
+			for c in n.get_children():
+				if c is LensFlare:
+					(c as LensFlare)._vis = 1.0
+					(c as LensFlare).set_process(false)
+					(c as LensFlare).visible = true
+					(c as LensFlare).queue_redraw()
+		get_tree().paused = true
+		await get_tree().process_frame
 	if state == "flashanim" or state == "flashbang":
 		# flashanim: the first-person arm in front of the eyes and a flashed bot; flashbang: the detonation seen from a few metres
 		var lp := me.node as Player

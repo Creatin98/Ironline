@@ -131,6 +131,10 @@ func get_blocks() -> Array:
 
 
 func build_detail(d: MapDetail) -> void:
+	for p in [Vector3(-9, 3.45, -8), Vector3(-9, 3.45, 8)]:
+		d.lamp(p, Color(1.0, 0.82, 0.55), 1.0, 7.0)
+	for p in [Vector3(9, 3.45, -8), Vector3(9, 3.45, 8)]:
+		d.lamp(p, Color(0.85, 0.92, 1.0), 1.0, 7.0)
 	for z in [-14.0, 14.0]:
 		d.lamp_post(Vector3(-9.2, 0, z), 5.0, 0.0)
 		d.lamp_post(Vector3(9.2, 0, -z), 5.0, PI)

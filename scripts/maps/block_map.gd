@@ -339,6 +339,8 @@ func _get_material(mat_name: String, tint) -> Material:
 	if tint != null:
 		mat = base.duplicate()
 		mat.albedo_color = tint
+		if mat.emission_enabled:
+			mat.emission = tint # lamps glow in their own colour
 	_material_cache[key] = mat
 	return mat
 
