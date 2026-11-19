@@ -383,7 +383,7 @@ func set_shadow_only(shadow_only: bool) -> void:
 func weapon_anchor() -> Vector3:
 	var dip := sin(_switch * PI)
 	var off := Vector3(0.13, 0.31, -0.30)
-	off += Vector3(0.03, 0.13, 0.04) * _aim # shouldered: the stock rests on the right shoulder, the weapon is never in front of the chest centre
+	off += Vector3(0.06, 0.15, -0.23) * _aim # shouldered: the stock rests on the right shoulder, the weapon is never in front of the chest centre
 	off += Vector3(0.04, -0.17, 0.07) * _sprint # lowered, across the body
 	off += Vector3(0.0, -0.26, 0.06) * dip # weapon change: down and up again
 	off += Vector3(0.0, 0.012, 0.035) * _kick # recoil

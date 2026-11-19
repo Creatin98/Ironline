@@ -14,7 +14,7 @@ const FORE := 0.28
 ## Shoulders: below the picture's lower edge, slightly behind the picture plane.
 const SHOULDERS := [Vector3(0.27, -0.31, 0.05), Vector3(-0.27, -0.31, 0.05)]
 ## Elbow directions: down and outwards (right arm / left arm).
-const POLES := [Vector3(0.40, -1.0, 0.35), Vector3(-0.50, -1.0, 0.30)]
+const POLES := [Vector3(0.40, -1.0, 0.35), Vector3(-0.25, -1.0, 0.10)] # (left elbow straight down: the forearm passes below the weapon, not through it)
 const R_WRIST := 0.030
 const R_ELBOW := 0.052
 const R_SHOULDER := 0.062

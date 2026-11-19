@@ -248,7 +248,21 @@ func killer_daze() -> float:
 	return kn.flash_daze if kn != null and is_instance_valid(kn) else 0.0
 
 
+var _arms_killer: Player
+
+
+func _late_arms() -> void:
+	# right before the frame is drawn (after every _process, i.e. after the reload animation moved the hands this frame)
+	if _arms == null or not is_instance_valid(_arms) or _arms_killer == null or not is_instance_valid(_arms_killer) or not playing:
+		return
+	var wr: Array = _arms_killer.replay_arm_wrists(_camera.global_transform)
+	_arms.update(wr[0], wr[1], _arms_killer.flash_cover)
+
+
 func _update_arms(killer: Player) -> void:
+	_arms_killer = killer
+	if not RenderingServer.frame_pre_draw.is_connected(_late_arms):
+		RenderingServer.frame_pre_draw.connect(_late_arms)
 	if _arms == null or not is_instance_valid(_arms):
 		_arms = FirstPersonArms.new()
 		_arms.name = "KillcamArms"
@@ -264,6 +278,9 @@ func _clear_targets() -> void:
 	if _arms != null and is_instance_valid(_arms):
 		_arms.queue_free()
 	_arms = null
+	_arms_killer = null
+	if RenderingServer.frame_pre_draw.is_connected(_late_arms):
+		RenderingServer.frame_pre_draw.disconnect(_late_arms)
 	killer_flash.emit(-1.0, 0.0) # the flash effect of the killer's view ends with the replay
 	if not ghost_mode:
 		for id in _targets:

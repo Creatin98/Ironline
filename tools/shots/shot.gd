@@ -381,6 +381,10 @@ func _game_ui(state: String) -> void:
 		sl.global_position = Vector3(-18.5, 0.1, 26.0)
 		sl.rotation.y = deg_to_rad(90.0)
 		sl.head.set_pitch(-0.12)
+		if "--side=1" in OS.get_cmdline_user_args():
+			sl.global_position = Vector3(-33.2, 0.1, 25.2)
+			sl.rotation.y = 0.0
+			sl.head.set_pitch(0.0)
 		if "--close=1" in OS.get_cmdline_user_args():
 			sl.global_position = Vector3(-31.5, 0.1, 20.0)
 			sl.rotation.y = deg_to_rad(90.0) + 0.55
@@ -433,6 +437,13 @@ func _game_ui(state: String) -> void:
 			if "--flash=1" in OS.get_cmdline_user_args():
 				bot_node.flash_react(1.0) # the killer is flashed: the killcam must show it
 				for i in 8:
+					await get_tree().physics_frame
+			if "--class=" in " ".join(OS.get_cmdline_user_args()):
+				for a in OS.get_cmdline_user_args():
+					if a.begins_with("--class="):
+						bot.class_id = a.substr(8)
+						bot_node.apply_class(GameDirector.get_class_data(bot.class_id))
+				for i in 6:
 					await get_tree().physics_frame
 			if "--pistol=1" in OS.get_cmdline_user_args():
 				bot_node.swap_primary("pistol", 12, 50)
