@@ -427,8 +427,14 @@ func _upgrade_cinematic_lighting() -> void:
 
 		# Echte animierte graue Regenwolken (überschreibt den alten Himmel komplett!)
 	var cloud_code := """
+# Weiche, artefaktfreie graue Regenwolken
+	var cloud_code := """
 shader_type sky;
-float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+float hash(vec2 p) {
+	vec3 p3 = fract(vec3(p.xyx) * 0.1031);
+	p3 += dot(p3, p3.yzx + 33.33);
+	return fract((p3.x + p3.y) * p3.z);
+}
 float noise(vec2 p) {
 	vec2 i = floor(p); vec2 f = fract(p);
 	f = f * f * (3.0 - 2.0 * f);
@@ -437,19 +443,19 @@ float noise(vec2 p) {
 }
 float fbm(vec2 p) {
 	float v = 0.0; float a = 0.5;
-	for (int i = 0; i < 4; i++) { v += a * noise(p); p *= 2.05; a *= 0.5; }
+	for (int i = 0; i < 5; i++) { v += a * noise(p); p *= 2.03; a *= 0.5; }
 	return v;
 }
 void sky() {
 	vec3 d = normalize(EYEDIR);
 	float h = clamp(d.y, 0.001, 1.0);
-	vec2 uv = d.xz / (h + 0.18) * 1.4 + vec2(TIME * 0.015, TIME * 0.008);
+	vec2 uv = d.xz / (h + 0.22) * 1.3 + vec2(TIME * 0.012, TIME * 0.006);
 	float c = fbm(uv);
-	vec3 dark_cloud = vec3(0.18, 0.20, 0.23);
+	vec3 dark_cloud = vec3(0.20, 0.22, 0.25);
 	vec3 light_cloud = vec3(0.42, 0.45, 0.49);
 	vec3 horizon = vec3(0.45, 0.48, 0.52);
-	vec3 col = mix(dark_cloud, light_cloud, smoothstep(0.25, 0.80, c));
-	col = mix(horizon, col, smoothstep(0.0, 0.28, d.y));
+	vec3 col = mix(dark_cloud, light_cloud, smoothstep(0.22, 0.78, c));
+	col = mix(horizon, col, smoothstep(0.0, 0.30, d.y));
 	COLOR = col;
 }
 """
