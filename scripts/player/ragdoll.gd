@@ -217,16 +217,8 @@ func _spurts(body: Node3D, at: Vector3, dir: Vector3) -> void:
 
 func _pulse(body: Node3D, at: Vector3, dir: Vector3, amount: int) -> void:
 	var p := CPUParticles3D.new()
-	var mesh := SphereMesh.new()
-	mesh.radius = 0.012
-	mesh.height = 0.024
-	mesh.radial_segments = 5
-	mesh.rings = 2
-	var mat := StandardMaterial3D.new()
-	mat.albedo_color = Color(0.42, 0.015, 0.015)
-	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	mesh.material = mat
-	p.mesh = mesh
+	p.mesh = BloodFx.streak_mesh()
+	p.particle_flag_align_y = true
 	p.one_shot = true
 	p.explosiveness = 0.9
 	p.amount = maxi(4, int(float(amount) * GameSettings.effects_scale()))
@@ -247,7 +239,7 @@ func _pulse(body: Node3D, at: Vector3, dir: Vector3, amount: int) -> void:
 ## Small flesh chunks flying off.
 func _spawn_chunks(origin: Vector3, dir: Vector3, n: int) -> void:
 	var mat := StandardMaterial3D.new()
-	mat.albedo_color = Color(0.34, 0.03, 0.025)
+	mat.albedo_color = Color(0.17, 0.02, 0.02)
 	mat.roughness = 0.4
 	for i in mini(n, 14):
 		var c := RigidBody3D.new()
@@ -258,7 +250,7 @@ func _spawn_chunks(origin: Vector3, dir: Vector3, n: int) -> void:
 		c.angular_damp = 0.6
 		var cs := CollisionShape3D.new()
 		var bs := BoxShape3D.new()
-		var sz := randf_range(0.05, 0.12)
+		var sz := randf_range(0.03, 0.08)
 		bs.size = Vector3(sz, sz * randf_range(0.6, 1.0), sz * randf_range(0.7, 1.2))
 		cs.shape = bs
 		c.add_child(cs)
@@ -277,16 +269,8 @@ func _spawn_chunks(origin: Vector3, dir: Vector3, n: int) -> void:
 
 func _emit_blood(body: Node3D, at: Vector3, seconds: float, amount: int) -> void:
 	var p := CPUParticles3D.new()
-	var mesh := SphereMesh.new()
-	mesh.radius = 0.03
-	mesh.height = 0.06
-	mesh.radial_segments = 6
-	mesh.rings = 3
-	var mat := StandardMaterial3D.new()
-	mat.albedo_color = Color(0.5, 0.02, 0.02)
-	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	mesh.material = mat
-	p.mesh = mesh
+	p.mesh = BloodFx.streak_mesh()
+	p.particle_flag_align_y = true
 	p.amount = maxi(8, int(float(amount) * GameSettings.effects_scale()))
 	p.lifetime = 0.7
 	p.direction = Vector3.UP

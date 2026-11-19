@@ -3,8 +3,8 @@ extends RefCounted
 ## Blood: spray particles plus splats on nearby walls/floor (world), and the procedural splat
 ## textures shared with the HUD's screen splatter. Fully procedural, no assets.
 
-const MAX_WORLD_SPLATS := 420 # the map gets used: blood stays for a long time
-const SPLAT_LIFETIME := 150.0
+const MAX_WORLD_SPLATS := 520 # the map gets used: blood stays for a long time
+const SPLAT_LIFETIME := 240.0
 const FADE_TIME := 25.0
 const VARIANTS := 4
 const TEX_SIZE := 256
@@ -12,8 +12,7 @@ const TEX_SIZE := 256
 static var _textures: Array[ImageTexture] = []
 static var _materials: Array[StandardMaterial3D] = []
 static var _live: Array = []
-static var _particle_mesh: SphereMesh
-static var _particle_mat: StandardMaterial3D
+static var _particle_mesh: Mesh
 
 
 ## Splat texture `i` (white blob, alpha = shape); tint with the draw colour.
@@ -99,7 +98,7 @@ static func burst(parent: Node3D, pos: Vector3, dir: Vector3, scale: float = 1.0
 	var space := parent.get_world_3d().direct_space_state
 	var rng := RandomNumberGenerator.new()
 	rng.randomize()
-	var count := 4 + int(round(4.0 * scale))
+	var count := 5 + int(round(5.0 * scale))
 	for i in count:
 		var d := dir
 		var reach := 4.6
@@ -121,30 +120,37 @@ static func burst(parent: Node3D, pos: Vector3, dir: Vector3, scale: float = 1.0
 		_place_splat(parent, hit["position"], hit["normal"], size, rng)
 
 
+## A thin dark-red streak (long axis = Y, which the particles align with their velocity): spray and fountains, no balls.
+static func streak_mesh() -> Mesh:
+	var m := CapsuleMesh.new()
+	m.radius = 0.0035
+	m.height = 0.075
+	m.radial_segments = 4
+	m.rings = 1
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color(0.42, 0.015, 0.012)
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	m.material = mat
+	return m
+
+
 static func _spawn_particles(parent: Node3D, pos: Vector3, dir: Vector3, scale: float) -> void:
 	if _particle_mesh == null:
-		_particle_mesh = SphereMesh.new()
-		_particle_mesh.radius = 0.011
-		_particle_mesh.height = 0.022
-		_particle_mesh.radial_segments = 6
-		_particle_mesh.rings = 3
-		_particle_mat = StandardMaterial3D.new()
-		_particle_mat.albedo_color = Color(0.5, 0.02, 0.02)
-		_particle_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-		_particle_mesh.material = _particle_mat
+		_particle_mesh = BloodFx.streak_mesh()
 	var p := CPUParticles3D.new()
 	p.mesh = _particle_mesh
+	p.particle_flag_align_y = true # thin streaks along the flight direction, no round balls
 	p.one_shot = true
 	p.explosiveness = 0.95
-	p.amount = maxi(4, int(60.0 * scale * GameSettings.effects_scale()))
+	p.amount = maxi(6, int(90.0 * scale * GameSettings.effects_scale()))
 	p.lifetime = 0.7
 	p.direction = dir
 	p.spread = 38.0
 	p.initial_velocity_min = 1.5
-	p.initial_velocity_max = 7.5
+	p.initial_velocity_max = 9.0
 	p.gravity = Vector3(0.0, -11.0, 0.0)
-	p.scale_amount_min = 0.5
-	p.scale_amount_max = 1.6
+	p.scale_amount_min = 0.4
+	p.scale_amount_max = 2.2
 	p.emitting = true
 	parent.add_child(p)
 	p.global_position = pos
