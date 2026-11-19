@@ -114,7 +114,7 @@ static func palm_mesh() -> ArrayMesh:
 			cs.add_vertex(d)
 
 	cs.commit(mesh)
-	mesh.surface_set_material(1, _foliage_material("res://assets/textures/palm_frond.png", Color(1.0, 1.0, 1.0), true, 0.16))
+	mesh.surface_set_material(1, _foliage_material("res://assets/textures/palm_frond.png", Color(0.55, 0.74, 0.42), true, 0.16))
 	return mesh
 
 
