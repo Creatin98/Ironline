@@ -422,93 +422,104 @@ func _upgrade_cinematic_lighting() -> void:
 
 	var env := env_node.environment
 	env.tonemap_mode = 3
-	env.tonemap_exposure = 0.92
+	env.tonemap_exposure = 0.90
 	env.tonemap_white = 6.0
 
+	# Dichte graue Regenwolken-Decke (ohne grellen Sonnen-Ball!)
 	var sky := Sky.new()
 	var sky_mat := ProceduralSkyMaterial.new()
-	sky_mat.sky_top_color = Color(0.26, 0.29, 0.33)
-	sky_mat.sky_horizon_color = Color(0.46, 0.49, 0.53)
+	sky_mat.sky_top_color = Color(0.24, 0.27, 0.31)
+	sky_mat.sky_horizon_color = Color(0.45, 0.48, 0.52)
 	sky_mat.ground_bottom_color = Color(0.18, 0.20, 0.22)
 	sky_mat.ground_horizon_color = Color(0.42, 0.45, 0.49)
-	sky_mat.sun_angle_max = 12.0
-	sky_mat.sun_curve = 0.25
+	sky_mat.sun_angle_max = 0.0 # Versteckt den grellen Sonnenball hinter den Wolken!
+	sky_mat.sun_curve = 0.01
 	sky.sky_material = sky_mat
 	env.background_mode = Environment.BG_SKY
 	env.sky = sky
 
+	# Pfützen-Spiegelungen (SSR)
 	env.ssr_enabled = true
 	env.ssr_max_steps = 28
 	env.ssr_fade_in = 0.12
 	env.ssr_fade_out = 2.0
 	env.ssr_depth_tolerance = 0.25
 
+	# Weiche Kontaktschatten
 	env.ssao_enabled = true
 	env.ssao_radius = 1.6
 	env.ssao_intensity = 1.6
 	env.ssil_enabled = false
 
+	# Dezenter Glow ohne grellen Lens-Flare-Ring
 	env.glow_enabled = true
-	env.glow_intensity = 0.35
-	env.glow_bloom = 0.10
+	env.glow_intensity = 0.22
+	env.glow_bloom = 0.04
 
+	# Dichter, gräulicher Regen-Nebel
 	env.volumetric_fog_enabled = false
 	env.fog_enabled = true
 	env.fog_mode = Environment.FOG_MODE_DEPTH
 	env.fog_light_color = Color(0.45, 0.48, 0.52)
 	env.fog_light_energy = 1.0
-	env.fog_sun_scatter = 0.15
-	env.fog_density = 0.85
-	env.fog_depth_begin = 6.0
-	env.fog_depth_end = 68.0
+	env.fog_sun_scatter = 0.0
+	env.fog_density = 0.88
+	env.fog_depth_begin = 5.0
+	env.fog_depth_end = 62.0
 	env.fog_height = 4.0
 	env.fog_height_density = 0.025
 
+	# Diffuses, gräuliches Wolkenlicht
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	env.ambient_light_color = Color(0.42, 0.45, 0.50)
 	env.ambient_light_energy = 1.15
 
+	# Gedämpftes Wolkenlicht (und falls ein Lens-Flare-Node an der Sonne hängt, ausblenden)
 	for child in get_children():
 		if child is DirectionalLight3D:
-			child.light_color = Color(0.76, 0.80, 0.86)
-			child.light_energy = 1.15
-			child.rotation_degrees = Vector3(-38.0, -45.0, 0.0)
+			child.light_color = Color(0.75, 0.79, 0.85)
+			child.light_energy = 1.10
+			child.rotation_degrees = Vector3(-42.0, -45.0, 0.0)
 			child.shadow_enabled = true
 			child.shadow_blur = 2.5
 			child.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS
 			child.directional_shadow_max_distance = 100.0
+			for sub in child.get_children():
+				if sub is CanvasItem or sub is Node3D:
+					sub.visible = false
 
 	_spawn_rain_particles()
 
 
 func _spawn_rain_particles() -> void:
 	if has_node("RainParticles"):
-		return
+		get_node("RainParticles").queue_free()
 	var rain := GPUParticles3D.new()
 	rain.name = "RainParticles"
-	rain.amount = 1800
-	rain.lifetime = 1.4
+	rain.amount = 2600
+	rain.lifetime = 0.9
 	rain.preprocess = 1.0
 	rain.visibility_aabb = AABB(Vector3(-80, -5, -80), Vector3(160, 40, 160))
 	rain.position = Vector3(0.0, 18.0, 0.0)
 
 	var pmat := ParticleProcessMaterial.new()
 	pmat.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_BOX
-	pmat.emission_box_extents = Vector3(60.0, 4.0, 60.0)
-	pmat.direction = Vector3(0.08, -1.0, 0.05)
-	pmat.spread = 3.0
-	pmat.initial_velocity_min = 16.0
-	pmat.initial_velocity_max = 22.0
-	pmat.gravity = Vector3(0.0, -9.8, 0.0)
+	pmat.emission_box_extents = Vector3(55.0, 3.0, 55.0)
+	pmat.direction = Vector3(0.06, -1.0, 0.04)
+	pmat.spread = 2.0
+	pmat.initial_velocity_min = 24.0
+	pmat.initial_velocity_max = 32.0
+	pmat.gravity = Vector3(0.0, -15.0, 0.0)
 	rain.process_material = pmat
 
+	# Hauchdünne, schnelle Regenstreifen (keine dicken Punkte mehr!)
 	var drop := QuadMesh.new()
-	drop.size = Vector2(0.014, 0.42)
+	drop.size = Vector2(0.005, 0.55)
 	var dmat := StandardMaterial3D.new()
 	dmat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	dmat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	dmat.billboard_mode = BaseMaterial3D.BILLBOARD_FIXED_Y
-	dmat.albedo_color = Color(0.78, 0.82, 0.88, 0.28)
+	dmat.albedo_color = Color(0.80, 0.84, 0.90, 0.22)
 	drop.material = dmat
 	rain.draw_pass_1 = drop
 
