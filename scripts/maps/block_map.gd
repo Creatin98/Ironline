@@ -422,8 +422,8 @@ func _upgrade_cinematic_lighting() -> void:
 
 	var env := env_node.environment
 	env.tonemap_mode = 3
-	env.tonemap_exposure = 1.05
-	env.tonemap_white = 6.0
+	env.tonemap_exposure = 0.88 # Verhindert den ausgebrannten weißen Himmel!
+	env.tonemap_white = 8.0
 
 	env.ssr_enabled = true
 	env.ssr_max_steps = 24
@@ -433,22 +433,23 @@ func _upgrade_cinematic_lighting() -> void:
 
 	env.ssao_enabled = true
 	env.ssao_radius = 1.6
-	env.ssao_intensity = 2.0
+	env.ssao_intensity = 2.2
 	env.ssil_enabled = false
 
 	env.glow_enabled = true
-	env.glow_intensity = 0.35
-	env.glow_bloom = 0.08
+	env.glow_intensity = 0.30
+	env.glow_bloom = 0.06
 	env.volumetric_fog_enabled = false
 	env.fog_enabled = true
-	env.fog_light_color = Color(0.92, 0.85, 0.75)
-	env.fog_density = 0.004
+	env.fog_light_color = Color(0.85, 0.88, 0.94)
+	env.fog_density = 0.0018 # Weniger Nebel = Palmen im Hintergrund wieder sattgrün!
 
 	for child in get_children():
 		if child is DirectionalLight3D:
-			child.light_color = Color(1.0, 0.88, 0.72)
-			child.light_energy = 2.6
+			child.light_color = Color(1.0, 0.86, 0.68)
+			child.light_energy = 2.8
+			child.rotation_degrees = Vector3(-26.0, -48.0, 0.0) # Tiefe Nachmittagssonne = lange Palmenschatten!
 			child.shadow_enabled = true
-			child.shadow_blur = 1.5
+			child.shadow_blur = 1.6
 			child.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS
-			child.directional_shadow_max_distance = 90.0
+			child.directional_shadow_max_distance = 110.0
