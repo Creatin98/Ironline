@@ -421,7 +421,7 @@ func _upgrade_cinematic_lighting() -> void:
 		env_node.environment = Environment.new()
 
 	var env := env_node.environment
-	env.tonemap_mode = Environment.TONE_MAP_ACES
+	env.tonemap_mode = 3
 	env.tonemap_exposure = 1.05
 	env.tonemap_white = 6.0
 
