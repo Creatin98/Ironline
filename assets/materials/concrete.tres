@@ -1,21 +1,17 @@
-[gd_resource type="StandardMaterial3D" load_steps=4 format=3]
+[gd_resource type="ShaderMaterial" load_steps=5 format=3]
 
-[ext_resource type="Texture2D" path="res://assets/textures/concrete.png" id="1_tex"]
-[ext_resource type="Texture2D" path="res://assets/textures/concrete_n.png" id="2_nrm"]
-[ext_resource type="Texture2D" path="res://assets/textures/concrete_r.png" id="3_rgh"]
+[ext_resource type="Shader" path="res://assets/shaders/damp_concrete_world.gdshader" id="1_shd"]
+[ext_resource type="Texture2D" path="res://assets/textures/concrete.png" id="2_tex"]
+[ext_resource type="Texture2D" path="res://assets/textures/concrete_n.png" id="3_nrm"]
+[ext_resource type="Texture2D" path="res://assets/textures/concrete_r.png" id="4_rgh"]
 
 [resource]
-resource_name = "concrete"
-albedo_texture = ExtResource("1_tex")
-metallic = 0.0
-metallic_specular = 0.3
-roughness = 1.0
-roughness_texture = ExtResource("3_rgh")
-roughness_texture_channel = 0
-normal_enabled = true
-normal_scale = 1.1
-normal_texture = ExtResource("2_nrm")
-uv1_scale = Vector3(0.5, 0.5, 0.5)
-uv1_triplanar = true
-uv1_world_triplanar = true
-texture_filter = 5
+shader = ExtResource("1_shd")
+shader_parameter/uv_scale = 0.5
+shader_parameter/normal_strength = 1.35
+shader_parameter/puddle_amount = 0.58
+shader_parameter/puddle_scale = 0.09
+shader_parameter/dirt_bottom_strength = 0.45
+shader_parameter/albedo_tex = ExtResource("2_tex")
+shader_parameter/normal_tex = ExtResource("3_nrm")
+shader_parameter/rough_tex = ExtResource("4_rgh")
