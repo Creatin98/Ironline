@@ -422,15 +422,14 @@ func _upgrade_cinematic_lighting() -> void:
 
 	var env := env_node.environment
 	env.tonemap_mode = 3
-	env.tonemap_exposure = 0.90
-	env.tonemap_white = 6.0
+	env.tonemap_exposure = 0.88
+	env.tonemap_white = 6.5
 
-		# Echte animierte graue Regenwolken (überschreibt den alten Himmel komplett!)
 	var cloud_code := "shader_type sky;\n" \
 		+ "float hash(vec2 p) { vec3 p3 = fract(vec3(p.xyx) * 0.1031); p3 += dot(p3, p3.yzx + 33.33); return fract((p3.x + p3.y) * p3.z); }\n" \
 		+ "float noise(vec2 p) { vec2 i = floor(p); vec2 f = fract(p); f = f * f * (3.0 - 2.0 * f); return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), f.x), mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), f.x), f.y); }\n" \
-		+ "float fbm(vec2 p) { float v = 0.0; float a = 0.5; for (int i = 0; i < 5; i++) { v += a * noise(p); p *= 2.03; a *= 0.5; } return v; }\n" \
-		+ "void sky() { vec3 d = normalize(EYEDIR); float h = clamp(d.y, 0.001, 1.0); vec2 uv = d.xz / (h + 0.22) * 1.3 + vec2(TIME * 0.012, TIME * 0.006); float c = fbm(uv); vec3 col = mix(vec3(0.20, 0.22, 0.25), vec3(0.42, 0.45, 0.49), smoothstep(0.22, 0.78, c)); COLOR = mix(vec3(0.45, 0.48, 0.52), col, smoothstep(0.0, 0.30, d.y)); }\n"
+		+ "float fbm(vec2 p) { float v = 0.0; float a = 0.5; for (int i = 0; i < 6; i++) { v += a * noise(p); p = p * 2.04 + vec2(1.7, 9.2); a *= 0.5; } return v; }\n" \
+		+ "void sky() { vec3 d = normalize(EYEDIR); float h = clamp(d.y, 0.002, 1.0); vec2 uv = d.xz / (h + 0.16) * 1.15 + vec2(TIME * 0.01, TIME * 0.005); float n1 = fbm(uv); float n2 = fbm(uv * 2.4 - n1 * 0.6); float c = smoothstep(0.18, 0.82, n1 * 0.65 + n2 * 0.35); float sun_dot = max(dot(d, normalize(LIGHT0_DIRECTION)), 0.0); vec3 storm_dark = vec3(0.11, 0.13, 0.17); vec3 storm_mid = vec3(0.28, 0.31, 0.36); vec3 dusk_glow = vec3(0.88, 0.36, 0.16) * pow(sun_dot, 3.0) * 0.9; vec3 horizon_col = mix(vec3(0.38, 0.30, 0.28), vec3(0.82, 0.38, 0.20), pow(sun_dot, 1.8)); vec3 cloud_col = mix(storm_dark, storm_mid, c) + dusk_glow * (1.0 - c * 0.6); COLOR = mix(horizon_col, cloud_col, smoothstep(0.0, 0.34, d.y)); }\n"
 	var sky_shd := Shader.new()
 	sky_shd.code = cloud_code
 	var sky_mat := ShaderMaterial.new()
@@ -439,60 +438,47 @@ func _upgrade_cinematic_lighting() -> void:
 	sky.sky_material = sky_mat
 	env.background_mode = Environment.BG_SKY
 	env.sky = sky
-	for child in get_children():
-		if child.name.to_lower().contains("sky") or child.name.to_lower().contains("flare"):
-			if child is Node3D or child is CanvasItem:
-				child.visible = false
 
-	# Pfützen-Spiegelungen (SSR)
 	env.ssr_enabled = true
 	env.ssr_max_steps = 28
 	env.ssr_fade_in = 0.12
 	env.ssr_fade_out = 2.0
 	env.ssr_depth_tolerance = 0.25
 
-	# Weiche Kontaktschatten
 	env.ssao_enabled = true
-	env.ssao_radius = 1.6
-	env.ssao_intensity = 1.6
+	env.ssao_radius = 1.7
+	env.ssao_intensity = 1.8
 	env.ssil_enabled = false
 
-	# Dezenter Glow ohne grellen Lens-Flare-Ring
 	env.glow_enabled = true
-	env.glow_intensity = 0.22
-	env.glow_bloom = 0.04
+	env.glow_intensity = 0.36
+	env.glow_bloom = 0.08
 
-	# Dichter, gräulicher Regen-Nebel
 	env.volumetric_fog_enabled = false
 	env.fog_enabled = true
 	env.fog_mode = Environment.FOG_MODE_DEPTH
-	env.fog_light_color = Color(0.45, 0.48, 0.52)
-	env.fog_light_energy = 1.0
-	env.fog_sun_scatter = 0.0
-	env.fog_density = 0.88
-	env.fog_depth_begin = 5.0
-	env.fog_depth_end = 62.0
-	env.fog_height = 4.0
-	env.fog_height_density = 0.025
+	env.fog_light_color = Color(0.42, 0.34, 0.32)
+	env.fog_light_energy = 1.05
+	env.fog_sun_scatter = 0.38
+	env.fog_density = 0.68
+	env.fog_depth_begin = 14.0
+	env.fog_depth_end = 92.0
+	env.fog_height = 3.0
+	env.fog_height_density = 0.02
 
-	# Diffuses, gräuliches Wolkenlicht
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	env.ambient_light_color = Color(0.42, 0.45, 0.50)
-	env.ambient_light_energy = 1.15
+	env.ambient_light_color = Color(0.36, 0.34, 0.38)
+	env.ambient_light_energy = 1.05
 
-	# Gedämpftes Wolkenlicht (und falls ein Lens-Flare-Node an der Sonne hängt, ausblenden)
 	for child in get_children():
 		if child is DirectionalLight3D:
-			child.light_color = Color(0.75, 0.79, 0.85)
-			child.light_energy = 1.10
-			child.rotation_degrees = Vector3(-42.0, -45.0, 0.0)
+			child.light_color = Color(1.0, 0.56, 0.32)
+			child.light_energy = 1.75
+			child.rotation_degrees = Vector3(-11.0, -48.0, 0.0)
 			child.shadow_enabled = true
-			child.shadow_blur = 2.5
+			child.shadow_blur = 2.2
 			child.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS
-			child.directional_shadow_max_distance = 100.0
-			for sub in child.get_children():
-				if sub is CanvasItem or sub is Node3D:
-					sub.visible = false
+			child.directional_shadow_max_distance = 110.0
 
 	_spawn_rain_particles()
 
@@ -502,7 +488,7 @@ func _spawn_rain_particles() -> void:
 		get_node("RainParticles").queue_free()
 	var rain := GPUParticles3D.new()
 	rain.name = "RainParticles"
-	rain.amount = 2600
+	rain.amount = 2400
 	rain.lifetime = 0.9
 	rain.preprocess = 1.0
 	rain.visibility_aabb = AABB(Vector3(-80, -5, -80), Vector3(160, 40, 160))
@@ -518,14 +504,13 @@ func _spawn_rain_particles() -> void:
 	pmat.gravity = Vector3(0.0, -15.0, 0.0)
 	rain.process_material = pmat
 
-	# Hauchdünne, schnelle Regenstreifen (keine dicken Punkte mehr!)
 	var drop := QuadMesh.new()
 	drop.size = Vector2(0.005, 0.55)
 	var dmat := StandardMaterial3D.new()
 	dmat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	dmat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	dmat.billboard_mode = BaseMaterial3D.BILLBOARD_FIXED_Y
-	dmat.albedo_color = Color(0.80, 0.84, 0.90, 0.22)
+	dmat.albedo_color = Color(0.88, 0.78, 0.72, 0.22)
 	drop.material = dmat
 	rain.draw_pass_1 = drop
 
