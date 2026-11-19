@@ -382,8 +382,10 @@ func set_shadow_only(shadow_only: bool) -> void:
 ## Where the weapon (hands node) sits: in front of the chest, follows lean and crouch.
 func weapon_anchor() -> Vector3:
 	var dip := sin(_switch * PI)
-	var off := Vector3(0.13, 0.31, -0.30)
-	off += Vector3(0.06, 0.15, -0.23) * _aim # shouldered: the stock rests on the right shoulder, the weapon is never in front of the chest centre
+	var off := Vector3(0.13, 0.33, -0.40) # (further forward: the weapon no longer sinks into the belly)
+	off += Vector3(0.0, 0.10, -0.10) * _crouch * (1.0 - _aim) # crouched / crouch-walking: higher and forward, clear of the thighs
+	off += Vector3(0.0, 0.10, 0.0) * _crouch * _aim # crouched aiming: higher, up at the shoulder
+	off += Vector3(0.06, 0.13, -0.13) * _aim # shouldered: the stock rests on the right shoulder, the weapon is never in front of the chest centre
 	off += Vector3(0.04, -0.17, 0.07) * _sprint # lowered, across the body
 	off += Vector3(0.0, -0.26, 0.06) * dip # weapon change: down and up again
 	off += Vector3(0.0, 0.012, 0.035) * _kick # recoil
@@ -502,7 +504,7 @@ func animate(delta: float, vel_local: Vector3, on_floor: bool, crouching: bool, 
 	_spine.rotation.z = sin(_time * 1.7) * 0.012 + (-vel_local.x * 0.012) + _hit.y
 	_spine.rotation.y = _hit.z + twist
 	_head.rotation.x = clampf(pitch, -1.2, 1.2) * 0.75 - _spine.rotation.x * 0.7 + _head_snap.x
-	_head.rotation.z = _head_snap.y - 0.15 * _aim # the head leans onto the stock (right shoulder) while aiming
+	_head.rotation.z = _head_snap.y - (0.15 + 0.1 * _crouch) * _aim # the head leans onto the stock (right shoulder) while aiming
 	_head.rotation.y = -0.1 * _aim # and turns a little towards the sights
 
 	_throw_w = lerpf(_throw_w, 1.0 if throw_progress >= 0.0 else 0.0, minf(1.0, delta * 14.0))
