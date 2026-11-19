@@ -1,7 +1,6 @@
 class_name Vegetation
 extends RefCounted
-## Procedural plants and terrain for maps: palms (trunk + crown of alpha-cut fronds),
-## layered alpha-cut bushes with stone planter boxes, and rolling hills.
+## Prozedurale Pflanzen und Terrain: Palmen, mehrschichtige Blatt-Büsche mit Pflanzbeeten und Hügel.
 
 const SHADER := "res://assets/shaders/foliage.gdshader"
 
@@ -27,7 +26,6 @@ static func _bark_material() -> StandardMaterial3D:
 	return m
 
 
-## Palm mesh: surface 0 = trunk (tapered, 8 sides, slightly curved), surface 1 = crown (fronds). Height ~6 m.
 static func palm_mesh() -> ArrayMesh:
 	var mesh := ArrayMesh.new()
 	var st := SurfaceTool.new()
@@ -43,8 +41,9 @@ static func palm_mesh() -> ArrayMesh:
 		var ring: Array[Vector3] = []
 		for k in sides:
 			var a := TAU * float(k) / float(sides)
-			ring.append(c + Vector3(cos(a) * r, 0, sin(a) * r))
+			ring.append(c + Vector3(cos(a) * r, 0.0, sin(a) * r))
 		rings.append(ring)
+
 	for i in segs:
 		for k in sides:
 			var k2 := (k + 1) % sides
@@ -56,9 +55,21 @@ static func palm_mesh() -> ArrayMesh:
 			var u1 := float(k + 1) / float(sides)
 			var t0 := float(i) / float(segs)
 			var t1 := float(i + 1) / float(segs)
-			for q in [[v00, u0, t0], [v10, u0, t1], [v11, u1, t1], [v00, u0, t0], [v11, u1, t1], [v01, u1, t0]]:
-				st.set_uv(Vector2(q[1], q[2]))
-				st.add_vertex(q[0])
+
+			st.set_uv(Vector2(u0, t0))
+			st.add_vertex(v00)
+			st.set_uv(Vector2(u0, t1))
+			st.add_vertex(v10)
+			st.set_uv(Vector2(u1, t1))
+			st.add_vertex(v11)
+
+			st.set_uv(Vector2(u0, t0))
+			st.add_vertex(v00)
+			st.set_uv(Vector2(u1, t1))
+			st.add_vertex(v11)
+			st.set_uv(Vector2(u1, t0))
+			st.add_vertex(v01)
+
 	st.generate_normals()
 	mesh = st.commit()
 	mesh.surface_set_material(0, _bark_material())
@@ -71,31 +82,42 @@ static func palm_mesh() -> ArrayMesh:
 		var yaw := TAU * float(f) / float(fronds) + float(f % 3) * 0.2
 		var rise := 0.55 + 0.35 * float((f * 7) % 5) / 4.0
 		var length := 2.5 + 0.5 * float((f * 3) % 4) / 3.0
-		var dir := Vector3(cos(yaw), 0, sin(yaw))
-		var side := Vector3(-sin(yaw), 0, cos(yaw))
+		var dir := Vector3(cos(yaw), 0.0, sin(yaw))
+		var side := Vector3(-sin(yaw), 0.0, cos(yaw))
 		var half_w := 0.55
 		var steps := 5
 		for s in steps:
 			var t0 := float(s) / float(steps)
 			var t1 := float(s + 1) / float(steps)
-			var p0 := top + dir * (length * t0) + Vector3(0, length * (rise * t0 - 0.95 * t0 * t0), 0)
-			var p1 := top + dir * (length * t1) + Vector3(0, length * (rise * t1 - 0.95 * t1 * t1), 0)
-			var w0 := half_w * sin(PI * clampf(0.12 + 0.88 * t0, 0.0, 1.0)) ** 0.6
-			var w1 := half_w * sin(PI * clampf(0.12 + 0.88 * t1, 0.0, 1.0)) ** 0.6
+			var p0 := top + dir * (length * t0) + Vector3(0.0, length * (rise * t0 - 0.95 * t0 * t0), 0.0)
+			var p1 := top + dir * (length * t1) + Vector3(0.0, length * (rise * t1 - 0.95 * t1 * t1), 0.0)
+			var w0 := half_w * pow(sin(PI * clampf(0.12 + 0.88 * t0, 0.0, 1.0)), 0.6)
+			var w1 := half_w * pow(sin(PI * clampf(0.12 + 0.88 * t1, 0.0, 1.0)), 0.6)
 			var a := p0 - side * w0
 			var b := p0 + side * w0
 			var c := p1 + side * w1
 			var d := p1 - side * w1
-			for q in [[a, 0.0, t0], [b, 1.0, t0], [c, 1.0, t1], [a, 0.0, t0], [c, 1.0, t1], [d, 0.0, t1]]:
-				cs.set_uv(Vector2(q[1], q[2]))
-				cs.set_normal(Vector3(0, 1, 0))
-				cs.add_vertex(q[0])
+
+			cs.set_normal(Vector3.UP)
+			cs.set_uv(Vector2(0.0, t0))
+			cs.add_vertex(a)
+			cs.set_uv(Vector2(1.0, t0))
+			cs.add_vertex(b)
+			cs.set_uv(Vector2(1.0, t1))
+			cs.add_vertex(c)
+
+			cs.set_uv(Vector2(0.0, t0))
+			cs.add_vertex(a)
+			cs.set_uv(Vector2(1.0, t1))
+			cs.add_vertex(c)
+			cs.set_uv(Vector2(0.0, t1))
+			cs.add_vertex(d)
+
 	cs.commit(mesh)
 	mesh.surface_set_material(1, _foliage_material("res://assets/textures/palm_frond.png", Color(1.0, 1.0, 1.0), true, 0.16))
 	return mesh
 
 
-## Realistic multi-layered alpha-cut bush (30 angled leaf cards with ambient-occlusion vertex shading).
 static func bush_mesh() -> ArrayMesh:
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
@@ -103,8 +125,8 @@ static func bush_mesh() -> ArrayMesh:
 	var card_count := 30
 	for i in card_count:
 		var fi := float(i)
-		var yaw := fmod(fi * 2.399963, TAU) # Golden-angle distribution
-		var layer := fi / float(card_count) # 0 = bottom/outer, 1 = top/crown
+		var yaw := fmod(fi * 2.399963, TAU)
+		var layer := fi / float(card_count)
 		var pitch := lerpf(0.28, 1.25, layer) + sin(fi * 3.1) * 0.18
 		var dist := lerpf(0.24, 0.06, layer)
 		var card_w := lerpf(0.68, 0.48, layer)
@@ -123,24 +145,34 @@ static func bush_mesh() -> ArrayMesh:
 		var v_tr := center + side * (card_w * 0.5) + up_card * (card_h * 0.65) + bend
 		var v_tl := center - side * (card_w * 0.5) + up_card * (card_h * 0.65) + bend
 
-		# Darker inner base for fake Ambient Occlusion, brighter sun-kissed tips
 		var col_inner := Color(0.32, 0.36, 0.28)
 		var col_tip := Color(0.88, 0.94, 0.80)
-
 		var nrm := (out_dir + Vector3.UP * 0.6).normalized()
-		var tris := [
-			[v_bl, Vector2(0.0, 1.0), col_inner],
-			[v_br, Vector2(1.0, 1.0), col_inner],
-			[v_tr, Vector2(1.0, 0.0), col_tip],
-			[v_bl, Vector2(0.0, 1.0), col_inner],
-			[v_tr, Vector2(1.0, 0.0), col_tip],
-			[v_tl, Vector2(0.0, 0.0), col_tip],
-		]
-		for v in tris:
-			st.set_color(v[2])
-			st.set_normal(nrm)
-			st.set_uv(v[1])
-			st.add_vertex(v[0])
+
+		st.set_normal(nrm)
+		st.set_color(col_inner)
+		st.set_uv(Vector2(0.0, 1.0))
+		st.add_vertex(v_bl)
+
+		st.set_color(col_inner)
+		st.set_uv(Vector2(1.0, 1.0))
+		st.add_vertex(v_br)
+
+		st.set_color(col_tip)
+		st.set_uv(Vector2(1.0, 0.0))
+		st.add_vertex(v_tr)
+
+		st.set_color(col_inner)
+		st.set_uv(Vector2(0.0, 1.0))
+		st.add_vertex(v_bl)
+
+		st.set_color(col_tip)
+		st.set_uv(Vector2(1.0, 0.0))
+		st.add_vertex(v_tr)
+
+		st.set_color(col_tip)
+		st.set_uv(Vector2(0.0, 0.0))
+		st.add_vertex(v_tl)
 
 	var mesh := st.commit()
 	var m := _foliage_material("res://assets/textures/palm_frond.png", Color(0.62, 0.78, 0.46), true, 0.06)
@@ -148,53 +180,55 @@ static func bush_mesh() -> ArrayMesh:
 	return mesh
 
 
-## Builds a beveled concrete planter box + dark soil bed to ground courtyard bushes.
+static func _add_quad(st: SurfaceTool, p0: Vector3, p1: Vector3, p2: Vector3, p3: Vector3, nrm: Vector3) -> void:
+	st.set_normal(nrm)
+	st.set_uv(Vector2(p0.x + p0.z, p0.y) * 0.5)
+	st.add_vertex(p0)
+	st.set_uv(Vector2(p1.x + p1.z, p1.y) * 0.5)
+	st.add_vertex(p1)
+	st.set_uv(Vector2(p2.x + p2.z, p2.y) * 0.5)
+	st.add_vertex(p2)
+
+	st.set_uv(Vector2(p0.x + p0.z, p0.y) * 0.5)
+	st.add_vertex(p0)
+	st.set_uv(Vector2(p2.x + p2.z, p2.y) * 0.5)
+	st.add_vertex(p2)
+	st.set_uv(Vector2(p3.x + p3.z, p3.y) * 0.5)
+	st.add_vertex(p3)
+
+
 static func _planter_mesh() -> ArrayMesh:
-	var mesh := ArrayMesh.new()
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 
-	var w := 1.45
-	var d := 1.45
+	var hw := 0.72
+	var hd := 0.72
 	var h := 0.36
 	var rim := 0.14
-	var hw := w * 0.5
-	var hd := d * 0.5
 	var iw := hw - rim
 	var id := hd - rim
 
-	# Helper lambda via local array of quads (outer walls + top rim)
-	var quads := [
-		# Outer walls
-		[Vector3(-hw, 0, hd), Vector3(hw, 0, hd), Vector3(hw, h, hd), Vector3(-hw, h, hd), Vector3.BACK],
-		[Vector3(hw, 0, -hd), Vector3(-hw, 0, -hd), Vector3(-hw, h, -hd), Vector3(hw, h, -hd), Vector3.FORWARD],
-		[Vector3(hw, 0, hd), Vector3(hw, 0, -hd), Vector3(hw, h, -hd), Vector3(hw, h, hd), Vector3.RIGHT],
-		[Vector3(-hw, 0, -hd), Vector3(-hw, 0, hd), Vector3(-hw, h, hd), Vector3(-hw, h, -hd), Vector3.LEFT],
-		# Top stone rim (4 strips around the soil)
-		[Vector3(-hw, h, hd), Vector3(hw, h, hd), Vector3(iw, h, id), Vector3(-iw, h, id), Vector3.UP],
-		[Vector3(hw, h, -hd), Vector3(-hw, h, -hd), Vector3(-iw, h, -id), Vector3(iw, h, -id), Vector3.UP],
-		[Vector3(hw, h, hd), Vector3(hw, h, -hd), Vector3(iw, h, -id), Vector3(iw, h, id), Vector3.UP],
-		[Vector3(-hw, h, -hd), Vector3(-hw, h, hd), Vector3(-iw, h, id), Vector3(-iw, h, -id), Vector3.UP],
-	]
-	for q in quads:
-		for idx in:
-			st.set_normal(q[4])
-			st.set_uv(Vector2(q[idx].x, q[idx].z) * 0.5)
-			st.add_vertex(q[idx])
+	# Außenwände des Beton-Pflanzbeets
+	_add_quad(st, Vector3(-hw, 0.0, hd), Vector3(hw, 0.0, hd), Vector3(hw, h, hd), Vector3(-hw, h, hd), Vector3.BACK)
+	_add_quad(st, Vector3(hw, 0.0, -hd), Vector3(-hw, 0.0, -hd), Vector3(-hw, h, -hd), Vector3(hw, h, -hd), Vector3.FORWARD)
+	_add_quad(st, Vector3(hw, 0.0, hd), Vector3(hw, 0.0, -hd), Vector3(hw, h, -hd), Vector3(hw, h, hd), Vector3.RIGHT)
+	_add_quad(st, Vector3(-hw, 0.0, -hd), Vector3(-hw, 0.0, hd), Vector3(-hw, h, hd), Vector3(-hw, h, -hd), Vector3.LEFT)
 
-	mesh = st.commit()
+	# Oberer Steinrand (4 Streifen um die Erde)
+	_add_quad(st, Vector3(-hw, h, hd), Vector3(hw, h, hd), Vector3(iw, h, id), Vector3(-iw, h, id), Vector3.UP)
+	_add_quad(st, Vector3(hw, h, -hd), Vector3(-hw, h, -hd), Vector3(-iw, h, -id), Vector3(iw, h, -id), Vector3.UP)
+	_add_quad(st, Vector3(hw, h, hd), Vector3(hw, h, -hd), Vector3(iw, h, -id), Vector3(iw, h, id), Vector3.UP)
+	_add_quad(st, Vector3(-hw, h, -hd), Vector3(-hw, h, hd), Vector3(-iw, h, id), Vector3(-iw, h, -id), Vector3.UP)
+
+	var mesh := st.commit()
 	if ResourceLoader.exists("res://assets/materials/concrete.tres"):
 		mesh.surface_set_material(0, load("res://assets/materials/concrete.tres"))
 
-	# Surface 1: dark rich soil inside the planter
+	# Dunkle Erde im Beet
 	var soil_st := SurfaceTool.new()
 	soil_st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	var sy := h - 0.06
-	var sq := [Vector3(-iw, sy, id), Vector3(iw, sy, id), Vector3(iw, sy, -id), Vector3(-iw, sy, -id)]
-	for idx in:
-		soil_st.set_normal(Vector3.UP)
-		soil_st.set_uv(Vector2(sq[idx].x, sq[idx].z))
-		soil_st.add_vertex(sq[idx])
+	_add_quad(soil_st, Vector3(-iw, sy, id), Vector3(iw, sy, id), Vector3(iw, sy, -id), Vector3(-iw, sy, -id), Vector3.UP)
 	soil_st.commit(mesh)
 
 	var soil_mat := StandardMaterial3D.new()
@@ -204,7 +238,6 @@ static func _planter_mesh() -> ArrayMesh:
 	return mesh
 
 
-## items: [{"pos": Vector3, "scale": float, "yaw": float, "color": Color (optional)}]
 static func scatter(parent: Node3D, mesh: Mesh, items: Array, node_name: String) -> void:
 	if items.is_empty():
 		return
@@ -252,7 +285,6 @@ static func scatter(parent: Node3D, mesh: Mesh, items: Array, node_name: String)
 		parent.add_child(pmi)
 
 
-## Hills around the playing area (huge squashed spheres with the ground texture, no collision).
 static func hills(parent: Node3D, material: Material, items: Array) -> void:
 	var sphere := SphereMesh.new()
 	sphere.radius = 0.5
@@ -265,3 +297,4 @@ static func hills(parent: Node3D, material: Material, items: Array) -> void:
 	mm.mesh = sphere
 	mm.instance_count = items.size()
 	for i in items.size():
+		var it: Dictionary = items[i]
