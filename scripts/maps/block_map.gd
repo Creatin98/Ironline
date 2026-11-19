@@ -425,18 +425,47 @@ func _upgrade_cinematic_lighting() -> void:
 	env.tonemap_exposure = 0.90
 	env.tonemap_white = 6.0
 
-	# Dichte graue Regenwolken-Decke (ohne grellen Sonnen-Ball!)
+		# Echte animierte graue Regenwolken (überschreibt den alten Himmel komplett!)
+	var cloud_code := """
+shader_type sky;
+float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+float noise(vec2 p) {
+	vec2 i = floor(p); vec2 f = fract(p);
+	f = f * f * (3.0 - 2.0 * f);
+	return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), f.x),
+	           mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), f.x), f.y);
+}
+float fbm(vec2 p) {
+	float v = 0.0; float a = 0.5;
+	for (int i = 0; i < 4; i++) { v += a * noise(p); p *= 2.05; a *= 0.5; }
+	return v;
+}
+void sky() {
+	vec3 d = normalize(EYEDIR);
+	float h = clamp(d.y, 0.001, 1.0);
+	vec2 uv = d.xz / (h + 0.18) * 1.4 + vec2(TIME * 0.015, TIME * 0.008);
+	float c = fbm(uv);
+	vec3 dark_cloud = vec3(0.18, 0.20, 0.23);
+	vec3 light_cloud = vec3(0.42, 0.45, 0.49);
+	vec3 horizon = vec3(0.45, 0.48, 0.52);
+	vec3 col = mix(dark_cloud, light_cloud, smoothstep(0.25, 0.80, c));
+	col = mix(horizon, col, smoothstep(0.0, 0.28, d.y));
+	COLOR = col;
+}
+"""
+	var sky_shd := Shader.new()
+	sky_shd.code = cloud_code
+	var sky_mat := ShaderMaterial.new()
+	sky_mat.shader = sky_shd
 	var sky := Sky.new()
-	var sky_mat := ProceduralSkyMaterial.new()
-	sky_mat.sky_top_color = Color(0.24, 0.27, 0.31)
-	sky_mat.sky_horizon_color = Color(0.45, 0.48, 0.52)
-	sky_mat.ground_bottom_color = Color(0.18, 0.20, 0.22)
-	sky_mat.ground_horizon_color = Color(0.42, 0.45, 0.49)
-	sky_mat.sun_angle_max = 0.0 # Versteckt den grellen Sonnenball hinter den Wolken!
-	sky_mat.sun_curve = 0.01
 	sky.sky_material = sky_mat
 	env.background_mode = Environment.BG_SKY
 	env.sky = sky
+
+	for child in get_children():
+		if child.name.to_lower().contains("sky") or child.name.to_lower().contains("flare"):
+			if child is Node3D or child is CanvasItem:
+				child.visible = false
 
 	# Pfützen-Spiegelungen (SSR)
 	env.ssr_enabled = true
