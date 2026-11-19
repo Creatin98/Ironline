@@ -422,34 +422,87 @@ func _upgrade_cinematic_lighting() -> void:
 
 	var env := env_node.environment
 	env.tonemap_mode = 3
-	env.tonemap_exposure = 0.88 # Verhindert den ausgebrannten weißen Himmel!
-	env.tonemap_white = 8.0
+	env.tonemap_exposure = 0.74
+	env.tonemap_white = 7.5
 
 	env.ssr_enabled = true
-	env.ssr_max_steps = 24
-	env.ssr_fade_in = 0.15
+	env.ssr_max_steps = 28
+	env.ssr_fade_in = 0.12
 	env.ssr_fade_out = 2.0
-	env.ssr_depth_tolerance = 0.3
+	env.ssr_depth_tolerance = 0.25
 
 	env.ssao_enabled = true
-	env.ssao_radius = 1.6
-	env.ssao_intensity = 2.2
+	env.ssao_radius = 1.8
+	env.ssao_intensity = 2.6
 	env.ssil_enabled = false
 
 	env.glow_enabled = true
-	env.glow_intensity = 0.30
-	env.glow_bloom = 0.06
+	env.glow_intensity = 0.48
+	env.glow_bloom = 0.14
+
 	env.volumetric_fog_enabled = false
 	env.fog_enabled = true
-	env.fog_light_color = Color(0.85, 0.88, 0.94)
-	env.fog_density = 0.0018 # Weniger Nebel = Palmen im Hintergrund wieder sattgrün!
+	env.fog_mode = Environment.FOG_MODE_DEPTH
+	env.fog_light_color = Color(0.36, 0.35, 0.38)
+	env.fog_light_energy = 1.15
+	env.fog_sun_scatter = 0.45
+	env.fog_density = 0.65
+	env.fog_depth_begin = 10.0
+	env.fog_depth_end = 95.0
+	env.fog_height = 2.0
+	env.fog_height_density = 0.035
+
+	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+	env.ambient_light_color = Color(0.24, 0.27, 0.35)
+	env.ambient_light_energy = 0.60
 
 	for child in get_children():
 		if child is DirectionalLight3D:
-			child.light_color = Color(1.0, 0.86, 0.68)
-			child.light_energy = 2.8
-			child.rotation_degrees = Vector3(-26.0, -48.0, 0.0) # Tiefe Nachmittagssonne = lange Palmenschatten!
+			child.light_color = Color(1.0, 0.64, 0.36)
+			child.light_energy = 2.1
+			child.rotation_degrees = Vector3(-13.0, -52.0, 0.0)
 			child.shadow_enabled = true
-			child.shadow_blur = 1.6
+			child.shadow_blur = 2.0
 			child.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS
 			child.directional_shadow_max_distance = 110.0
+
+	_spawn_dust_particles()
+
+
+func _spawn_dust_particles() -> void:
+	if has_node("AtmosphereDust"):
+		return
+	var particles := GPUParticles3D.new()
+	particles.name = "AtmosphereDust"
+	particles.amount = 650
+	particles.lifetime = 8.0
+	particles.preprocess = 4.0
+	particles.visibility_aabb = AABB(Vector3(-80, -5, -80), Vector3(160, 35, 160))
+	particles.position = Vector3(0.0, 8.0, 0.0)
+
+	var pmat := ParticleProcessMaterial.new()
+	pmat.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_BOX
+	pmat.emission_box_extents = Vector3(65.0, 12.0, 65.0)
+	pmat.direction = Vector3(0.4, -0.35, 0.2)
+	pmat.spread = 35.0
+	pmat.initial_velocity_min = 0.4
+	pmat.initial_velocity_max = 1.4
+	pmat.gravity = Vector3(0.0, -0.15, 0.0)
+	pmat.turbulence_enabled = true
+	pmat.turbulence_noise_strength = 0.35
+	pmat.turbulence_noise_scale = 2.5
+	pmat.scale_min = 0.6
+	pmat.scale_max = 1.6
+	particles.process_material = pmat
+
+	var quad := QuadMesh.new()
+	quad.size = Vector2(0.035, 0.035)
+	var qmat := StandardMaterial3D.new()
+	qmat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	qmat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	qmat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+	qmat.albedo_color = Color(0.95, 0.85, 0.72, 0.32)
+	quad.material = qmat
+	particles.draw_pass_1 = quad
+
+	add_child(particles)
