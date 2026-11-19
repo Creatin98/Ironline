@@ -347,21 +347,26 @@ func _get_material(mat_name: String, tint) -> Material:
 	if _material_cache.has(key):
 		return _material_cache[key]
 	var path := MATERIAL_DIR + mat_name + ".tres"
-	var base: StandardMaterial3D = null
+	var base: Material = null
 	if ResourceLoader.exists(path):
 		base = load(path)
 	if base == null:
 		push_warning("BlockMap: Material fehlt: " + path)
-		base = StandardMaterial3D.new()
-		base.albedo_color = Color(0.8, 0.2, 0.8)
-	var mat := base
+		var fallback := StandardMaterial3D.new()
+		fallback.albedo_color = Color(0.8, 0.2, 0.8)
+		base = fallback
+	var mat: Material = base
 	if tint != null:
 		mat = base.duplicate()
-		mat.albedo_color = tint
-		if mat.emission_enabled:
-			mat.emission = tint # lamps glow in their own colour
+		if mat is StandardMaterial3D:
+			mat.albedo_color = tint
+			if mat.emission_enabled:
+				mat.emission = tint
+		elif mat is ShaderMaterial:
+			mat.set_shader_parameter("tint_color", tint)
 	_material_cache[key] = mat
 	return mat
+
 
 
 func _build_spawns() -> void:
