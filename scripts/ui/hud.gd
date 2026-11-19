@@ -14,6 +14,8 @@ const WEAPON_LABELS := {
 
 var crosshair: Control
 var health_bar_fill: ColorRect
+var health_ticks_bar: Control
+var compass_bar: Control
 var health_label: Label
 var ammo_label: Label
 var weapon_label: Label
@@ -117,20 +119,35 @@ func _build() -> void:
 	reload_hint.add_theme_constant_override("outline_size", 6)
 	add_child(reload_hint)
 
-	# --- top left: score ---
-	var score_panel := UITheme.panel()
+	# --- top left: score (schlankes CoD-Layout ohne dicken Kasten) ---
+	var score_panel := Control.new()
 	score_panel.set_anchors_preset(Control.PRESET_TOP_LEFT)
-	score_box = UITheme.vbox(4)
+	score_panel.custom_minimum_size = Vector2(210, 95)
+	score_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	score_box = UITheme.vbox(3)
 	score_panel.add_child(score_box)
 	add_child(score_panel)
 	_blocks["score"] = {"node": score_panel, "corner": Vector2(0, 0), "label": "Punkte"}
 
-	# --- top center: timer ---
-	timer_label = UITheme.label("", 30, UITheme.TEXT, HORIZONTAL_ALIGNMENT_CENTER)
-	timer_label.set_anchors_preset(Control.PRESET_TOP_LEFT)
-	timer_label.custom_minimum_size = Vector2(200, 40)
-	add_child(timer_label)
-	_blocks["timer"] = {"node": timer_label, "corner": Vector2(0.5, 0), "label": "Zeit"}
+	# --- top center: timer + taktischer Kompass ---
+	var top_center := UITheme.vbox(2)
+	top_center.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	top_center.custom_minimum_size = Vector2(360, 72)
+	top_center.mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+	timer_label = UITheme.label("", 26, UITheme.TEXT, HORIZONTAL_ALIGNMENT_CENTER)
+	timer_label.custom_minimum_size = Vector2(360, 32)
+	timer_label.add_theme_constant_override("outline_size", 5)
+	top_center.add_child(timer_label)
+
+	compass_bar = Control.new()
+	compass_bar.custom_minimum_size = Vector2(360, 36)
+	compass_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	compass_bar.draw.connect(_draw_compass)
+	top_center.add_child(compass_bar)
+
+	add_child(top_center)
+	_blocks["timer"] = {"node": top_center, "corner": Vector2(0.5, 0), "label": "Zeit & Kompass"}
 
 	# --- top right: killfeed ---
 	killfeed_box = UITheme.vbox(4)
@@ -141,46 +158,75 @@ func _build() -> void:
 	add_child(killfeed_box)
 	_blocks["killfeed"] = {"node": killfeed_box, "corner": Vector2(1, 0), "label": "Killfeed"}
 
-	# --- bottom left: health ---
-	var health_panel := UITheme.panel()
+	# --- bottom left: segmentierte CoD-HP-Bar (40 feine Striche) ---
+	var health_panel := Control.new()
 	health_panel.set_anchors_preset(Control.PRESET_TOP_LEFT)
-	var hv := UITheme.vbox(6)
+	health_panel.custom_minimum_size = Vector2(300, 68)
+	health_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var hv := UITheme.vbox(4)
 	health_panel.add_child(hv)
-	var hh := UITheme.hbox(10)
+
+	var hh := UITheme.hbox(8)
 	hv.add_child(hh)
-	health_label = UITheme.label("100%", 34, UITheme.TEXT)
-	health_label.custom_minimum_size = Vector2(110, 0)
+	health_label = UITheme.label("100%", 36, UITheme.TEXT)
+	health_label.add_theme_constant_override("outline_size", 5)
 	hh.add_child(health_label)
-	var hl := UITheme.label("GESUNDHEIT", 14, UITheme.TEXT_DIM)
+	var hl := UITheme.label("HP", 14, Color(0.75, 0.82, 0.88, 0.85))
 	hl.size_flags_vertical = Control.SIZE_SHRINK_END
+	hl.add_theme_constant_override("outline_size", 4)
 	hh.add_child(hl)
-	var bar_bg := ColorRect.new()
-	bar_bg.color = Color(0, 0, 0, 0.5)
-	bar_bg.custom_minimum_size = Vector2(260, 10)
-	bar_bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	hv.add_child(bar_bg)
+
+	health_ticks_bar = Control.new()
+	health_ticks_bar.custom_minimum_size = Vector2(280, 16)
+	health_ticks_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	health_ticks_bar.draw.connect(_draw_health_ticks)
+	hv.add_child(health_ticks_bar)
+
 	health_bar_fill = ColorRect.new()
-	health_bar_fill.color = UITheme.SUCCESS
-	health_bar_fill.size = Vector2(260, 10)
-	health_bar_fill.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	bar_bg.add_child(health_bar_fill)
+	health_bar_fill.visible = false
+	health_panel.add_child(health_bar_fill)
+
 	add_child(health_panel)
 	_blocks["health"] = {"node": health_panel, "corner": Vector2(0, 1), "label": "Gesundheit"}
 
-	# --- bottom right: ammo ---
-	var ammo_panel := UITheme.panel()
+	# --- bottom right: offenes CoD-Waffen- & Munitions-HUD ---
+	var ammo_panel := Control.new()
 	ammo_panel.set_anchors_preset(Control.PRESET_TOP_LEFT)
-	ammo_panel.custom_minimum_size = Vector2(280, 0)
+	ammo_panel.custom_minimum_size = Vector2(290, 120)
+	ammo_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var av := UITheme.vbox(2)
+	av.custom_minimum_size = Vector2(290, 0)
 	ammo_panel.add_child(av)
-	weapon_label = UITheme.label("AK-47", 16, UITheme.ACCENT, HORIZONTAL_ALIGNMENT_RIGHT)
-	av.add_child(weapon_label)
+
+	var top_wep_row := UITheme.hbox(10)
+	top_wep_row.alignment = BoxContainer.ALIGNMENT_END
+	av.add_child(top_wep_row)
+
 	silhouette = WeaponSilhouette.new()
-	av.add_child(silhouette)
-	ammo_label = UITheme.label("30 | 90", 40, UITheme.TEXT, HORIZONTAL_ALIGNMENT_RIGHT)
-	av.add_child(ammo_label)
-	grenade_label = UITheme.label("GRANATEN  2    BLENDGRANATE  1", 16, UITheme.TEXT_DIM, HORIZONTAL_ALIGNMENT_RIGHT)
-	av.add_child(grenade_label)
+	top_wep_row.add_child(silhouette)
+
+	ammo_label = UITheme.label("30 | 90", 42, UITheme.TEXT, HORIZONTAL_ALIGNMENT_RIGHT)
+	ammo_label.add_theme_constant_override("outline_size", 6)
+	top_wep_row.add_child(ammo_label)
+
+	var line := ColorRect.new()
+	line.color = Color(1.0, 1.0, 1.0, 0.25)
+	line.custom_minimum_size = Vector2(260, 1)
+	line.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	av.add_child(line)
+
+	var bottom_wep_row := UITheme.hbox(12)
+	bottom_wep_row.alignment = BoxContainer.ALIGNMENT_END
+	av.add_child(bottom_wep_row)
+
+	weapon_label = UITheme.label("AK-47", 15, UITheme.ACCENT, HORIZONTAL_ALIGNMENT_RIGHT)
+	weapon_label.add_theme_constant_override("outline_size", 4)
+	bottom_wep_row.add_child(weapon_label)
+
+	grenade_label = UITheme.label("G: 2  •  B: 1", 15, Color(0.85, 0.85, 0.85, 0.9), HORIZONTAL_ALIGNMENT_RIGHT)
+	grenade_label.add_theme_constant_override("outline_size", 4)
+	bottom_wep_row.add_child(grenade_label)
+
 	add_child(ammo_panel)
 	_blocks["ammo"] = {"node": ammo_panel, "corner": Vector2(1, 1), "label": "Munition"}
 
@@ -363,6 +409,8 @@ func _process(delta: float) -> void:
 		d["time"] = float(d["time"]) - delta
 	_damage_dirs = _damage_dirs.filter(func(d: Dictionary) -> bool: return float(d["time"]) > 0.0)
 	crosshair.queue_redraw()
+	if visible and compass_bar != null:
+		compass_bar.queue_redraw()
 	minimap.player = _player
 	# respawn countdown
 	if _respawn_time_left >= 0.0:
@@ -550,6 +598,8 @@ func _on_local_spawned(player: Node) -> void:
 	sub_label.text = ""
 	_health_ratio = 1.0
 	_on_health_changed(_player.health.max_health, _player.health.max_health)
+	if health_ticks_bar != null:
+		health_ticks_bar.queue_redraw()
 	_on_weapon_changed(_player.weapon_manager.get_current_weapon())
 	_on_grenades_changed(_player.weapon_manager.grenades)
 	_on_flashbangs_changed(_player.weapon_manager.flashbangs)
@@ -842,3 +892,43 @@ func _on_participant_killed(victim_id: int, killer_id: int, weapon_id: String, h
 	# weapon kills already played their confirmation via the hit feedback; grenades did not
 	if killer_id == MatchManager.local_participant_id and victim_id != killer_id and weapon_id in ["grenade", "flashbang"]:
 		AudioManager.play_2d("kill_confirm", -4.0)
+func _draw_health_ticks() -> void:
+	var total_ticks := 40
+	var active_ticks := int(round(_health_ratio * float(total_ticks)))
+	var w := health_ticks_bar.size.x
+	var h := health_ticks_bar.size.y
+	var step := w / float(total_ticks)
+	var tick_w := maxf(2.0, step * 0.55)
+	var active_col := Color(0.95, 0.97, 1.0, 0.95) if _health_ratio > 0.3 else UITheme.DANGER
+	var dim_col := Color(1.0, 1.0, 1.0, 0.16)
+	for i in total_ticks:
+		var x := float(i) * step
+		var rect := Rect2(Vector2(x, 2.0), Vector2(tick_w, h - 4.0))
+		health_ticks_bar.draw_rect(rect, active_col if i < active_ticks else dim_col)
+
+
+func _draw_compass() -> void:
+	var w := compass_bar.size.x
+	var cx := w * 0.5
+	var yaw_deg := 0.0
+	if _player != null and is_instance_valid(_player):
+		yaw_deg = fposmod(-rad_to_deg(_player.rotation.y), 360.0)
+
+	var font := ThemeDB.fallback_font
+	compass_bar.draw_line(Vector2(cx, 0.0), Vector2(cx, 6.0), UITheme.ACCENT, 2.0)
+	compass_bar.draw_string(font, Vector2(cx - 18.0, 18.0), "%03d°" % int(round(yaw_deg)), HORIZONTAL_ALIGNMENT_CENTER, 36.0, 12, UITheme.ACCENT)
+
+	var dirs := {0: "N", 45: "NE", 90: "E", 135: "SE", 180: "S", 225: "SW", 270: "W", 315: "NW"}
+	var px_per_deg := 2.4
+	for offset_deg in range(-75, 76, 5):
+		var deg := int(posmod(roundi(yaw_deg) + offset_deg, 360))
+		var x := cx + float(offset_deg) * px_per_deg
+		var edge_fade := 1.0 - clampf(absf(float(offset_deg)) / 75.0, 0.0, 1.0)
+		if deg % 45 == 0 and dirs.has(deg):
+			var label: String = dirs[deg]
+			var is_cardinal := label.length() == 1
+			compass_bar.draw_string(font, Vector2(x - 12.0, 32.0), label, HORIZONTAL_ALIGNMENT_CENTER, 24.0, 14 if is_cardinal else 11, Color(1, 1, 1, 0.95 * edge_fade))
+		elif deg % 15 == 0:
+			compass_bar.draw_line(Vector2(x, 22.0), Vector2(x, 29.0), Color(1, 1, 1, 0.55 * edge_fade), 1.5)
+		else:
+			compass_bar.draw_line(Vector2(x, 25.0), Vector2(x, 29.0), Color(1, 1, 1, 0.25 * edge_fade), 1.0)
