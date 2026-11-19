@@ -409,6 +409,28 @@ func _on_kill_zone_entered(body: Node3D) -> void:
 
 
 func _upgrade_cinematic_lighting() -> void:
+	var _rain_particles: GPUParticles3D
+var _rain_mat: ParticleProcessMaterial
+var _wind_time: float = 0.0
+var _wind_dir: Vector3 = Vector3(0.85, 0.0, 0.35).normalized()
+
+
+func _process(delta: float) -> void:
+	_wind_time += delta
+	# Dynamische Sturm-Böen (wechseln weich zwischen leichtem Wind und starken Böen)
+	var gust := 0.65 + 0.35 * sin(_wind_time * 0.7) + 0.2 * sin(_wind_time * 1.9)
+	RenderingServer.global_shader_parameter_set("wind_dir", Vector2(_wind_dir.x, _wind_dir.z))
+	RenderingServer.global_shader_parameter_set("wind_strength", gust)
+
+	# Regen neigt sich synchron zu den Windböen schräg!
+	if _rain_mat != null:
+		var slant := 7.5 * gust
+		_rain_mat.direction = Vector3(_wind_dir.x * slant, -22.0, _wind_dir.z * slant).normalized()
+		_rain_mat.initial_velocity_min = 22.0 + 6.0 * gust
+		_rain_mat.initial_velocity_max = 28.0 + 8.0 * gust
+
+
+func _upgrade_cinematic_lighting() -> void:
 	var env_node: WorldEnvironment = null
 	for child in get_children():
 		if child is WorldEnvironment:
@@ -422,14 +444,15 @@ func _upgrade_cinematic_lighting() -> void:
 
 	var env := env_node.environment
 	env.tonemap_mode = 3
-	env.tonemap_exposure = 0.88
-	env.tonemap_white = 6.5
+	env.tonemap_exposure = 1.05 # Heller, kein dunkles Absaufen mehr!
+	env.tonemap_white = 8.0
 
+	# Dramatische Sturm- & Dämmerungswolken (ohne ausgebrannten weißen Fleck)
 	var cloud_code := "shader_type sky;\n" \
 		+ "float hash(vec2 p) { vec3 p3 = fract(vec3(p.xyx) * 0.1031); p3 += dot(p3, p3.yzx + 33.33); return fract((p3.x + p3.y) * p3.z); }\n" \
 		+ "float noise(vec2 p) { vec2 i = floor(p); vec2 f = fract(p); f = f * f * (3.0 - 2.0 * f); return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), f.x), mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), f.x), f.y); }\n" \
 		+ "float fbm(vec2 p) { float v = 0.0; float a = 0.5; for (int i = 0; i < 6; i++) { v += a * noise(p); p = p * 2.04 + vec2(1.7, 9.2); a *= 0.5; } return v; }\n" \
-		+ "void sky() { vec3 d = normalize(EYEDIR); float h = clamp(d.y, 0.002, 1.0); vec2 uv = d.xz / (h + 0.16) * 1.15 + vec2(TIME * 0.01, TIME * 0.005); float n1 = fbm(uv); float n2 = fbm(uv * 2.4 - n1 * 0.6); float c = smoothstep(0.18, 0.82, n1 * 0.65 + n2 * 0.35); float sun_dot = max(dot(d, normalize(LIGHT0_DIRECTION)), 0.0); vec3 storm_dark = vec3(0.11, 0.13, 0.17); vec3 storm_mid = vec3(0.28, 0.31, 0.36); vec3 dusk_glow = vec3(0.88, 0.36, 0.16) * pow(sun_dot, 3.0) * 0.9; vec3 horizon_col = mix(vec3(0.38, 0.30, 0.28), vec3(0.82, 0.38, 0.20), pow(sun_dot, 1.8)); vec3 cloud_col = mix(storm_dark, storm_mid, c) + dusk_glow * (1.0 - c * 0.6); COLOR = mix(horizon_col, cloud_col, smoothstep(0.0, 0.34, d.y)); }\n"
+		+ "void sky() { vec3 d = normalize(EYEDIR); float h = clamp(d.y, 0.003, 1.0); vec2 uv = d.xz / (h + 0.18) * 1.15 + vec2(TIME * 0.025, TIME * 0.012); float n1 = fbm(uv); float n2 = fbm(uv * 2.3 - n1 * 0.5); float c = smoothstep(0.18, 0.85, n1 * 0.65 + n2 * 0.35); float sun_dot = max(dot(d, normalize(LIGHT0_DIRECTION)), 0.0); vec3 storm_dark = vec3(0.16, 0.18, 0.22); vec3 storm_mid = vec3(0.34, 0.36, 0.40); vec3 dusk_glow = vec3(0.68, 0.32, 0.18) * pow(sun_dot, 3.5) * 0.65; vec3 horizon_col = mix(vec3(0.38, 0.34, 0.35), vec3(0.62, 0.34, 0.22), pow(sun_dot, 2.0)); vec3 cloud_col = mix(storm_dark, storm_mid, c) + dusk_glow * (1.0 - c * 0.5); COLOR = mix(horizon_col, cloud_col, smoothstep(0.0, 0.32, d.y)); }\n"
 	var sky_shd := Shader.new()
 	sky_shd.code = cloud_code
 	var sky_mat := ShaderMaterial.new()
@@ -439,44 +462,50 @@ func _upgrade_cinematic_lighting() -> void:
 	env.background_mode = Environment.BG_SKY
 	env.sky = sky
 
+	# Pfützen-Spiegelungen (SSR)
 	env.ssr_enabled = true
 	env.ssr_max_steps = 28
 	env.ssr_fade_in = 0.12
 	env.ssr_fade_out = 2.0
 	env.ssr_depth_tolerance = 0.25
 
+	# Dezente Kontaktschatten (nicht mehr zu schwarz!)
 	env.ssao_enabled = true
-	env.ssao_radius = 1.7
-	env.ssao_intensity = 1.8
+	env.ssao_radius = 1.4
+	env.ssao_intensity = 1.15
 	env.ssil_enabled = false
 
+	# Sanfter Glow ohne Überstrahlen
 	env.glow_enabled = true
-	env.glow_intensity = 0.36
-	env.glow_bloom = 0.08
+	env.glow_intensity = 0.22
+	env.glow_bloom = 0.04
 
+	# Weicher, gräulich-warmer Regen-Dunst
 	env.volumetric_fog_enabled = false
 	env.fog_enabled = true
 	env.fog_mode = Environment.FOG_MODE_DEPTH
-	env.fog_light_color = Color(0.42, 0.34, 0.32)
-	env.fog_light_energy = 1.05
-	env.fog_sun_scatter = 0.38
-	env.fog_density = 0.68
+	env.fog_light_color = Color(0.44, 0.38, 0.37)
+	env.fog_light_energy = 1.0
+	env.fog_sun_scatter = 0.18
+	env.fog_density = 0.62
 	env.fog_depth_begin = 14.0
-	env.fog_depth_end = 92.0
-	env.fog_height = 3.0
-	env.fog_height_density = 0.02
+	env.fog_depth_end = 90.0
+	env.fog_height = 3.5
+	env.fog_height_density = 0.015
 
+	# Kräftiges, weiches Umgebungslicht -> macht dunkle Wände wieder gut sichtbar!
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	env.ambient_light_color = Color(0.36, 0.34, 0.38)
-	env.ambient_light_energy = 1.05
+	env.ambient_light_color = Color(0.46, 0.44, 0.47)
+	env.ambient_light_energy = 1.45
 
+	# Gedämpfte Dämmerungssonne (weniger harter Kontrast!)
 	for child in get_children():
 		if child is DirectionalLight3D:
-			child.light_color = Color(1.0, 0.56, 0.32)
-			child.light_energy = 1.75
-			child.rotation_degrees = Vector3(-11.0, -48.0, 0.0)
+			child.light_color = Color(0.95, 0.62, 0.42)
+			child.light_energy = 1.15
+			child.rotation_degrees = Vector3(-16.0, -48.0, 0.0)
 			child.shadow_enabled = true
-			child.shadow_blur = 2.2
+			child.shadow_blur = 2.8
 			child.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS
 			child.directional_shadow_max_distance = 110.0
 
@@ -486,32 +515,36 @@ func _upgrade_cinematic_lighting() -> void:
 func _spawn_rain_particles() -> void:
 	if has_node("RainParticles"):
 		get_node("RainParticles").queue_free()
-	var rain := GPUParticles3D.new()
-	rain.name = "RainParticles"
-	rain.amount = 2400
-	rain.lifetime = 0.9
-	rain.preprocess = 1.0
-	rain.visibility_aabb = AABB(Vector3(-80, -5, -80), Vector3(160, 40, 160))
-	rain.position = Vector3(0.0, 18.0, 0.0)
+	_rain_particles = GPUParticles3D.new()
+	_rain_particles.name = "RainParticles"
+	_rain_particles.amount = 2800
+	_rain_particles.lifetime = 0.9
+	_rain_particles.preprocess = 1.0
+	_rain_particles.visibility_aabb = AABB(Vector3(-80, -5, -80), Vector3(160, 40, 160))
+	_rain_particles.position = Vector3(0.0, 18.0, 0.0)
 
-	var pmat := ParticleProcessMaterial.new()
-	pmat.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_BOX
-	pmat.emission_box_extents = Vector3(55.0, 3.0, 55.0)
-	pmat.direction = Vector3(0.06, -1.0, 0.04)
-	pmat.spread = 2.0
-	pmat.initial_velocity_min = 24.0
-	pmat.initial_velocity_max = 32.0
-	pmat.gravity = Vector3(0.0, -15.0, 0.0)
-	rain.process_material = pmat
+	_rain_mat = ParticleProcessMaterial.new()
+	_rain_mat.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_BOX
+	_rain_mat.emission_box_extents = Vector3(60.0, 3.0, 60.0)
+	_rain_mat.direction = Vector3(0.35, -1.0, 0.15).normalized()
+	_rain_mat.spread = 2.0
+	_rain_mat.initial_velocity_min = 24.0
+	_rain_mat.initial_velocity_max = 32.0
+	_rain_mat.gravity = Vector3(4.5, -15.0, 2.0) # Seitlicher Windzug auf alle Regentropfen!
+	_rain_particles.process_material = _rain_mat
 
+	# Schräg geneigte Regen-Streifen passend zum Seitenwind
 	var drop := QuadMesh.new()
-	drop.size = Vector2(0.005, 0.55)
+	drop.size = Vector2(0.006, 0.65)
 	var dmat := StandardMaterial3D.new()
 	dmat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	dmat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	dmat.billboard_mode = BaseMaterial3D.BILLBOARD_FIXED_Y
-	dmat.albedo_color = Color(0.88, 0.78, 0.72, 0.22)
+	dmat.billboard_mode = BaseMaterial3D.BILLBOARD_DISABLED
+	dmat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	dmat.albedo_color = Color(0.86, 0.82, 0.80, 0.25)
 	drop.material = dmat
-	rain.draw_pass_1 = drop
+	_rain_particles.draw_pass_1 = drop
 
-	add_child(rain)
+	# Partikel leicht in Windrichtung kippen, damit die Tropfen schräg durchs Bild peitschen!
+	_rain_particles.rotation_degrees = Vector3(8.0, 0.0, -18.0)
+	add_child(_rain_particles)
