@@ -426,39 +426,11 @@ func _upgrade_cinematic_lighting() -> void:
 	env.tonemap_white = 6.0
 
 		# Echte animierte graue Regenwolken (überschreibt den alten Himmel komplett!)
-	var cloud_code := """
-# Weiche, artefaktfreie graue Regenwolken
-	var cloud_code := """
-shader_type sky;
-float hash(vec2 p) {
-	vec3 p3 = fract(vec3(p.xyx) * 0.1031);
-	p3 += dot(p3, p3.yzx + 33.33);
-	return fract((p3.x + p3.y) * p3.z);
-}
-float noise(vec2 p) {
-	vec2 i = floor(p); vec2 f = fract(p);
-	f = f * f * (3.0 - 2.0 * f);
-	return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), f.x),
-	           mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), f.x), f.y);
-}
-float fbm(vec2 p) {
-	float v = 0.0; float a = 0.5;
-	for (int i = 0; i < 5; i++) { v += a * noise(p); p *= 2.03; a *= 0.5; }
-	return v;
-}
-void sky() {
-	vec3 d = normalize(EYEDIR);
-	float h = clamp(d.y, 0.001, 1.0);
-	vec2 uv = d.xz / (h + 0.22) * 1.3 + vec2(TIME * 0.012, TIME * 0.006);
-	float c = fbm(uv);
-	vec3 dark_cloud = vec3(0.20, 0.22, 0.25);
-	vec3 light_cloud = vec3(0.42, 0.45, 0.49);
-	vec3 horizon = vec3(0.45, 0.48, 0.52);
-	vec3 col = mix(dark_cloud, light_cloud, smoothstep(0.22, 0.78, c));
-	col = mix(horizon, col, smoothstep(0.0, 0.30, d.y));
-	COLOR = col;
-}
-"""
+	var cloud_code := "shader_type sky;\n" \
+		+ "float hash(vec2 p) { vec3 p3 = fract(vec3(p.xyx) * 0.1031); p3 += dot(p3, p3.yzx + 33.33); return fract((p3.x + p3.y) * p3.z); }\n" \
+		+ "float noise(vec2 p) { vec2 i = floor(p); vec2 f = fract(p); f = f * f * (3.0 - 2.0 * f); return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), f.x), mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), f.x), f.y); }\n" \
+		+ "float fbm(vec2 p) { float v = 0.0; float a = 0.5; for (int i = 0; i < 5; i++) { v += a * noise(p); p *= 2.03; a *= 0.5; } return v; }\n" \
+		+ "void sky() { vec3 d = normalize(EYEDIR); float h = clamp(d.y, 0.001, 1.0); vec2 uv = d.xz / (h + 0.22) * 1.3 + vec2(TIME * 0.012, TIME * 0.006); float c = fbm(uv); vec3 col = mix(vec3(0.20, 0.22, 0.25), vec3(0.42, 0.45, 0.49), smoothstep(0.22, 0.78, c)); COLOR = mix(vec3(0.45, 0.48, 0.52), col, smoothstep(0.0, 0.30, d.y)); }\n"
 	var sky_shd := Shader.new()
 	sky_shd.code = cloud_code
 	var sky_mat := ShaderMaterial.new()
@@ -467,7 +439,6 @@ void sky() {
 	sky.sky_material = sky_mat
 	env.background_mode = Environment.BG_SKY
 	env.sky = sky
-
 	for child in get_children():
 		if child.name.to_lower().contains("sky") or child.name.to_lower().contains("flare"):
 			if child is Node3D or child is CanvasItem:
