@@ -30,10 +30,14 @@ func _ready() -> void:
 		set_process(false)
 		return
 	_env = we.environment
+	# the Environment resource is shared between rounds: remember its authored values once, never the animated ones
+	if not _env.has_meta("base_ambient"):
+		_env.set_meta("base_ambient", _env.ambient_light_energy)
+		_env.set_meta("base_glow", _env.glow_intensity)
 	_sun_energy = _sun.light_energy
 	_sun_color = _sun.light_color
-	_ambient = _env.ambient_light_energy
-	_glow = _env.glow_intensity
+	_ambient = float(_env.get_meta("base_ambient"))
+	_glow = float(_env.get_meta("base_glow"))
 	_mat = ShaderMaterial.new()
 	_mat.shader = load(SHADER)
 	for k in preset.get("colors", {}):
@@ -116,7 +120,7 @@ func _update(delta: float) -> void:
 	var tt := _t + _t0
 	var weather := 0.5 + 0.5 * (0.7 * sin(tt * 0.021) + 0.3 * sin(tt * 0.047 + 1.3)) # 0..1
 	var cover_range: Vector2 = preset.get("cover", Vector2(0.3, 0.72))
-	var cloud_cover := lerpf(cover_range.x, cover_range.y, weather)
+	var cloud_cover := lerpf(cover_range.x, minf(cover_range.y, cover_range.x + 0.28), weather) # never fully overcast
 	# a cloud reaches the sun when the cover is high enough, and then passes within ~40 s
 	var passing := sin(tt * 0.11) + 0.6 * sin(tt * 0.173 + 0.7) + 0.35 * sin(tt * 0.29 + 2.1)
 	var target := smoothstep(0.35 - 0.6 * (weather - 0.5), 1.15 - 0.6 * (weather - 0.5), passing)
@@ -125,8 +129,8 @@ func _update(delta: float) -> void:
 	_mat.set_shader_parameter("cloud_cover", cloud_cover)
 	_mat.set_shader_parameter("sun_cover", _cover)
 	var clear := 1.0 - _cover
-	_sun.light_energy = _sun_energy * lerpf(0.42, 1.0, clear)
-	_sun.light_color = _sun_color.lerp(Color(0.86, 0.9, 1.0), _cover * 0.6)
+	_sun.light_energy = _sun_energy * lerpf(0.72, 1.0, clear) # (a passing cloud dims the sun, but never washes the picture out)
+	_sun.light_color = _sun_color.lerp(Color(0.92, 0.94, 1.0), _cover * 0.4)
 	_sun.set_meta("clear", clear)
 	_env.ambient_light_energy = _ambient * lerpf(1.1, 0.95, clear)
 	_env.glow_intensity = _glow * lerpf(0.7, 1.15, clear)
