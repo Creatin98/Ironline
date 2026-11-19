@@ -3,7 +3,7 @@ extends RefCounted
 ## Blood: spray particles plus splats on nearby walls/floor (world), and the procedural splat
 ## textures shared with the HUD's screen splatter. Fully procedural, no assets.
 
-const MAX_WORLD_SPLATS := 520 # the map gets used: blood stays for a long time
+const MAX_WORLD_SPLATS := 700 # the map gets used: blood stays for a long time
 const SPLAT_LIFETIME := 240.0
 const FADE_TIME := 25.0
 const VARIANTS := 4
@@ -142,7 +142,7 @@ static func _spawn_particles(parent: Node3D, pos: Vector3, dir: Vector3, scale: 
 	p.particle_flag_align_y = true # thin streaks along the flight direction, no round balls
 	p.one_shot = true
 	p.explosiveness = 0.95
-	p.amount = maxi(6, int(90.0 * scale * GameSettings.effects_scale()))
+	p.amount = maxi(6, int(115.0 * scale * GameSettings.effects_scale()))
 	p.lifetime = 0.7
 	p.direction = dir
 	p.spread = 38.0

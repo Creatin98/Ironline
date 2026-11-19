@@ -241,7 +241,7 @@ func _spawn_chunks(origin: Vector3, dir: Vector3, n: int) -> void:
 	var mat := StandardMaterial3D.new()
 	mat.albedo_color = Color(0.17, 0.02, 0.02)
 	mat.roughness = 0.4
-	for i in mini(n, 14):
+	for i in mini(n, 24):
 		var c := RigidBody3D.new()
 		c.collision_layer = LAYER
 		c.collision_mask = 1
@@ -250,7 +250,7 @@ func _spawn_chunks(origin: Vector3, dir: Vector3, n: int) -> void:
 		c.angular_damp = 0.6
 		var cs := CollisionShape3D.new()
 		var bs := BoxShape3D.new()
-		var sz := randf_range(0.03, 0.08)
+		var sz := randf_range(0.02, 0.06)
 		bs.size = Vector3(sz, sz * randf_range(0.6, 1.0), sz * randf_range(0.7, 1.2))
 		cs.shape = bs
 		c.add_child(cs)
@@ -307,8 +307,7 @@ func _apply_push() -> void:
 		var limb := _bodies[idx]
 		limb.apply_central_impulse((dir * randf_range(2.5, 5.5) * maxf(strength, 1.0) + Vector3.UP * randf_range(1.0, 3.0) + Vector3(randf_range(-1, 1), 0, randf_range(-1, 1))) * limb.mass)
 		limb.angular_velocity = Vector3(randf_range(-10.0, 10.0), randf_range(-6.0, 6.0), randf_range(-10.0, 10.0))
-	if _chunk_n > 0:
-		_spawn_chunks(torso.global_position + Vector3(0, 0.3, 0), dir, _chunk_n)
+	_spawn_chunks(torso.global_position + Vector3(0, 0.3, 0), dir, 4 + _chunk_n * 3) # small dark bits on every kill, more with gore
 	if strength > 1.7: # explosion: thrown up
 		torso.apply_central_impulse((Vector3.UP * 4.2 + dir * 2.0) * torso.mass)
 		torso.apply_torque_impulse(Vector3(randf_range(-1, 1), randf_range(-1, 1), randf_range(-1, 1)) * torso.mass * 0.6)
@@ -341,7 +340,10 @@ func _physics_process(delta: float) -> void:
 		_apply_push()
 	if not _pool_done and _age >= 1.1:
 		_pool_done = true
-		BloodFx.pool(get_parent(), _bodies[0].global_position, 0.8 + 0.4 * float(_sev.size()))
+		BloodFx.pool(get_parent(), _bodies[0].global_position, 1.3 + 0.45 * float(_sev.size()))
+		for k in 3: # the pool spreads out irregularly: a few more patches around the body
+			var off := Vector3(randf_range(-0.7, 0.7), 0.0, randf_range(-0.7, 0.7))
+			BloodFx.pool(get_parent(), _bodies[0].global_position + off, randf_range(0.6, 1.1))
 	if not _frozen and _age >= FREEZE_AFTER:
 		_frozen = true
 		for bi in _bodies.size():
