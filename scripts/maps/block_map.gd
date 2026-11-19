@@ -444,10 +444,9 @@ func _upgrade_cinematic_lighting() -> void:
 
 	var env := env_node.environment
 	env.tonemap_mode = 3
-	env.tonemap_exposure = 1.05 # Heller, kein dunkles Absaufen mehr!
+	env.tonemap_exposure = 1.05
 	env.tonemap_white = 8.0
 
-	# Dramatische Sturm- & Dämmerungswolken (ohne ausgebrannten weißen Fleck)
 	var cloud_code := "shader_type sky;\n" \
 		+ "float hash(vec2 p) { vec3 p3 = fract(vec3(p.xyx) * 0.1031); p3 += dot(p3, p3.yzx + 33.33); return fract((p3.x + p3.y) * p3.z); }\n" \
 		+ "float noise(vec2 p) { vec2 i = floor(p); vec2 f = fract(p); f = f * f * (3.0 - 2.0 * f); return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), f.x), mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), f.x), f.y); }\n" \
@@ -462,25 +461,21 @@ func _upgrade_cinematic_lighting() -> void:
 	env.background_mode = Environment.BG_SKY
 	env.sky = sky
 
-	# Pfützen-Spiegelungen (SSR)
 	env.ssr_enabled = true
 	env.ssr_max_steps = 28
 	env.ssr_fade_in = 0.12
 	env.ssr_fade_out = 2.0
 	env.ssr_depth_tolerance = 0.25
 
-	# Dezente Kontaktschatten (nicht mehr zu schwarz!)
 	env.ssao_enabled = true
 	env.ssao_radius = 1.4
 	env.ssao_intensity = 1.15
 	env.ssil_enabled = false
 
-	# Sanfter Glow ohne Überstrahlen
 	env.glow_enabled = true
 	env.glow_intensity = 0.22
 	env.glow_bloom = 0.04
 
-	# Weicher, gräulich-warmer Regen-Dunst
 	env.volumetric_fog_enabled = false
 	env.fog_enabled = true
 	env.fog_mode = Environment.FOG_MODE_DEPTH
@@ -493,12 +488,10 @@ func _upgrade_cinematic_lighting() -> void:
 	env.fog_height = 3.5
 	env.fog_height_density = 0.015
 
-	# Kräftiges, weiches Umgebungslicht -> macht dunkle Wände wieder gut sichtbar!
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	env.ambient_light_color = Color(0.46, 0.44, 0.47)
 	env.ambient_light_energy = 1.45
 
-	# Gedämpfte Dämmerungssonne (weniger harter Kontrast!)
 	for child in get_children():
 		if child is DirectionalLight3D:
 			child.light_color = Color(0.95, 0.62, 0.42)
@@ -515,25 +508,24 @@ func _upgrade_cinematic_lighting() -> void:
 func _spawn_rain_particles() -> void:
 	if has_node("RainParticles"):
 		get_node("RainParticles").queue_free()
-	_rain_particles = GPUParticles3D.new()
-	_rain_particles.name = "RainParticles"
-	_rain_particles.amount = 2800
-	_rain_particles.lifetime = 0.9
-	_rain_particles.preprocess = 1.0
-	_rain_particles.visibility_aabb = AABB(Vector3(-80, -5, -80), Vector3(160, 40, 160))
-	_rain_particles.position = Vector3(0.0, 18.0, 0.0)
+	var rain := GPUParticles3D.new()
+	rain.name = "RainParticles"
+	rain.amount = 2800
+	rain.lifetime = 0.9
+	rain.preprocess = 1.0
+	rain.visibility_aabb = AABB(Vector3(-80, -5, -80), Vector3(160, 40, 160))
+	rain.position = Vector3(0.0, 18.0, 0.0)
 
-	_rain_mat = ParticleProcessMaterial.new()
-	_rain_mat.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_BOX
-	_rain_mat.emission_box_extents = Vector3(60.0, 3.0, 60.0)
-	_rain_mat.direction = Vector3(0.35, -1.0, 0.15).normalized()
-	_rain_mat.spread = 2.0
-	_rain_mat.initial_velocity_min = 24.0
-	_rain_mat.initial_velocity_max = 32.0
-	_rain_mat.gravity = Vector3(4.5, -15.0, 2.0) # Seitlicher Windzug auf alle Regentropfen!
-	_rain_particles.process_material = _rain_mat
+	var pmat := ParticleProcessMaterial.new()
+	pmat.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_BOX
+	pmat.emission_box_extents = Vector3(60.0, 3.0, 60.0)
+	pmat.direction = Vector3(0.38, -1.0, 0.16).normalized()
+	pmat.spread = 2.0
+	pmat.initial_velocity_min = 24.0
+	pmat.initial_velocity_max = 32.0
+	pmat.gravity = Vector3(5.5, -15.0, 2.2)
+	rain.process_material = pmat
 
-	# Schräg geneigte Regen-Streifen passend zum Seitenwind
 	var drop := QuadMesh.new()
 	drop.size = Vector2(0.006, 0.65)
 	var dmat := StandardMaterial3D.new()
@@ -543,8 +535,7 @@ func _spawn_rain_particles() -> void:
 	dmat.cull_mode = BaseMaterial3D.CULL_DISABLED
 	dmat.albedo_color = Color(0.86, 0.82, 0.80, 0.25)
 	drop.material = dmat
-	_rain_particles.draw_pass_1 = drop
+	rain.draw_pass_1 = drop
 
-	# Partikel leicht in Windrichtung kippen, damit die Tropfen schräg durchs Bild peitschen!
-	_rain_particles.rotation_degrees = Vector3(8.0, 0.0, -18.0)
-	add_child(_rain_particles)
+	rain.rotation_degrees = Vector3(8.0, 0.0, -20.0)
+	add_child(rain)
