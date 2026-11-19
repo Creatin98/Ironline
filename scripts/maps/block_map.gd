@@ -29,7 +29,7 @@ func _ready() -> void:
 	_build_kill_zone()
 	if bake_navigation:
 		_bake_navigation()
-
+	_upgrade_cinematic_lighting()
 
 # ----------------------------------------------------------------------------- overridables
 
@@ -406,3 +406,49 @@ func _on_kill_zone_entered(body: Node3D) -> void:
 		(body as Player).health.kill(0, "world")
 	elif body is RigidBody3D:
 		body.queue_free()
+
+
+func _upgrade_cinematic_lighting() -> void:
+	var env_node: WorldEnvironment = null
+	for child in get_children():
+		if child is WorldEnvironment:
+			env_node = child
+			break
+	if env_node == null:
+		env_node = WorldEnvironment.new()
+		add_child(env_node)
+	if env_node.environment == null:
+		env_node.environment = Environment.new()
+
+	var env := env_node.environment
+	env.tonemap_mode = Environment.TONE_MAP_ACES
+	env.tonemap_exposure = 1.05
+	env.tonemap_white = 6.0
+
+	env.ssr_enabled = true
+	env.ssr_max_steps = 24
+	env.ssr_fade_in = 0.15
+	env.ssr_fade_out = 2.0
+	env.ssr_depth_tolerance = 0.3
+
+	env.ssao_enabled = true
+	env.ssao_radius = 1.6
+	env.ssao_intensity = 2.0
+	env.ssil_enabled = false
+
+	env.glow_enabled = true
+	env.glow_intensity = 0.35
+	env.glow_bloom = 0.08
+	env.volumetric_fog_enabled = false
+	env.fog_enabled = true
+	env.fog_light_color = Color(0.92, 0.85, 0.75)
+	env.fog_density = 0.004
+
+	for child in get_children():
+		if child is DirectionalLight3D:
+			child.light_color = Color(1.0, 0.88, 0.72)
+			child.light_energy = 2.6
+			child.shadow_enabled = true
+			child.shadow_blur = 1.5
+			child.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS
+			child.directional_shadow_max_distance = 90.0
