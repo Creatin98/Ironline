@@ -446,9 +446,8 @@ func _game_ui(state: String) -> void:
 				for i in 6:
 					await get_tree().physics_frame
 			if "--pistol=1" in OS.get_cmdline_user_args():
-				bot_node.swap_primary("pistol", 12, 50)
-				bot_node.weapon_manager.current_index = 0
-				bot_node.weapon_manager._show_weapon(0, true)
+				bot_node.weapon_manager.current_index = 1
+				bot_node.weapon_manager._show_weapon(1, true)
 				for i in 6:
 					await get_tree().physics_frame
 			local.take_damage(9999.0, bot.id, "ak47", local.get_center(), true, bot_node.global_position)
@@ -460,6 +459,11 @@ func _game_ui(state: String) -> void:
 			if not game._killcam_active:
 				game._start_killcam(bot.id)
 			var rec: ReplayRecorder = game.recorder
+			if "--pistol=1" in OS.get_cmdline_user_args():
+				for fr in rec._frames: # (the ghosts take the weapon from the recording)
+					var ks: Variant = (fr["p"] as Dictionary).get(rec._killer_id)
+					if ks != null:
+						ks[5] = 1
 			rec._cursor = float(rec.kill["t"]) - (0.02 if "--flash=1" in OS.get_cmdline_user_args() else 0.3) # shortly before the fatal shot
 			rec._prev_cursor = rec._cursor
 			rec._apply(rec._cursor, false)
