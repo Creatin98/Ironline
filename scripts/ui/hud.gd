@@ -367,7 +367,6 @@ func _process(delta: float) -> void:
 	# respawn countdown
 	if _respawn_time_left >= 0.0:
 		_respawn_time_left -= delta
-		sub_label.text = "Respawn in %d" % int(ceil(maxf(_respawn_time_left, 0.0)))
 	# score popup
 	# killfeed ageing
 	var now := Time.get_ticks_msec() / 1000.0
@@ -556,14 +555,11 @@ func _on_local_spawned(player: Node) -> void:
 	_on_flashbangs_changed(_player.weapon_manager.flashbangs)
 
 
-func _on_local_died(killer_id: int, respawn_delay: float) -> void:
-	var killer := MatchManager.get_participant(killer_id)
-	if killer and killer.id != MatchManager.local_participant_id:
-		center_label.text = "Getötet von %s" % killer.display_name
-	else:
-		center_label.text = "Du bist gestorben"
+func _on_local_died(_killer_id: int, respawn_delay: float) -> void:
+	# no "Getötet von ..." / "Respawn in ..." text over the death camera (the killcam shows both in its own bars)
+	center_label.text = ""
+	sub_label.text = ""
 	_respawn_time_left = respawn_delay
-	sub_label.text = "Respawn in %d" % int(ceil(respawn_delay))
 
 
 func _on_local_damaged(amount: float, source_position: Vector3) -> void:

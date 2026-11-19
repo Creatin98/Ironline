@@ -36,7 +36,7 @@ void sky() {
 	// base gradient, a warm band at the horizon and a brighter glow around the sun
 	vec3 col = mix(horizon, mid_sky, smoothstep(0.0, 0.22, up));
 	col = mix(col, zenith, smoothstep(0.18, 0.85, up));
-	col += sun_tint * pow(sdot, 5.0) * 0.16 + sun_tint * pow(sdot, 40.0) * 0.28;
+	col += sun_tint * pow(sdot, 5.0) * 0.1 + sun_tint * pow(sdot, 40.0) * 0.22;
 
 	// clouds (only above the horizon, fading into the haze)
 	float fade = smoothstep(0.02, 0.28, dir.y);
@@ -101,7 +101,7 @@ void sky() {
 		float k = smoothstep(0.0, -0.35, dir.y);
 		col = mix(horizon * 0.96, ground, k);
 	} else {
-		col = mix(col, horizon, (1.0 - smoothstep(0.0, 0.07, dir.y)) * 0.6);
+		col = mix(col, horizon, (1.0 - smoothstep(0.0, 0.05, dir.y)) * 0.35);
 	}
 	COLOR = col;
 }

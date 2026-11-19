@@ -54,6 +54,8 @@ MAPS = {
 }
 SUN_EXTRA = {"shadow_normal_bias": "2.0", "shadow_bias": "0.08", "shadow_blur": "1.3", "directional_shadow_blend_splits": "true", "directional_shadow_max_distance": "110.0"}
 
+MAPS["training_range"] = MAPS["test_arena"]
+
 
 def set_keys(block: str, values: dict) -> str:
     for k, v in values.items():
@@ -78,6 +80,14 @@ for name, cfg in MAPS.items():
     t = edit_section(t, 'sub_resource type="ProceduralSkyMaterial" id="sky_mat"', cfg["sky"])
     env = dict(COMMON_ENV)
     env.update(cfg["env"])
+    # less milky: thinner fog and haze, a little more contrast and colour, slightly less bloom
+    for k, f in (("fog_density", 0.6), ("volumetric_fog_density", 0.6), ("glow_intensity", 0.85)):
+        if k in env:
+            env[k] = "%.4f" % (float(env[k]) * f)
+    env["fog_aerial_perspective"] = "0.10"
+    env["fog_sun_scatter"] = "0.06"
+    env["adjustment_contrast"] = "%.2f" % (float(env.get("adjustment_contrast", "1.1")) + 0.06)
+    env["adjustment_saturation"] = "%.2f" % (float(env.get("adjustment_saturation", "1.0")) + 0.1)
     t = edit_section(t, 'sub_resource type="Environment" id="env"', env)
     sun = dict(SUN_EXTRA)
     sun.update(cfg["sun"])
