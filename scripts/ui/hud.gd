@@ -193,6 +193,7 @@ func _build() -> void:
 	var ammo_panel := Control.new()
 	ammo_panel.set_anchors_preset(Control.PRESET_TOP_LEFT)
 	ammo_panel.custom_minimum_size = Vector2(360, 120)
+	ammo_panel.size = Vector2(360, 120)
 	ammo_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var av := UITheme.vbox(2)
 	av.custom_minimum_size = Vector2(360, 0)
