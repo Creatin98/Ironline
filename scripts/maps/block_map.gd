@@ -756,3 +756,24 @@ func _spawn_jungle_backdrop() -> void:
 	trunk_mi.multimesh = trunk_mm
 	root.add_child(trunk_mi)
 	Vegetation.scatter(root, canopy_mesh, canopy_items, "JungleCanopies")
+
+func _bake_roof_dry_mask() -> void:
+	if not is_inside_tree():
+		return
+	var res := 128
+	var min_x := -85.0
+	var min_z := -85.0
+	var span := 170.0
+	var img := Image.create(res, res, false, Image.FORMAT_RF)
+	var space := get_world_3d().direct_space_state
+	for z in res:
+		for x in res:
+			var wx := min_x + (float(x) + 0.5) / float(res) * span
+			var wz := min_z + (float(z) + 0.5) / float(res) * span
+			var q := PhysicsRayQueryParameters3D.create(Vector3(wx, 32.0, wz), Vector3(wx, -4.0, wz))
+			var hit := space.intersect_ray(q)
+			var top_y := -5.0 if hit.is_empty() else float(hit["position"].y)
+			img.set_pixel(x, z, Color(clampf((top_y + 5.0) / 40.0, 0.0, 1.0), 0.0, 0.0, 1.0))
+	var tex := ImageTexture.create_from_image(img)
+	RenderingServer.global_shader_parameter_set("roof_bounds", Vector4(min_x, min_z, span, span))
+	RenderingServer.global_shader_parameter_set("roof_mask_tex", tex)
