@@ -412,13 +412,55 @@ func _on_kill_zone_entered(body: Node3D) -> void:
 
 
 func _process(delta: float) -> void:
+	var _sun_light: DirectionalLight3D
+var _sky_mat: ShaderMaterial
+var _lightning_flash: ColorRect
+var _lightning_timer: float = 4.0
+var _lightning_flash_val: float = 0.0
+
+
+func _process(delta: float) -> void:
 	_wind_time += delta
 	var gust := 0.75 + 0.35 * sin(_wind_time * 0.85) + 0.25 * sin(_wind_time * 2.1)
 	RenderingServer.global_shader_parameter_set("wind_dir", _wind_dir)
 	RenderingServer.global_shader_parameter_set("wind_strength", gust)
+
 	if _rain_mat != null:
 		var slant := 8.5 * gust
 		_rain_mat.direction = Vector3(_wind_dir.x * slant, -22.0, _wind_dir.y * slant).normalized()
+
+	var cloud_cover := 0.5 + 0.5 * sin(_wind_time * 0.28 + sin(_wind_time * 0.13) * 1.4)
+	if _sun_light != null:
+		var base_energy := lerpf(0.55, 2.35, cloud_cover)
+		_sun_light.light_energy = base_energy + _lightning_flash_val * 3.5
+		_sun_light.light_color = Color(0.75, 0.82, 0.95) if _lightning_flash_val > 0.1 else Color(1.0, 0.68, 0.44).lerp(Color(1.0, 0.86, 0.66), cloud_cover)
+		_sun_light.rotation_degrees = Vector3(-18.0 + sin(_wind_time * 0.12) * 1.8, -48.0 + cos(_wind_time * 0.09) * 2.5, 0.0)
+
+	_lightning_timer -= delta
+	if _lightning_timer <= 0.0:
+		_lightning_timer = randf_range(5.5, 14.0)
+		_lightning_flash_val = 1.0
+		if _sky_mat != null:
+			_sky_mat.set_shader_parameter("lightning_seed", randf() * 100.0)
+
+	if _lightning_flash_val > 0.0:
+		var flicker := 1.0 if (_lightning_flash_val > 0.75 or (_lightning_flash_val > 0.35 and _lightning_flash_val < 0.55)) else 0.15
+		var intensity := _lightning_flash_val * flicker
+		if _sky_mat != null:
+			_sky_mat.set_shader_parameter("lightning_intensity", intensity)
+		if _lightning_flash != null:
+			var cam := get_viewport().get_camera_3d()
+			var outdoors := true
+			if cam != null and is_inside_tree():
+				var q := PhysicsRayQueryParameters3D.create(cam.global_position, cam.global_position + Vector3.UP * 40.0)
+				outdoors = get_world_3d().direct_space_state.intersect_ray(q).is_empty()
+			_lightning_flash.color.a = (intensity * 0.14) if outdoors else 0.0
+		_lightning_flash_val = maxf(0.0, _lightning_flash_val - delta * 2.2)
+	else:
+		if _sky_mat != null:
+			_sky_mat.set_shader_parameter("lightning_intensity", 0.0)
+		if _lightning_flash != null:
+			_lightning_flash.color.a = 0.0
 
 
 func _upgrade_cinematic_lighting() -> void:
@@ -435,20 +477,53 @@ func _upgrade_cinematic_lighting() -> void:
 
 	var env := env_node.environment
 	env.tonemap_mode = 3
-	env.tonemap_exposure = 1.05
-	env.tonemap_white = 8.0
+	env.tonemap_exposure = 1.02
+	env.tonemap_white = 7.5
 
 	var cloud_code := "shader_type sky;\n" \
+		+ "uniform float lightning_intensity = 0.0;\n" \
+		+ "uniform float lightning_seed = 0.0;\n" \
 		+ "float hash(vec2 p) { vec3 p3 = fract(vec3(p.xyx) * 0.1031); p3 += dot(p3, p3.yzx + 33.33); return fract((p3.x + p3.y) * p3.z); }\n" \
 		+ "float noise(vec2 p) { vec2 i = floor(p); vec2 f = fract(p); f = f * f * (3.0 - 2.0 * f); return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), f.x), mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), f.x), f.y); }\n" \
 		+ "float fbm(vec2 p) { float v = 0.0; float a = 0.5; for (int i = 0; i < 6; i++) { v += a * noise(p); p = p * 2.04 + vec2(1.7, 9.2); a *= 0.5; } return v; }\n" \
-		+ "void sky() { vec3 d = normalize(EYEDIR); float h = clamp(d.y, 0.003, 1.0); vec2 uv = d.xz / (h + 0.18) * 1.15 + vec2(TIME * 0.025, TIME * 0.012); float n1 = fbm(uv); float n2 = fbm(uv * 2.3 - n1 * 0.5); float c = smoothstep(0.18, 0.85, n1 * 0.65 + n2 * 0.35); float sun_dot = max(dot(d, normalize(LIGHT0_DIRECTION)), 0.0); vec3 storm_dark = vec3(0.16, 0.18, 0.22); vec3 storm_mid = vec3(0.34, 0.36, 0.40); vec3 dusk_glow = vec3(0.68, 0.32, 0.18) * pow(sun_dot, 3.5) * 0.65; vec3 horizon_col = mix(vec3(0.38, 0.34, 0.35), vec3(0.62, 0.34, 0.22), pow(sun_dot, 2.0)); vec3 cloud_col = mix(storm_dark, storm_mid, c) + dusk_glow * (1.0 - c * 0.5); COLOR = mix(horizon_col, cloud_col, smoothstep(0.0, 0.32, d.y)); }\n"
+		+ "vec3 rainbow_col(float t) { vec3 c = clamp(abs(mod(t * 6.0 + vec3(0.0, 4.0, 2.0), 6.0) - 3.0) - 1.0, 0.0, 1.0); return c * c * (3.0 - 2.0 * c); }\n" \
+		+ "void sky() {\n" \
+		+ "	vec3 d = normalize(EYEDIR);\n" \
+		+ "	vec3 sun_dir = normalize(LIGHT0_DIRECTION);\n" \
+		+ "	float h = clamp(d.y, 0.004, 1.0);\n" \
+		+ "	vec2 uv = d.xz / (h + 0.15) * 0.95 + vec2(TIME * 0.035, TIME * 0.015);\n" \
+		+ "	float base_c = fbm(uv);\n" \
+		+ "	float billow = fbm(uv * 2.6 - base_c * 0.8 + vec2(TIME * 0.02, 0.0));\n" \
+		+ "	float density = smoothstep(0.18, 0.84, base_c * 0.62 + billow * 0.38);\n" \
+		+ "	float rim = smoothstep(0.35, 0.85, billow) * (1.0 - density * 0.55);\n" \
+		+ "	float sun_dot = max(dot(d, sun_dir), 0.0);\n" \
+		+ "	vec3 sky_blue = mix(vec3(0.24, 0.36, 0.52), vec3(0.14, 0.22, 0.36), clamp(d.y * 1.4, 0.0, 1.0));\n" \
+		+ "	vec3 cloud_shadow = vec3(0.14, 0.16, 0.21);\n" \
+		+ "	vec3 cloud_lit = vec3(0.68, 0.64, 0.62) + vec3(0.95, 0.58, 0.32) * pow(sun_dot, 2.5) * 0.65;\n" \
+		+ "	vec3 cloud = mix(cloud_shadow, cloud_lit, clamp(rim * 1.3 + pow(sun_dot, 2.0) * 0.45, 0.0, 1.0));\n" \
+		+ "	vec3 col = mix(sky_blue, cloud, density);\n" \
+		+ "	vec3 horizon = mix(vec3(0.42, 0.38, 0.38), vec3(0.78, 0.46, 0.28), pow(sun_dot, 1.8));\n" \
+		+ "	col = mix(horizon, col, smoothstep(0.0, 0.28, d.y));\n" \
+		+ "	float anti_sun = acos(clamp(dot(d, -sun_dir), -1.0, 1.0));\n" \
+		+ "	float rb_band = smoothstep(0.70, 0.73, anti_sun) * (1.0 - smoothstep(0.75, 0.78, anti_sun));\n" \
+		+ "	float rb_t = clamp((anti_sun - 0.70) / 0.08, 0.0, 1.0);\n" \
+		+ "	col += rainbow_col(rb_t) * rb_band * smoothstep(0.04, 0.25, d.y) * 0.24;\n" \
+		+ "	if (lightning_intensity > 0.001) {\n" \
+		+ "		float bolt_x = fract(sin(lightning_seed) * 43758.5453) * 2.0 - 1.0;\n" \
+		+ "		float jag = (noise(vec2(d.y * 18.0, lightning_seed)) - 0.5) * 0.09;\n" \
+		+ "		float bolt = exp(-abs((d.x - bolt_x * 0.65) + jag) * 140.0) * smoothstep(0.02, 0.38, d.y) * (1.0 - smoothstep(0.38, 0.55, d.y));\n" \
+		+ "		float cloud_flash = exp(-length(d.xz - vec2(bolt_x * 0.65, -0.5)) * 2.2) * (0.4 + 0.6 * billow);\n" \
+		+ "		col += vec3(0.65, 0.78, 1.0) * lightning_intensity * (bolt * 3.5 + cloud_flash * 1.35);\n" \
+		+ "	}\n" \
+		+ "	COLOR = col;\n" \
+		+ "}\n"
+
 	var sky_shd := Shader.new()
 	sky_shd.code = cloud_code
-	var sky_mat := ShaderMaterial.new()
-	sky_mat.shader = sky_shd
+	_sky_mat = ShaderMaterial.new()
+	_sky_mat.shader = sky_shd
 	var sky := Sky.new()
-	sky.sky_material = sky_mat
+	sky.sky_material = _sky_mat
 	env.background_mode = Environment.BG_SKY
 	env.sky = sky
 
@@ -464,36 +539,52 @@ func _upgrade_cinematic_lighting() -> void:
 	env.ssil_enabled = false
 
 	env.glow_enabled = true
-	env.glow_intensity = 0.22
-	env.glow_bloom = 0.04
+	env.glow_intensity = 0.26
+	env.glow_bloom = 0.05
 
 	env.volumetric_fog_enabled = false
 	env.fog_enabled = true
 	env.fog_mode = Environment.FOG_MODE_DEPTH
-	env.fog_light_color = Color(0.44, 0.38, 0.37)
+	env.fog_light_color = Color(0.45, 0.41, 0.40)
 	env.fog_light_energy = 1.0
-	env.fog_sun_scatter = 0.05
-	env.fog_density = 0.45
-	env.fog_depth_begin = 26.0
-	env.fog_depth_end = 135.0
+	env.fog_sun_scatter = 0.12
+	env.fog_density = 0.48
+	env.fog_depth_begin = 22.0
+	env.fog_depth_end = 125.0
 	env.fog_height = 3.5
 	env.fog_height_density = 0.015
 
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	env.ambient_light_color = Color(0.46, 0.44, 0.47)
-	env.ambient_light_energy = 1.45
+	env.ambient_light_color = Color(0.46, 0.45, 0.48)
+	env.ambient_light_energy = 1.4
 
 	for child in get_children():
 		if child is DirectionalLight3D:
-			child.light_color = Color(0.95, 0.62, 0.42)
-			child.light_energy = 1.15
-			child.rotation_degrees = Vector3(-16.0, -48.0, 0.0)
-			child.shadow_enabled = true
-			child.shadow_blur = 2.8
-			child.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS
-			child.directional_shadow_max_distance = 110.0
+			_sun_light = child
+			_sun_light.light_color = Color(1.0, 0.72, 0.48)
+			_sun_light.light_energy = 1.6
+			_sun_light.rotation_degrees = Vector3(-18.0, -48.0, 0.0)
+			_sun_light.shadow_enabled = true
+			_sun_light.shadow_blur = 2.4
+			_sun_light.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS
+			_sun_light.directional_shadow_max_distance = 110.0
 
+	_spawn_lightning_overlay()
 	_spawn_rain_particles()
+
+
+func _spawn_lightning_overlay() -> void:
+	if has_node("LightningLayer"):
+		return
+	var layer := CanvasLayer.new()
+	layer.name = "LightningLayer"
+	layer.layer = 5
+	_lightning_flash = ColorRect.new()
+	_lightning_flash.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_lightning_flash.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_lightning_flash.color = Color(0.75, 0.85, 1.0, 0.0)
+	layer.add_child(_lightning_flash)
+	add_child(layer)
 
 
 func _spawn_rain_particles() -> void:
