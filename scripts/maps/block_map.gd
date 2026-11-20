@@ -686,6 +686,91 @@ void vertex() {
 void fragment() {
 	vec3 dx = dFdx(w_pos);
 	vec3 dz = dFdy(w_pos);
+	NORMAL = normalize(cross(dz, dx));
+
+	float crest = smoothstep(0.95, 2.15, wave_h);
+	float streak = sin(w_pos.x * 1.8 + w_pos.z * 0.7 + TIME * 3.5) * cos(w_pos.z * 2.1 - TIME * 2.8);
+	float foam = clamp(crest * (0.65 + 0.35 * streak), 0.0, 1.0);
+
+	vec3 deep_sea = vec3(0.03, 0.11, 0.17);
+	vec3 wave_body = vec3(0.07, 0.22, 0.30);
+	vec3 sea_col = mix(deep_sea, wave_body, smoothstep(-1.2, 1.4, wave_h));
+	ALBEDO = mix(sea_col, vec3(0.84, 0.90, 0.94), foam * 0.88);
+	ROUGHNESS = mix(0.08, 0.55, foam);
+	SPECULAR = 0.85;
+}
+"""
+	var omat := ShaderMaterial.new()
+	omat.shader = oshd
+	ocean.material_override = omat
+	add_child(ocean)
+
+
+func _apply_tropical_storm(env: Environment) -> void:
+	var cloud_code := "shader_type sky;\n" \
+		+ "uniform float lightning_intensity = 0.0;\n" \
+		+ "uniform float lightning_seed = 0.0;\n" \
+		+ "float hash(vec2 p) { vec3 p3 = fract(vec3(p.xyx) * 0.1031); p3 += dot(p3, p3.yzx + 33.33); return fract((p3.x + p3.y) * p3.z); }\n" \
+		+ "float noise(vec2 p) { vec2 i = floor(p); vec2 f = fract(p); f = f * f * (3.0 - 2.0 * f); return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), f.x), mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), f.x), f.y); }\n" \
+		+ "float fbm(vec2 p) { float v = 0.0; float a = 0.5; for (int i = 0; i < 6; i++) { v += a * noise(p); p = p * 2.05 + vec2(2.1, 7.4); a *= 0.5; } return v; }\n" \
+		+ "void sky() {\n" \
+		+ "	vec3 d = normalize(EYEDIR);\n" \
+		+ "	vec3 sun_dir = normalize(LIGHT0_DIRECTION);\n" \
+		+ "	float h = clamp(d.y, 0.005, 1.0);\n" \
+		+ "	vec2 uv = d.xz / (h + 0.16) * 0.85 + vec2(TIME * 0.045, TIME * 0.02);\n" \
+		+ "	float c1 = fbm(uv);\n" \
+		+ "	float c2 = fbm(uv * 2.7 - c1 * 0.9 + vec2(TIME * 0.03, 0.0));\n" \
+		+ "	float storm = smoothstep(0.15, 0.85, c1 * 0.6 + c2 * 0.4);\n" \
+		+ "	float sun_dot = max(dot(d, sun_dir), 0.0);\n" \
+		+ "	vec3 abyss = vec3(0.10, 0.12, 0.16);\n" \
+		+ "	vec3 slate = vec3(0.26, 0.30, 0.36);\n" \
+		+ "	vec3 steel_rim = vec3(0.48, 0.52, 0.58);\n" \
+		+ "	vec3 col = mix(slate, abyss, storm);\n" \
+		+ "	col = mix(col, steel_rim, smoothstep(0.55, 0.92, c2) * (1.0 - storm * 0.5));\n" \
+		+ "	float sun_break = pow(sun_dot, 5.0) * (1.15 - storm * 0.65);\n" \
+		+ "	float sun_core = pow(sun_dot, 90.0) * 1.4;\n" \
+		+ "	float anamorphic_streak = exp(-abs(d.y - sun_dir.y) * 28.0) * pow(sun_dot, 6.0) * 0.45;\n" \
+		+ "	col += vec3(1.0, 0.84, 0.66) * (sun_break + sun_core + anamorphic_streak);\n" \
+		+ "	vec3 horizon = mix(vec3(0.32, 0.35, 0.40), vec3(0.56, 0.48, 0.40), pow(sun_dot, 2.0));\n" \
+		+ "	col = mix(horizon, col, smoothstep(0.0, 0.30, d.y));\n" \
+		+ "	if (lightning_intensity > 0.001) {\n" \
+		+ "		float bolt_x = fract(sin(lightning_seed) * 43758.5453) * 2.0 - 1.0;\n" \
+		+ "		float jag = (noise(vec2(d.y * 20.0, lightning_seed)) - 0.5) * 0.08;\n" \
+		+ "		float bolt = exp(-abs((d.x - bolt_x * 0.7) + jag) * 160.0) * smoothstep(0.02, 0.42, d.y) * (1.0 - smoothstep(0.42, 0.60, d.y));\n" \
+		+ "		float glow = exp(-length(d.xz - vec2(bolt_x * 0.7, -0.4)) * 2.4) * (0.35 + 0.65 * (1.0 - storm));\n" \
+		+ "		col += vec3(0.68, 0.80, 1.0) * lightning_intensity * (bolt * 4.5 + glow * 1.6);\n" \
+		+ "	}\n" \
+		+ "	COLOR = col;\n" \
+		+ "}\n"
+
+	var sky_shd := Shader.new()
+	sky_shd.code = cloud_code
+	_sky_mat = ShaderMaterial.new()
+	_sky_mat.shader = sky_shd
+	var sky := Sky.new()
+	sky.sky_material = _sky_mat
+	env.background_mode = Environment.BG_SKY
+	env.sky = sky
+
+	env.fog_enabled = true
+	env.fog_mode = Environment.FOG_MODE_DEPTH
+	env.fog_light_color = Color(0.36, 0.39, 0.44)
+	env.fog_sun_scatter = 0.15
+	env.fog_density = 0.48
+	env.fog_depth_begin = 18.0
+	env.fog_depth_end = 110.0
+
+	if _sun_light != null:
+		_sun_light.light_color = Color(1.0, 0.86, 0.72)
+		_sun_light.light_energy = 1.85
+		_sun_light.rotation_degrees = Vector3(-24.0, -48.0, 0.0)
+
+	_spawn_lightning_and_lens_overlay()
+	_spawn_rain_particles()
+	_spawn_jungle_backdrop()
+	_bake_roof_dry_mask()
+
+
 func _spawn_lightning_and_lens_overlay() -> void:
 	if has_node("LightningLayer"):
 		return
@@ -694,25 +779,52 @@ func _spawn_lightning_and_lens_overlay() -> void:
 	layer.layer = 5
 
 	var lens_code := "shader_type canvas_item;\n" \
+		+ "uniform sampler2D screen_tex : hint_screen_texture, filter_linear_mipmap;\n" \
 		+ "uniform float intensity = 0.0;\n" \
+		+ "uniform vec2 flow_vel = vec2(0.0, 1.0);\n" \
 		+ "vec2 hash2(vec2 p) { return fract(sin(vec2(dot(p, vec2(127.1, 311.7)), dot(p, vec2(269.5, 183.3)))) * 43758.5453); }\n" \
-		+ "void fragment() {\n" \
-		+ "	vec2 aspect = vec2(1.77, 1.0);\n" \
-		+ "	vec2 uv = UV * aspect * vec2(14.0, 8.0);\n" \
-		+ "	vec2 id = floor(uv);\n" \
-		+ "	vec2 gv = fract(uv) - 0.5;\n" \
+		+ "vec3 drop_layer(vec2 uv, float scale, float speed, float t) {\n" \
+		+ "	vec2 st = uv * scale;\n" \
+		+ "	vec2 id = floor(st);\n" \
 		+ "	vec2 rnd = hash2(id);\n" \
-		+ "	float cycle = fract(TIME * (0.18 + rnd.x * 0.22) + rnd.y * 6.28);\n" \
-		+ "	float slide = smoothstep(0.35, 1.0, cycle) * 0.45;\n" \
-		+ "	vec2 pos = (rnd - 0.5) * 0.45 + vec2(0.0, slide);\n" \
-		+ "	vec2 d = (gv - pos) * vec2(1.0, 0.65);\n" \
+		+ "	float cycle = fract(t * speed * (0.6 + rnd.x * 0.7) + rnd.y * 6.28);\n" \
+		+ "	float slide = smoothstep(0.28, 1.0, cycle);\n" \
+		+ "	vec2 drift = flow_vel * slide * 0.85;\n" \
+		+ "	drift.x += sin(slide * 9.0 + rnd.y * 6.28) * 0.08 * slide;\n" \
+		+ "	vec2 gv = fract(st) - 0.5;\n" \
+		+ "	vec2 drop_pos = (rnd - 0.5) * 0.78 + drift;\n" \
+		+ "	vec2 d = gv - drop_pos;\n" \
+		+ "	float stretch = 1.0 + length(flow_vel) * slide * 0.45;\n" \
+		+ "	d.y /= stretch;\n" \
 		+ "	float dist = length(d);\n" \
-		+ "	float radius = 0.14 * (1.0 - smoothstep(0.65, 1.0, cycle)) * step(0.58, rnd.x);\n" \
-		+ "	float rim = smoothstep(radius, radius * 0.68, dist) - smoothstep(radius * 0.68, radius * 0.2, dist);\n" \
-		+ "	float glint = smoothstep(radius * 0.45, 0.0, length(d + vec2(0.03, 0.04))) * step(0.01, radius);\n" \
-		+ "	float edge_mask = smoothstep(0.18, 0.68, length(UV - 0.5));\n" \
-		+ "	float alpha = (rim * 0.16 + glint * 0.28) * intensity * edge_mask;\n" \
-		+ "	COLOR = vec4(0.82, 0.88, 0.96, clamp(alpha, 0.0, 0.35));\n" \
+		+ "	float active = step(0.56, rnd.x) * (1.0 - smoothstep(0.82, 1.0, cycle));\n" \
+		+ "	float r = (0.12 + rnd.y * 0.08) * active;\n" \
+		+ "	float drop_mask = smoothstep(r, r * 0.65, dist);\n" \
+		+ "	vec2 nrm = (d / max(r, 0.001)) * drop_mask;\n" \
+		+ "	vec2 trail_d = gv - (rnd - 0.5) * 0.78;\n" \
+		+ "	float along = dot(trail_d, normalize(flow_vel + vec2(0.0001, 1.0)));\n" \
+		+ "	float perp = length(trail_d - normalize(flow_vel + vec2(0.0001, 1.0)) * along);\n" \
+		+ "	float in_trail = smoothstep(0.0, 0.08, along) * (1.0 - smoothstep(length(drift) - 0.05, length(drift) + 0.02, along));\n" \
+		+ "	float trail_mask = smoothstep(r * 0.42, r * 0.1, perp) * in_trail * active * 0.55;\n" \
+		+ "	vec2 trail_nrm = (trail_d * 2.5) * trail_mask;\n" \
+		+ "	return vec3(nrm + trail_nrm, max(drop_mask, trail_mask));\n" \
+		+ "}\n" \
+		+ "void fragment() {\n" \
+		+ "	if (intensity <= 0.005) { discard; }\n" \
+		+ "	vec2 aspect = vec2(1.777, 1.0);\n" \
+		+ "	vec2 uv = SCREEN_UV * aspect;\n" \
+		+ "	float edge_mask = smoothstep(0.18, 0.58, length(SCREEN_UV - 0.5));\n" \
+		+ "	vec3 l1 = drop_layer(uv, 4.8, 0.20, TIME);\n" \
+		+ "	vec3 l2 = drop_layer(uv + vec2(0.37, 0.71), 9.5, 0.13, TIME + 3.1);\n" \
+		+ "	vec3 l3 = drop_layer(uv + vec2(0.83, 0.19), 18.0, 0.06, TIME + 7.4);\n" \
+		+ "	vec2 total_nrm = (l1.xy * 1.3 + l2.xy * 0.85 + l3.xy * 0.45) * intensity * edge_mask;\n" \
+		+ "	float mask = clamp((l1.z + l2.z * 0.8 + l3.z * 0.5) * intensity * edge_mask, 0.0, 1.0);\n" \
+		+ "	if (mask <= 0.005) { discard; }\n" \
+		+ "	vec3 refracted = textureLod(screen_tex, SCREEN_UV - total_nrm * 0.045, 0.6).rgb;\n" \
+		+ "	float spec = pow(max(dot(normalize(vec3(-total_nrm * 2.2, 1.0)), normalize(vec3(-0.35, -0.55, 0.75))), 0.0), 18.0);\n" \
+		+ "	float fresnel = smoothstep(0.25, 0.95, length(total_nrm)) * 0.25;\n" \
+		+ "	vec3 water_col = refracted * (1.06 - fresnel) + vec3(0.92, 0.96, 1.0) * spec * 0.65;\n" \
+		+ "	COLOR = vec4(water_col, clamp(mask * 1.4, 0.0, 0.95));\n" \
 		+ "}\n"
 
 	var lshd := Shader.new()
@@ -763,120 +875,3 @@ func _spawn_rain_particles() -> void:
 	_rain_mat.initial_velocity_min = 26.0
 	_rain_mat.initial_velocity_max = 35.0
 	_rain_mat.gravity = Vector3(7.5, -16.0, 3.0)
-	_rain_mat.collision_mode = ParticleProcessMaterial.COLLISION_HIDE_ON_CONTACT
-	rain.process_material = _rain_mat
-
-	var drop := QuadMesh.new()
-	drop.size = Vector2(0.007, 0.78)
-	var dmat := StandardMaterial3D.new()
-	dmat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	dmat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	dmat.billboard_mode = BaseMaterial3D.BILLBOARD_DISABLED
-	dmat.cull_mode = BaseMaterial3D.CULL_DISABLED
-	dmat.albedo_color = Color(0.78, 0.83, 0.90, 0.30)
-	drop.material = dmat
-	rain.draw_pass_1 = drop
-
-	rain.rotation_degrees = Vector3(9.0, 0.0, -23.0)
-	add_child(rain)
-func _spawn_jungle_backdrop() -> void:
-	if has_node("JungleBackdrop"):
-		return
-	var root := Node3D.new()
-	root.name = "JungleBackdrop"
-	add_child(root)
-
-	var rng := RandomNumberGenerator.new()
-	rng.seed = 42012
-
-	var rock_st := SurfaceTool.new()
-	rock_st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	var ico := SphereMesh.new()
-	ico.radial_segments = 10
-	ico.rings = 6
-	var arrays := ico.get_mesh_arrays()
-	var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
-	var idxs: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
-	for idx in idxs:
-		var v := verts[idx]
-		var n := sin(v.x * 5.1) * cos(v.z * 4.7) * 0.22 + sin(v.y * 6.3) * 0.14
-		v = v * (1.0 + n)
-		v.y = maxf(v.y * 0.75, -0.35)
-		rock_st.set_uv(Vector2(v.x + v.z, v.y) * 0.5)
-		rock_st.add_vertex(v)
-	rock_st.generate_normals()
-	var rock_mesh := rock_st.commit()
-	var rock_mat := StandardMaterial3D.new()
-	rock_mat.albedo_color = Color(0.18, 0.20, 0.19)
-	rock_mat.roughness = 0.92
-	rock_mesh.surface_set_material(0, rock_mat)
-
-	var rock_mm := MultiMesh.new()
-	rock_mm.transform_format = MultiMesh.TRANSFORM_3D
-	rock_mm.mesh = rock_mesh
-	rock_mm.instance_count = 34
-	for i in 34:
-		var ang := TAU * float(i) / 34.0 + rng.randf_range(-0.08, 0.08)
-		var dist := rng.randf_range(46.0, 74.0)
-		var pos := Vector3(cos(ang) * dist, rng.randf_range(-0.5, 1.5), sin(ang) * dist)
-		var sc := Vector3(rng.randf_range(5.0, 13.0), rng.randf_range(3.5, 10.0), rng.randf_range(5.0, 13.0))
-		rock_mm.set_instance_transform(i, Transform3D(Basis(Vector3.UP, rng.randf() * TAU).scaled_local(sc), pos))
-	var rock_mi := MultiMeshInstance3D.new()
-	rock_mi.multimesh = rock_mm
-	root.add_child(rock_mi)
-
-	var trunk_mesh := CylinderMesh.new()
-	trunk_mesh.top_radius = 0.35
-	trunk_mesh.bottom_radius = 0.65
-	trunk_mesh.height = 7.5
-	trunk_mesh.radial_segments = 8
-	var tmat := StandardMaterial3D.new()
-	tmat.albedo_color = Color(0.16, 0.13, 0.10)
-	tmat.roughness = 0.95
-	trunk_mesh.material = tmat
-
-	var canopy_mesh := Vegetation.bush_mesh()
-	var trunk_mm := MultiMesh.new()
-	trunk_mm.transform_format = MultiMesh.TRANSFORM_3D
-	trunk_mm.mesh = trunk_mesh
-	trunk_mm.instance_count = 42
-
-	var canopy_items: Array = []
-	for i in 42:
-		var ang := TAU * float(i) / 42.0 + rng.randf_range(-0.06, 0.06)
-		var dist := rng.randf_range(42.0, 68.0)
-		var pos := Vector3(cos(ang) * dist, 0.0, sin(ang) * dist)
-		var h_sc := rng.randf_range(0.9, 1.5)
-		trunk_mm.set_instance_transform(i, Transform3D(Basis(Vector3.UP, rng.randf() * TAU).scaled_local(Vector3(1.0, h_sc, 1.0)), pos + Vector3(0.0, 3.6 * h_sc, 0.0)))
-		canopy_items.append({
-			"pos": pos + Vector3(0.0, 6.8 * h_sc, 0.0),
-			"scale3": Vector3(rng.randf_range(5.5, 8.5), rng.randf_range(3.5, 5.5), rng.randf_range(5.5, 8.5)),
-			"yaw": rng.randf() * TAU,
-			"color": Color(0.55, 0.68, 0.52).lerp(Color(0.35, 0.50, 0.34), rng.randf())
-		})
-
-	var trunk_mi := MultiMeshInstance3D.new()
-	trunk_mi.multimesh = trunk_mm
-	root.add_child(trunk_mi)
-	Vegetation.scatter(root, canopy_mesh, canopy_items, "JungleCanopies")
-
-func _bake_roof_dry_mask() -> void:
-	if not is_inside_tree():
-		return
-	var res := 128
-	var min_x := -85.0
-	var min_z := -85.0
-	var span := 170.0
-	var img := Image.create(res, res, false, Image.FORMAT_RF)
-	var space := get_world_3d().direct_space_state
-	for z in res:
-		for x in res:
-			var wx := min_x + (float(x) + 0.5) / float(res) * span
-			var wz := min_z + (float(z) + 0.5) / float(res) * span
-			var q := PhysicsRayQueryParameters3D.create(Vector3(wx, 32.0, wz), Vector3(wx, -4.0, wz))
-			var hit := space.intersect_ray(q)
-			var top_y := -5.0 if hit.is_empty() else float(hit["position"].y)
-			img.set_pixel(x, z, Color(clampf((top_y + 5.0) / 40.0, 0.0, 1.0), 0.0, 0.0, 1.0))
-	var tex := ImageTexture.create_from_image(img)
-	RenderingServer.global_shader_parameter_set("roof_bounds", Vector4(min_x, min_z, span, span))
-	RenderingServer.global_shader_parameter_set("roof_mask_tex", tex)
