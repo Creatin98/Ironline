@@ -676,28 +676,30 @@ void sky() {
 
 
 func _spawn_harbor_storm_ocean() -> void:
-	# Alte Wasserflächen der Map ausblenden, damit nichts doppelt liegt
 	for m in find_children("*", "MeshInstance3D", true, false):
 		if m.name.to_lower().contains("water") or m.name.to_lower().contains("ocean") or m.name.to_lower().contains("sea"):
 			m.visible = false
 
+	# 1. Glatter Hochsee-Ozean (View-Space Normalen -> null Kacheln/Streifen, Schiff fährt vorwärts!)
 	var ocean := MeshInstance3D.new()
 	ocean.name = "HarborStormOcean"
 	var plane := PlaneMesh.new()
-	plane.size = Vector2(420.0, 420.0)
-	plane.subdivide_width = 180
-	plane.subdivide_depth = 180
+	plane.size = Vector2(520.0, 520.0)
+	plane.subdivide_width = 160
+	plane.subdivide_depth = 160
 	ocean.mesh = plane
-	ocean.position = Vector3(0.0, -3.6, 0.0)
+	ocean.position = Vector3(0.0, -3.4, 0.0)
 
 	var oshd := Shader.new()
 	oshd.code = """
 shader_type spatial;
 render_mode cull_back, diffuse_burley, specular_schlick_ggx;
 
+uniform float ship_speed_offset = 0.0;
+
 varying float wave_h;
 varying vec3 w_pos;
-varying vec3 smooth_nrm;
+varying vec3 world_nrm;
 
 float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 float noise(vec2 p) {
@@ -705,58 +707,171 @@ float noise(vec2 p) {
 	f = f * f * (3.0 - 2.0 * f);
 	return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), f.x), mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), f.x), f.y);
 }
+float fbm(vec2 p) {
+	return noise(p) * 0.6 + noise(p * 2.1 + 3.7) * 0.28 + noise(p * 4.3 - 1.9) * 0.12;
+}
 
 void vertex() {
 	vec3 wp = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
-	// Schiffsrumpf-Maske: Dämpft Wellen unter dem Schiff, damit NIE Wasser durchs Deck schlägt!
-	vec2 hull = abs(wp.xz) / vec2(18.0, 44.0);
+	// Schiffsrumpf-Maske: Wellen bauen sich an der Bordwand auf, schlagen aber nicht durchs Deck!
+	vec2 hull = abs(wp.xz) / vec2(17.5, 43.0);
 	float hull_dist = max(hull.x, hull.y);
-	float damp = smoothstep(0.85, 1.35, hull_dist);
+	float damp = smoothstep(0.82, 1.28, hull_dist);
+	float bow_wake = exp(-abs(hull_dist - 1.15) * 4.5) * 0.65;
 
+	vec2 travel = wp.xz + vec2(0.0, ship_speed_offset);
 	float t = TIME;
 	vec2 d1 = normalize(vec2(0.85, 0.35));
 	vec2 d2 = normalize(vec2(0.55, -0.75));
 	vec2 d3 = normalize(vec2(-0.35, 0.92));
 
-	float p1 = dot(wp.xz, d1) * 0.14 + t * 2.5;
-	float p2 = dot(wp.xz, d2) * 0.24 + t * 3.2;
-	float p3 = dot(wp.xz, d3) * 0.45 + t * 4.4;
+	float p1 = dot(travel, d1) * 0.13 + t * 1.65;
+	float p2 = dot(travel, d2) * 0.22 + t * 2.75 + 1.1;
+	float p3 = dot(travel, d3) * 0.42 + t * 3.8;
 
-	float h = (sin(p1) * 1.55 + sin(p2) * 0.90 + sin(p3) * 0.42) * damp;
+	float h = (sin(p1) * 1.65 + sin(p2) * 0.95 + sin(p3) * 0.45) * damp + bow_wake;
 	VERTEX.y += h;
 	wave_h = h;
-	w_pos = wp + vec3(0.0, h, 0.0);
+	w_pos = vec3(travel.x, wp.y + h, travel.y);
 
-	// Glatte analytische Wellen-Normale (null kastige Low-Poly-Kanten!)
-	vec2 grad = (d1 * cos(p1) * 0.14 * 1.55 + d2 * cos(p2) * 0.24 * 0.90 + d3 * cos(p3) * 0.45 * 0.42) * damp;
-	smooth_nrm = normalize(vec3(-grad.x, 1.0, -grad.y));
+	vec2 grad = (d1 * cos(p1) * 0.13 * 1.65 + d2 * cos(p2) * 0.22 * 0.95 + d3 * cos(p3) * 0.42 * 0.45) * damp;
+	world_nrm = normalize(vec3(-grad.x, 1.0, -grad.y));
 }
 
 void fragment() {
-	// Feine hochauflösende Oberflächen-Kräuselung im Fragment-Shader
-	vec2 uv1 = w_pos.xz * 0.35 + vec2(TIME * 0.18, TIME * 0.08);
-	vec2 uv2 = w_pos.xz * 0.95 - vec2(TIME * 0.12, -TIME * 0.22);
-	float r1 = noise(uv1) - noise(uv1 + vec2(0.15, 0.0));
-	float r2 = noise(uv2) - noise(uv2 + vec2(0.0, 0.15));
-	NORMAL = normalize(smooth_nrm + vec3(r1 * 0.35 + r2 * 0.25, 0.0, r2 * 0.35 - r1 * 0.25));
+	// Hochauflösende Oberflächen-Kräuselung + korrekte View-Space Normalen (kein Gitter mehr!)
+	vec2 uv1 = w_pos.xz * 0.28 + vec2(TIME * 0.15, TIME * 0.08);
+	vec2 uv2 = w_pos.xz * 0.85 - vec2(TIME * 0.11, -TIME * 0.19);
+	float eps = 0.12;
+	float n0 = fbm(uv1) + fbm(uv2) * 0.5;
+	float nx = fbm(uv1 + vec2(eps, 0.0)) + fbm(uv2 + vec2(eps, 0.0)) * 0.5;
+	float nz = fbm(uv1 + vec2(0.0, eps)) + fbm(uv2 + vec2(0.0, eps)) * 0.5;
+	vec3 detail_nrm = normalize(world_nrm + vec3((n0 - nx) * 1.8, 0.0, (n0 - nz) * 1.8));
+	NORMAL = normalize((VIEW_MATRIX * vec4(detail_nrm, 0.0)).xyz);
 
-	// Schaumkronen auf hohen Wellen & Gischt-Streifen vom Wind
-	float crest = smoothstep(1.05, 2.25, wave_h);
-	float wind_foam = noise(w_pos.xz * vec2(0.18, 0.65) + vec2(TIME * 0.4, 0.0));
-	float foam = clamp(crest * smoothstep(0.35, 0.75, wind_foam) * 1.35, 0.0, 1.0);
+	// Sattes, tiefes Sturm-Ozeanblau mit weißen Schaumkronen & Bugwelle
+	float crest = smoothstep(1.15, 2.35, wave_h);
+	float foam_tex = fbm(w_pos.xz * vec2(0.22, 0.55) + vec2(TIME * 0.35, 0.0));
+	float foam = clamp(crest * smoothstep(0.32, 0.72, foam_tex) * 1.45, 0.0, 1.0);
 
-	vec3 deep_sea = vec3(0.02, 0.09, 0.15);
-	vec3 wave_body = vec3(0.05, 0.18, 0.26);
-	vec3 sea_col = mix(deep_sea, wave_body, smoothstep(-1.4, 1.6, wave_h));
-	ALBEDO = mix(sea_col, vec3(0.82, 0.89, 0.93), foam * 0.85);
-	ROUGHNESS = mix(0.06, 0.48, foam);
-	SPECULAR = 0.90;
+	vec3 abyss_sea = vec3(0.015, 0.065, 0.11);
+	vec3 mid_sea = vec3(0.035, 0.15, 0.22);
+	vec3 sea_col = mix(abyss_sea, mid_sea, smoothstep(-1.5, 1.8, wave_h));
+	ALBEDO = mix(sea_col, vec3(0.86, 0.92, 0.96), foam * 0.90);
+	ROUGHNESS = mix(0.05, 0.42, foam);
+	SPECULAR = 0.92;
 }
 """
-	var omat := ShaderMaterial.new()
-	omat.shader = oshd
-	ocean.material_override = omat
+	_ocean_mat = ShaderMaterial.new()
+	_ocean_mat.shader = oshd
+	ocean.material_override = _ocean_mat
 	add_child(ocean)
+
+	# 2. Gischt-Spritzwasser, das bei Wellenschlag über die Bordwand aufs Deck peitscht
+	var spray := GPUParticles3D.new()
+	spray.name = "HarborBowSpray"
+	spray.amount = 420
+	spray.lifetime = 1.15
+	spray.one_shot = false
+	spray.emitting = false
+	var smat := ParticleProcessMaterial.new()
+	smat.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_BOX
+	smat.emission_box_extents = Vector3(1.2, 0.5, 12.0)
+	smat.direction = Vector3(-0.8, 1.4, -0.3).normalized()
+	smat.spread = 28.0
+	smat.initial_velocity_min = 6.5
+	smat.initial_velocity_max = 12.5
+	smat.gravity = Vector3(0.0, -14.0, -3.5)
+	smat.scale_min = 0.4
+	smat.scale_max = 1.1
+	spray.process_material = smat
+	var sdrop := QuadMesh.new()
+	sdrop.size = Vector2(0.18, 0.18)
+	var sdmat := StandardMaterial3D.new()
+	sdmat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	sdmat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	sdmat.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
+	sdmat.albedo_color = Color(0.86, 0.92, 0.96, 0.42)
+	sdrop.material = sdmat
+	spray.draw_pass_1 = sdrop
+	add_child(spray)
+
+	# 3. Dynamische Meerwasser-Lache auf dem Schiffsdeck (schwappt bei Wellenschlag rüber, bewegt sich & löst sich auf!)
+	var wash := MeshInstance3D.new()
+	wash.name = "HarborDeckWash"
+	var wplane := PlaneMesh.new()
+	wplane.size = Vector2(32.0, 82.0)
+	wash.mesh = wplane
+	wash.position = Vector3(0.0, 0.03, 0.0)
+	var wshd := Shader.new()
+	wshd.code = """
+shader_type spatial;
+render_mode blend_mix, depth_draw_never, cull_back, diffuse_burley, specular_schlick_ggx;
+
+float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+float noise(vec2 p) {
+	vec2 i = floor(p); vec2 f = fract(p);
+	f = f * f * (3.0 - 2.0 * f);
+	return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), f.x), mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), f.x), f.y);
+}
+float fbm(vec2 p) { return noise(p) * 0.65 + noise(p * 2.3 + 1.9) * 0.35; }
+
+void fragment() {
+	vec3 wp = (INV_VIEW_MATRIX * vec4(VERTEX, 1.0)).xyz;
+	// Wandert mit den großen Sturmwellen von den Bordwänden aufs Deck und zieht sich wieder zurück
+	float surge = sin(TIME * 1.65 + wp.z * 0.06);
+	float side_reach = max(0.0, abs(wp.x) - 4.5 + surge * 5.5) / 11.5;
+	float flow = fbm(wp.xz * 0.22 + vec2(surge * 0.45, TIME * 0.35));
+	float water_mask = smoothstep(0.42, 0.72, side_reach * flow * 1.65);
+	float foam_edge = smoothstep(0.42, 0.50, side_reach * flow * 1.65) * (1.0 - smoothstep(0.50, 0.62, side_reach * flow * 1.65));
+
+	if (water_mask <= 0.01) { discard; }
+	ALBEDO = mix(vec3(0.08, 0.16, 0.22), vec3(0.85, 0.91, 0.95), foam_edge * 0.75);
+	ROUGHNESS = mix(0.05, 0.35, foam_edge);
+	SPECULAR = 0.90;
+	ALPHA = clamp(water_mask * 0.68, 0.0, 0.72);
+}
+"""
+	var wmat := ShaderMaterial.new()
+	wmat.shader = wshd
+	wash.material_override = wmat
+	add_child(wash)
+
+	# 4. Majestätische tropische Inseln am fernen Horizont (dynamisch langsam vorbeiziehend!)
+	var islands := Node3D.new()
+	islands.name = "HarborDistantIslands"
+	add_child(islands)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 90210
+	for i in 6:
+		var isl := MeshInstance3D.new()
+		var st := SurfaceTool.new()
+		st.begin(Mesh.PRIMITIVE_TRIANGLES)
+		var cone := CylinderMesh.new()
+		cone.top_radius = rng.randf_range(3.0, 9.0)
+		cone.bottom_radius = rng.randf_range(28.0, 52.0)
+		cone.height = rng.randf_range(16.0, 34.0)
+		cone.radial_segments = 16
+		cone.rings = 4
+		var arr := cone.get_mesh_arrays()
+		var vtx: PackedVector3Array = arr[Mesh.ARRAY_VERTEX]
+		var idx: PackedInt32Array = arr[Mesh.ARRAY_INDEX]
+		for k in idx:
+			var v := vtx[k]
+			var ridge := sin(v.x * 0.18 + float(i)) * cos(v.z * 0.16) * 4.5
+			v.x += ridge
+			v.z += ridge * 0.7
+			st.add_vertex(v)
+		st.generate_normals()
+		isl.mesh = st.commit()
+		var imat := StandardMaterial3D.new()
+		imat.albedo_color = Color(0.16, 0.24, 0.22)
+		imat.roughness = 0.95
+		isl.material_override = imat
+		var side := -1.0 if i % 2 == 0 else 1.0
+		isl.position = Vector3(side * rng.randf_range(145.0, 210.0), 4.0, -160.0 + float(i) * 65.0)
+		isl.rotation.y = rng.randf() * TAU
+		islands.add_child(isl)
 
 
 func _apply_tropical_storm(env: Environment) -> void:
