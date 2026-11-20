@@ -25,7 +25,6 @@ var _wash_r: float = 0.0
 var _storm_rain: GPUParticles3D
 var _deck_splashes: GPUParticles3D
 var _visor_rain_mat: ShaderMaterial
-var _lightning_timer: float = 4.0
 var _wet_viewmodel_done: bool = false
 
 
