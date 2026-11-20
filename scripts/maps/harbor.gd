@@ -226,3 +226,39 @@ func _build_curved_hull_ends(d: MapDetail) -> void:
 	mat.metallic = 0.05
 	mi.material_override = mat
 	add_child(mi)
+	func _ready() -> void:
+	atmosphere_preset = "overcast_industrial"
+	super._ready()
+	_setup_superyacht_spawns()
+
+
+func _setup_superyacht_spawns() -> void:
+	# Alte, falsch platzierte Spawns entfernen & saubere, breit gefächerte Team-Spawns setzen
+	var old_spawns: Array[Node] = []
+	for s in find_children("*", "SpawnPoint", true, false):
+		old_spawns.append(s)
+
+	var red_spots: Array[Vector3] = [
+		Vector3(-9.0, 0.2, -31.0), Vector3(-4.5, 0.2, -35.5), Vector3(0.0, 0.2, -37.5),
+		Vector3(4.5, 0.2, -35.5), Vector3(9.0, 0.2, -31.0), Vector3(-13.5, 0.2, -28.0),
+		Vector3(13.5, 0.2, -28.0), Vector3(0.0, 0.2, -28.5)
+	]
+	var blue_spots: Array[Vector3] = [
+		Vector3(-9.0, 0.2, 31.0), Vector3(-4.5, 0.2, 36.5), Vector3(0.0, 0.2, 38.5),
+		Vector3(4.5, 0.2, 36.5), Vector3(9.0, 0.2, 31.0), Vector3(-13.5, 0.2, 28.0),
+		Vector3(13.5, 0.2, 28.0), Vector3(0.0, 0.2, 28.5)
+	]
+
+	# Falls schon SpawnPoint-Nodes existieren, diese sauber neu verteilen
+	var idx := 0
+	for s in old_spawns:
+		var team_val = s.get("team")
+		if team_val == 0 or str(s.name).to_lower().contains("red") or idx % 2 == 0:
+			var p := red_spots[idx % red_spots.size()]
+			s.global_position = p
+			s.rotation_degrees = Vector3(0.0, 180.0, 0.0) # Blick Richtung Süden (Mitteldeck)
+		else:
+			var p := blue_spots[idx % blue_spots.size()]
+			s.global_position = p
+			s.rotation_degrees = Vector3(0.0, 0.0, 0.0) # Blick Richtung Norden (Mitteldeck)
+		idx += 1
