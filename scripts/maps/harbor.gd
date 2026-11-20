@@ -26,6 +26,9 @@ func _ready() -> void:
 	kill_y = -25.0
 	atmosphere_preset = "clear_day"
 	super._ready()
+	for area in find_children("*", "Area3D", true, false):
+		if area.global_position.y > -18.0:
+			area.global_position.y = -25.0
 	_setup_midnight_atmosphere()
 	_upgrade_reflective_materials()
 	_build_seamless_yacht_hull()
@@ -41,8 +44,8 @@ func _process(delta: float) -> void:
 
 	var ocean := get_node_or_null("MidnightStormOcean") as Node3D
 	if ocean != null:
-		ocean.position.y = -4.2 - w1 * 0.32
-		ocean.rotation_degrees = Vector3(-cos(_my_time * 1.1) * 0.85, 0.0, -wave_force * 1.3)
+		ocean.position.y = -4.85 - w1 * 0.35
+		ocean.rotation_degrees = Vector3(-pitch_deg, 0.0, -roll_deg)
 
 	if _my_ocean_mat != null:
 		_my_ocean_mat.set_shader_parameter("ship_speed_offset", _my_time * 6.8)
@@ -248,6 +251,60 @@ func build_detail(d: MapDetail) -> void:
 	var mast := Vector3(0.0, UPPER_Y, -16.0)
 	d.add_box(mast + Vector3(0, 0.25, 0), Vector3(2.0, 0.5, 2.0), "metal_panel", C_DARK)
 	d.add_cylinder(mast + Vector3(0, 3.8, 0), 0.30, 7.6, "metal_panel", C_DARK)
+d.add_cylinder(mast + Vector3(0, 8.2, 0), 0.12, 2.2, "metal_panel", C_CHROME)
+	d.glow(mast + Vector3(0, 9.4, 0), Color(1.0, 0.12, 0.08), 1.4)
+	d.add_box(mast + Vector3(0, 4.5, 0), Vector3(4.4, 0.16, 0.5), "metal_panel", C_DARK)
+	d.add_cylinder(mast + Vector3(-1.3, 4.85, 0), 0.78, 0.48, "ship_hull", C_GELCOAT)
+	d.add_cylinder(mast + Vector3(1.3, 4.85, 0), 0.78, 0.48, "ship_hull", C_GELCOAT)
+	for fx in [-1.7, 1.7]:
+		for fz in [-0.30, 0.30]:
+			d.add_box(mast + Vector3(fx, 4.28, fz), Vector3(0.55, 0.26, 0.26), "metal_panel", C_CHROME)
+			d.bulb(mast + Vector3(fx, 4.22, fz * 1.45), Color(0.96, 0.98, 1.0), 1.8, 1.2, 18.0)
+
+	# Rettungsboote in weißen Davit-Kränen, Tau-Rollen & Rettungsringe
+	for side in [-1.0, 1.0]:
+		var dx: float = side * 15.8
+		for dz in [-2.6, 2.6]:
+			d.add_box(Vector3(dx + side * 0.6, 1.6, dz), Vector3(0.32, 3.2, 0.38), "ship_hull", C_GELCOAT)
+			d.add_box(Vector3(dx, 3.1, dz), Vector3(1.6, 0.28, 0.34), "ship_hull", C_GELCOAT)
+		d.add_box(Vector3(dx - side * 0.2, 2.05, 0.0), Vector3(1.75, 0.85, 5.4), "ship_hull", C_GELCOAT)
+		d.add_box(Vector3(dx - side * 0.2, 2.52, 0.0), Vector3(1.80, 0.22, 5.45), "metal_panel", Color(0.92, 0.32, 0.10))
+		d.add_cylinder(Vector3(side * 17.05, 0.85, -10.5), 0.65, 0.12, "metal_panel", Color(0.95, 0.35, 0.12), Basis(Vector3.BACK, PI * 0.5))
+		d.add_cylinder(Vector3(side * 15.6, 0.32, -8.5), 0.72, 0.64, "wood_planks", C_TEAK)
+
+	# Sonnenliegen entlang der Reling
+	for lz in [-28.0, -24.5, 24.5, 28.0]:
+		for side in [-1.0, 1.0]:
+			d.add_box(Vector3(side * 15.4, 0.28, lz), Vector3(1.5, 0.14, 0.75), "metal_panel", C_DARK)
+			d.add_box(Vector3(side * 15.9, 0.48, lz), Vector3(0.55, 0.12, 0.75), "metal_panel", C_DARK, Vector3(0, 0, side * 28.0))
+
+	# Navigationslichter, Pool-Licht & Chrom-Relings
+	d.bulb(Vector3(-17.0, 1.15, -37.5), Color(1.0, 0.12, 0.08), 1.6, 1.4, 5.5)
+	d.bulb(Vector3(17.0, 1.15, -37.5), Color(0.1, 1.0, 0.25), 1.6, 1.4, 5.5)
+	d.bulb(Vector3(0, 0.95, 0.0), Color(0.15, 0.90, 1.0), 3.4, 2.8, 9.0)
+	d.bulb(Vector3(0, 0.95, -32.2), Color(0.15, 0.90, 1.0), 2.8, 2.4, 7.0)
+	d.glow(Vector3(0, UPPER_Y + 6.2, 17.8), Color(1.0, 0.15, 0.1), 1.4)
+
+	d.rail(Vector3(-17.2, 0.35, -37.8), Vector3(-17.2, 0.35, 37.8), 0.75)
+	d.rail(Vector3(17.2, 0.35, -37.8), Vector3(17.2, 0.35, 37.8), 0.75)
+	d.rail(Vector3(-7.3, UPPER_Y + 0.35, -8.0), Vector3(7.3, UPPER_Y + 0.35, -8.0), 0.75)
+	d.rail(Vector3(-7.3, UPPER_Y + 0.35, 8.0), Vector3(7.3, UPPER_Y + 0.35, 8.0), 0.75)
+	d.rail(Vector3(-3.4, UPPER_Y + 0.35, -24.0), Vector3(7.3, UPPER_Y + 0.35, -24.0), 0.75)
+	d.rail(Vector3(-7.3, UPPER_Y + 0.35, 24.0), Vector3(3.4, UPPER_Y + 0.35, 24.0), 0.75)
+	for sx in [-6.7, -10.5]:
+		d.rail(Vector3(sx, 0.0, -6.2), Vector3(sx, 0.0, 6.2), 0.95)
+	for sx in [6.7, 10.5]:
+		d.rail(Vector3(sx, 0.0, -6.2), Vector3(sx, 0.0, 6.2), 0.95)
+
+	# Warmgoldenes Salon- & Cockpit-Licht + heller Maschinenraum-Keller mit LED-Streifen
+	d.lamp(Vector3(0, 3.0, -16.0), Color(1.0, 0.76, 0.36), 2.4, 16.0)
+	d.lamp(Vector3(0, 3.0, 15.5), Color(1.0, 0.74, 0.34), 2.2, 15.0)
+	d.lamp(Vector3(0, UPPER_Y + 2.1, 14.5), Color(1.0, 0.62, 0.22), 2.0, 10.0)
+	d.led_strip(Vector3(-11.6, LOWER_Y + 3.2, -25.0), Vector3(-11.6, LOWER_Y + 3.2, 25.0), Color(0.55, 0.85, 1.0), 3.2)
+	d.led_strip(Vector3(11.6, LOWER_Y + 3.2, -25.0), Vector3(11.6, LOWER_Y + 3.2, 25.0), Color(0.55, 0.85, 1.0), 3.2)
+	for kz in [-20.0, -10.0, 0.0, 10.0, 20.0]:
+		for kx in [-6.5, 0.0, 6.5]:
+			d.lamp(Vector3(kx, LOWER_Y + 3.1, kz), Color(0.88, 0.95, 1.0), 2.5, 18.0)
 func _setup_midnight_atmosphere() -> void:
 	if has_node("HarborDistantIslands"):
 		get_node("HarborDistantIslands").visible = false
@@ -309,13 +366,15 @@ func _upgrade_reflective_materials() -> void:
 			if plank_mat == null:
 				plank_mat = mat.duplicate() as StandardMaterial3D
 				if plank_mat != null:
+					plank_mat.uv1_triplanar = true
+					plank_mat.uv1_world_triplanar = true
+					plank_mat.uv1_scale = Vector3(0.35, 0.35, 0.35)
 					plank_mat.roughness = 0.24
 					plank_mat.specular = 0.85
 					plank_mat.clearcoat = 0.45
 					plank_mat.clearcoat_roughness = 0.20
 			if plank_mat != null:
 				mi.material_override = plank_mat
-
 
 func _build_seamless_yacht_hull() -> void:
 	var st := SurfaceTool.new()
@@ -402,10 +461,10 @@ func _build_midnight_ocean_and_liner() -> void:
 	plane.subdivide_width = 180
 	plane.subdivide_depth = 180
 	ocean.mesh = plane
-	ocean.position = Vector3(0.0, -4.2, 0.0)
+	ocean.position = Vector3(0.0, -4.85, 0.0)
 
 	var oshd := Shader.new()
-	oshd.code = "shader_type spatial;\nrender_mode cull_back,diffuse_burley,specular_schlick_ggx;\nuniform float ship_speed_offset=0.0;\nvarying float wave_h;\nvarying vec3 w_pos;\nvarying vec3 world_nrm;\nfloat hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}\nfloat noise(vec2 p){vec2 i=floor(p);vec2 f=fract(p);f=f*f*(3.0-2.0*f);return mix(mix(hash(i),hash(i+vec2(1.0,0.0)),f.x),mix(hash(i+vec2(0.0,1.0)),hash(i+vec2(1.0,1.0)),f.x),f.y);}\nfloat fbm(vec2 p){return noise(p)*0.55+noise(p*2.15+3.7)*0.28+noise(p*4.4-1.9)*0.17;}\nvoid vertex(){vec3 wp=(MODEL_MATRIX*vec4(VERTEX,1.0)).xyz;vec2 hull=abs(wp.xz)/vec2(19.5,52.0);float hull_dist=max(hull.x,hull.y);float damp=smoothstep(0.84,1.28,hull_dist);float bow_wake=exp(-abs(hull_dist-1.12)*4.5)*0.55;vec2 travel=wp.xz+vec2(0.0,ship_speed_offset);float t=TIME;vec2 d1=normalize(vec2(0.85,0.35));vec2 d2=normalize(vec2(0.55,-0.75));vec2 d3=normalize(vec2(-0.35,0.92));float p1=dot(travel,d1)*0.11+t*1.55;float p2=dot(travel,d2)*0.20+t*2.65+1.1;float p3=dot(travel,d3)*0.38+t*3.7;float h=(sin(p1)*1.15+sin(p2)*0.68+sin(p3)*0.32)*damp+bow_wake;VERTEX.y+=h;wave_h=h;w_pos=vec3(travel.x,wp.y+h,travel.y);vec2 grad=(d1*cos(p1)*0.11*1.15+d2*cos(p2)*0.20*0.68+d3*cos(p3)*0.38*0.32)*damp;world_nrm=normalize(vec3(-grad.x,1.0,-grad.y));}\nvoid fragment(){vec2 uv1=w_pos.xz*0.55+vec2(TIME*0.18,TIME*0.09);vec2 uv2=w_pos.xz*1.65-vec2(TIME*0.14,-TIME*0.22);float eps=0.08;float n0=fbm(uv1)+fbm(uv2)*0.6;float nx=fbm(uv1+vec2(eps,0.0))+fbm(uv2+vec2(eps,0.0))*0.6;float nz=fbm(uv1+vec2(0.0,eps))+fbm(uv2+vec2(0.0,eps))*0.6;vec3 detail_nrm=normalize(world_nrm+vec3((n0-nx)*2.6,0.0,(n0-nz)*2.6));NORMAL=normalize((VIEW_MATRIX*vec4(detail_nrm,0.0)).xyz);float crest=smoothstep(0.85,1.75,wave_h);float foam_tex=fbm(w_pos.xz*vec2(0.28,0.68)+vec2(TIME*0.35,0.0));float foam=clamp(crest*smoothstep(0.42,0.78,foam_tex)*1.1,0.0,1.0);vec3 sea_col=mix(vec3(0.005,0.018,0.045),vec3(0.015,0.065,0.14),smoothstep(-1.2,1.4,wave_h));ALBEDO=mix(sea_col,vec3(0.75,0.85,0.96),foam*0.75);ROUGHNESS=mix(0.04,0.35,foam);SPECULAR=1.0;}"
+	oshd.code = "shader_type spatial;\nrender_mode cull_back,diffuse_burley,specular_schlick_ggx;\nuniform float ship_speed_offset=0.0;\nvarying float wave_h;\nvarying vec3 w_pos;\nvarying vec3 world_nrm;\nfloat hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}\nfloat noise(vec2 p){vec2 i=floor(p);vec2 f=fract(p);f=f*f*(3.0-2.0*f);return mix(mix(hash(i),hash(i+vec2(1.0,0.0)),f.x),mix(hash(i+vec2(0.0,1.0)),hash(i+vec2(1.0,1.0)),f.x),f.y);}\nfloat fbm(vec2 p){return noise(p)*0.55+noise(p*2.15+3.7)*0.28+noise(p*4.4-1.9)*0.17;}\nvoid vertex(){vec3 wp=(MODEL_MATRIX*vec4(VERTEX,1.0)).xyz;vec2 hull=abs(wp.xz)/vec2(23.5,58.0);
 	_my_ocean_mat = ShaderMaterial.new()
 	_my_ocean_mat.shader = oshd
 	ocean.material_override = _my_ocean_mat
