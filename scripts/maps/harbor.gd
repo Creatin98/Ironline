@@ -365,7 +365,7 @@ func _build_seamless_yacht_hull() -> void:
 	var deck_st := SurfaceTool.new()
 	deck_st.begin(Mesh.PRIMITIVE_TRIANGLES)
 
-	var slices := 56
+	var slices := 64
 	for i in slices:
 		var t0 := float(i) / float(slices)
 		var t1 := float(i + 1) / float(slices)
@@ -373,11 +373,23 @@ func _build_seamless_yacht_hull() -> void:
 		var z1 := lerpf(-52.0, 48.0, t1)
 		var w0 := _hull_half_width(z0)
 		var w1 := _hull_half_width(z1)
-		var yt0 := lerpf(1.15, 0.44, smoothstep(-52.0, -37.5, z0))
-		var yt1 := lerpf(1.15, 0.44, smoothstep(-52.0, -37.5, z1))
+
+		# Bordwand-Oberkante exakt passend zu Vordeck (+1.10), Mitteldeck (0.0) & Achterdeck (-1.10)
+		var yt0 := 0.44
+		if z0 < -11.0:
+			yt0 = lerpf(1.75, 1.54, smoothstep(-52.0, -37.5, z0))
+		elif z0 > 11.0:
+			yt0 = -0.66
+
+		var yt1 := 0.44
+		if z1 < -11.0:
+			yt1 = lerpf(1.75, 1.54, smoothstep(-52.0, -37.5, z1))
+		elif z1 > 11.0:
+			yt1 = -0.66
+
 		for side in [-1.0, 1.0]:
-			var p00 := Vector3(side * w0, -4.4, z0)
-			var p10 := Vector3(side * w1, -4.4, z1)
+			var p00 := Vector3(side * w0, -4.8, z0)
+			var p10 := Vector3(side * w1, -4.8, z1)
 			var p11 := Vector3(side * w1, yt1, z1)
 			var p01 := Vector3(side * w0, yt0, z0)
 			if side > 0.0:
@@ -387,9 +399,10 @@ func _build_seamless_yacht_hull() -> void:
 				st.add_vertex(p00); st.add_vertex(p11); st.add_vertex(p10)
 				st.add_vertex(p00); st.add_vertex(p01); st.add_vertex(p11)
 
+		# Rundes Teakholz-Bugdeck (+1.11) & Teakholz-Heckdeck (-1.09) nahtlos schließen
 		if z0 < -37.0 or z1 > 37.0:
-			var dy0 := lerpf(0.65, 0.01, smoothstep(-52.0, -37.5, z0)) if z0 < 0.0 else 0.01
-			var dy1 := lerpf(0.65, 0.01, smoothstep(-52.0, -37.5, z1)) if z1 < 0.0 else 0.01
+			var dy0 := lerpf(1.30, 1.11, smoothstep(-52.0, -37.5, z0)) if z0 < 0.0 else -1.09
+			var dy1 := lerpf(1.30, 1.11, smoothstep(-52.0, -37.5, z1)) if z1 < 0.0 else -1.09
 			var d00 := Vector3(-w0, dy0, z0)
 			var d10 := Vector3(w0, dy0, z0)
 			var d11 := Vector3(w1, dy1, z1)
@@ -419,11 +432,14 @@ func _build_seamless_yacht_hull() -> void:
 	deck_mi.name = "SeamlessTeakEnds"
 	deck_mi.mesh = deck_st.commit()
 	for mi in find_children("*", "MeshInstance3D", true, false):
-		if mi.material_override is StandardMaterial3D and (mi.material_override as StandardMaterial3D).albedo_color == C_TEAK:
-			deck_mi.material_override = mi.material_override
-			break
+		if mi.mesh != null and mi.mesh.get_surface_count() > 0:
+			var s_mat := mi.get_surface_override_material(0)
+			if s_mat != null and s_mat is StandardMaterial3D and (s_mat as StandardMaterial3D).uv1_triplanar:
+				deck_mi.material_override = s_mat
+				break
 	add_child(deck_mi)
 	deck_mi.create_trimesh_collision()
+
 
 
 func _hull_half_width(z: float) -> float:
