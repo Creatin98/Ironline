@@ -441,8 +441,8 @@ func _process(delta: float) -> void:
 	if is_harbor:
 		var liner := get_node_or_null("ScenicCoastAndLiner/DistantCruiseLiner") as Node3D
 		if liner != null:
-			liner.position.y = -3.2 + sin(_wind_time * 1.1) * 0.45
-			liner.rotation_degrees.x = cos(_wind_time * 0.85) * 1.1
+			liner.position.y = 0.4 + sin(_wind_time * 1.1) * 0.55
+			liner.rotation_degrees = Vector3(cos(_wind_time * 0.85) * 1.2, -18.0, sin(_wind_time * 0.95) * 1.4)
 		if _lens_rain_mat != null:
 			_lens_rain_mat.set_shader_parameter("intensity", 0.0)
 		if _lightning_flash != null:
