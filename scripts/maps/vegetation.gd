@@ -15,14 +15,45 @@ static func _foliage_material(tex_path: String, tint: Color, alpha_mode: bool, s
 	return m
 
 
-static func _bark_material() -> StandardMaterial3D:
-	var m := StandardMaterial3D.new()
-	m.albedo_texture = load("res://assets/textures/bark.png")
-	m.normal_enabled = true
-	m.normal_texture = load("res://assets/textures/bark_n.png")
-	m.roughness = 1.0
-	m.roughness_texture = load("res://assets/textures/bark_r.png")
-	m.uv1_scale = Vector3(2.0, 3.0, 1.0)
+static func _bark_material() -> ShaderMaterial:
+	var shd := Shader.new()
+	shd.code = """
+shader_type spatial;
+render_mode diffuse_burley, specular_schlick_ggx;
+
+global uniform vec2 wind_dir;
+global uniform float wind_strength;
+
+uniform sampler2D albedo_tex : source_color, filter_linear_mipmap, repeat_enable;
+uniform sampler2D normal_tex : hint_normal, filter_linear_mipmap, repeat_enable;
+uniform sampler2D rough_tex : hint_roughness_r, filter_linear_mipmap, repeat_enable;
+
+void vertex() {
+	float h = clamp(VERTEX.y / 6.0, 0.0, 1.0);
+	float bend = h * h;
+	vec3 wp = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
+	vec2 dir = length(wind_dir) > 0.001 ? normalize(wind_dir) : vec2(0.92, 0.38);
+
+	float wave = dot(wp.xz, dir) * 0.28 - TIME * 3.08;
+	float gust = 0.65 + 0.35 * sin(wave) + 0.22 * sin(wave * 2.3 + wp.x * 0.4);
+	vec3 world_offset = vec3(dir.x, 0.0, dir.y) * (gust * wind_strength * 0.34) * bend;
+	world_offset.y -= abs(gust * wind_strength) * 0.06 * bend;
+
+	VERTEX += (inverse(MODEL_MATRIX) * vec4(world_offset, 0.0)).xyz;
+}
+
+void fragment() {
+	vec2 uv = UV * vec2(2.0, 3.0);
+	ALBEDO = texture(albedo_tex, uv).rgb * 0.78;
+	NORMAL_MAP = texture(normal_tex, uv).rgb;
+	ROUGHNESS = clamp(texture(rough_tex, uv).r * 0.85, 0.45, 0.9);
+}
+"""
+	var m := ShaderMaterial.new()
+	m.shader = shd
+	m.set_shader_parameter("albedo_tex", load("res://assets/textures/bark.png"))
+	m.set_shader_parameter("normal_tex", load("res://assets/textures/bark_n.png"))
+	m.set_shader_parameter("rough_tex", load("res://assets/textures/bark_r.png"))
 	return m
 
 
