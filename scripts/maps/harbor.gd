@@ -1,7 +1,5 @@
 extends BlockMap
 ## HARBOR – Midnight Superyacht (104m x 36m) auf offener Hochsee
-## Tiefstehender Riesenmond, Lens-Flare, Nachtwolken, spiegelndes Teakholz, Unterwasser-LEDs,
-## Kronleuchter, Kommandobrücke, Maschinenraum-Keller, Gischt-Wellenschlag & beleuchteter Ozeanriese.
 
 const C_GELCOAT := Color(0.96, 0.97, 0.99)
 const C_NAVY := Color(0.06, 0.12, 0.24)
@@ -35,12 +33,12 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
+	super._process(delta)
 	_my_time += delta
 	var w1 := sin(_my_time * 1.55)
 	var w2 := sin(_my_time * 2.65 + 1.1)
 	var wave_force := w1 * 0.7 + w2 * 0.3
 
-	# Ozean & Kreuzer heben, senken und neigen sich synchron -> echtes Schiffs-Wiegen ohne Textur-Schwimmen!
 	var ocean := get_node_or_null("MidnightStormOcean") as Node3D
 	if ocean != null:
 		ocean.position.y = -4.2 - w1 * 0.38
@@ -53,7 +51,6 @@ func _process(delta: float) -> void:
 		_my_liner.position.y = -1.8 + sin(_my_time * 1.05) * 0.65
 		_my_liner.rotation_degrees = Vector3(cos(_my_time * 0.8) * 1.3, -32.0, sin(_my_time * 0.9) * 1.5)
 
-	# Wenn schwere Wellen gegen Backbord oder Steuerbord knallen -> Gischt-Schleier peitscht übers Deck!
 	if _my_spray != null:
 		if absf(wave_force) > 0.76:
 			var side := signf(wave_force)
@@ -69,14 +66,14 @@ func _process(delta: float) -> void:
 func get_blocks() -> Array:
 	var b: Array = []
 
-	# ---------------------------------------------------------------- 1. SPIEGELNDES TEAKHOLZ-HAUPTDECK
+	# 1. Spiegelndes Teakholz-Hauptdeck
 	b.append(box(Vector3(0, -0.25, 0), Vector3(13.2, 0.5, 76.0), "wood_planks", C_TEAK))
 	b.append(box(Vector3(0, -0.25, -22.5), Vector3(34.6, 0.5, 31.0), "wood_planks", C_TEAK))
 	b.append(box(Vector3(0, -0.25, 22.5), Vector3(34.6, 0.5, 31.0), "wood_planks", C_TEAK))
 	b.append(box(Vector3(-13.9, -0.25, 0), Vector3(6.8, 0.5, 14.0), "wood_planks", C_TEAK))
 	b.append(box(Vector3(13.9, -0.25, 0), Vector3(6.8, 0.5, 14.0), "wood_planks", C_TEAK))
 
-	# ---------------------------------------------------------------- 2. HELLER MASCHINENRAUM-KELLER (y = -3.4)
+	# 2. Heller Maschinenraum-Keller (y = -3.4)
 	b.append(box(Vector3(0, LOWER_Y - 0.35, 0), Vector3(25.0, 0.7, 54.0), "metal_panel", Color(0.28, 0.32, 0.38)))
 	b.append(box(Vector3(-12.2, LOWER_Y + 1.7, 0), Vector3(0.6, 3.6, 54.0), "ship_hull", C_GELCOAT))
 	b.append(box(Vector3(12.2, LOWER_Y + 1.7, 0), Vector3(0.6, 3.6, 54.0), "ship_hull", C_GELCOAT))
@@ -95,7 +92,7 @@ func get_blocks() -> Array:
 	b.append(ramp(Vector3(-8.6, DECK_Y, -6.2), Vector3(-8.6, LOWER_Y, 3.8), 3.6, "wood_planks", 0.3, C_TEAK))
 	b.append(ramp(Vector3(8.6, DECK_Y, 6.2), Vector3(8.6, LOWER_Y, -3.8), 3.6, "wood_planks", 0.3, C_TEAK))
 
-	# ---------------------------------------------------------------- 3. SCHANZLEID & LÜCKENLOSE BARRIEREN
+	# 3. Schanzkleid & lückenlose Barrieren
 	b.append(box(Vector3(-17.2, 0.22, 0), Vector3(0.3, 0.44, 76.0), "ship_hull", C_GELCOAT))
 	b.append(box(Vector3(17.2, 0.22, 0), Vector3(0.3, 0.44, 76.0), "ship_hull", C_GELCOAT))
 	b.append(box(Vector3(0, 0.22, -37.9), Vector3(34.6, 0.44, 0.3), "ship_hull", C_GELCOAT))
@@ -104,7 +101,7 @@ func get_blocks() -> Array:
 	b.append({"pos": Vector3(-17.4, 3.0, 0), "size": Vector3(0.5, 6.0, 88.0), "mat": "water", "visible": false})
 	b.append({"pos": Vector3(17.4, 3.0, 0), "size": Vector3(0.5, 6.0, 88.0), "mat": "water", "visible": false})
 
-	# ---------------------------------------------------------------- 4. BUG-DECK (ROT) & HECK-HELIPAD (BLAU)
+	# 4. Bug-Deck (Rot) & Heck-Helipad (Blau)
 	b.append(cylinder(Vector3(0, 0.38, -32.2), 3.8, 0.76, "tiles", C_MARBLE))
 	b.append(cylinder(Vector3(0, 0.68, -32.2), 3.2, 0.14, "water", Color(0.12, 0.85, 0.96)))
 	b.append(cylinder(Vector3(0, 0.55, -42.0), 1.1, 1.1, "metal_panel", C_CHROME))
@@ -118,13 +115,13 @@ func get_blocks() -> Array:
 	b.append(box(Vector3(6.8, 0.55, 31.5), Vector3(4.6, 1.1, 1.2), "ship_hull", C_GELCOAT))
 	b.append(box(Vector3(0, 0.55, 26.8), Vector3(7.4, 1.1, 0.6), "ship_hull", C_GELCOAT))
 	b.append(box(Vector3(0, 0.54, 41.2), Vector3(6.8, 1.08, 1.0), "wood_planks", C_TEAK))
-	# ---------------------------------------------------------------- 5. OFFENES MITTELDECK (MARMOR-INFINITY-POOL)
+	# 5. Offenes Mitteldeck (Marmor-Infinity-Pool)
 	b.append(cylinder(Vector3(0, 0.36, 0), 3.6, 0.72, "tiles", C_MARBLE))
 	b.append(cylinder(Vector3(0, 0.68, 0), 3.0, 0.14, "water", Color(0.12, 0.86, 0.96)))
 	b.append(box(Vector3(-4.5, 0.44, -4.6), Vector3(2.2, 0.88, 0.85), "wood_planks", C_TEAK))
 	b.append(box(Vector3(4.5, 0.44, 4.6), Vector3(2.2, 0.88, 0.85), "wood_planks", C_TEAK))
 
-	# ---------------------------------------------------------------- 6. NORD-DECKHAUS: VIP-LOUNGE & COCKTAIL-BAR
+	# 6. Nord-Deckhaus: VIP-Lounge & Cocktail-Bar
 	b.append_array(room_walls(Vector3(0, 0, -16.0), Vector3(13.2, 3.2, 15.0), 0.32, "ship_hull", C_GELCOAT,
 		[{"side": "n", "offset": 0.0, "width": 2.6}, {"side": "s", "offset": 0.0, "width": 2.8},
 		 {"side": "w", "offset": -2.5, "width": 2.2}, {"side": "e", "offset": 2.5, "width": 2.2}]))
@@ -148,7 +145,7 @@ func get_blocks() -> Array:
 	b.append(box(Vector3(7.3, UPPER_Y + 0.22, -16.0), Vector3(0.25, 0.44, 16.0), "ship_hull", C_GELCOAT))
 	b.append(ramp(Vector3(-5.2, DECK_Y, -30.2), Vector3(-5.2, UPPER_Y + 0.05, -24.0), 3.0, "wood_planks", 0.28, C_TEAK))
 
-	# ---------------------------------------------------------------- 7. SÜD-DECKHAUS: DISCO / CLUB-LOUNGE
+	# 7. Süd-Deckhaus: Disco / Club-Lounge
 	b.append_array(room_walls(Vector3(0, 0, 16.0), Vector3(13.2, 3.2, 15.0), 0.32, "ship_hull", C_GELCOAT,
 		[{"side": "n", "offset": 0.0, "width": 2.8}, {"side": "s", "offset": 0.0, "width": 2.6},
 		 {"side": "w", "offset": 2.5, "width": 2.2}, {"side": "e", "offset": -2.5, "width": 2.2}]))
@@ -173,7 +170,7 @@ func get_blocks() -> Array:
 	b.append(box(Vector3(7.3, UPPER_Y + 0.22, 14.5), Vector3(0.25, 0.44, 13.0), "ship_hull", C_GELCOAT))
 	b.append(ramp(Vector3(5.2, DECK_Y, 30.2), Vector3(5.2, UPPER_Y + 0.05, 24.0), 3.0, "wood_planks", 0.28, C_TEAK))
 
-	# ---------------------------------------------------------------- 8. VOLL AUSGESTATTETE KOMMANDOBRÜCKE (2. STOCK)
+	# 8. Voll ausgestattete Kommandobrücke (2. Stock)
 	b.append_array(room_walls(Vector3(0, UPPER_Y, 15.5), Vector3(7.4, 2.35, 6.0), 0.26, "ship_hull", C_GELCOAT,
 		[{"side": "w", "offset": 0.0, "width": 1.8}, {"side": "e", "offset": 0.0, "width": 1.8},
 		 {"side": "n", "offset": -1.5, "width": 1.8}, {"side": "n", "offset": 1.5, "width": 1.8}]))
@@ -196,7 +193,7 @@ func get_blocks() -> Array:
 	b.append(box(Vector3(4.9, UPPER_Y + 2.3, 17.2), Vector3(0.42, 4.6, 1.4), "ship_hull", C_GELCOAT, Vector3(-15, 0, 10)))
 	b.append(box(Vector3(0, UPPER_Y + 4.5, 17.8), Vector3(8.8, 0.36, 1.5), "ship_hull", C_GELCOAT))
 
-	# ---------------------------------------------------------------- 9. AUSSEN-PROMENADEN & TEAM-MARKIERUNGEN
+	# 9. Außen-Promenaden & Team-Markierungen
 	for z in [-16.0, 16.0]:
 		b.append(box(Vector3(-13.2, 1.05, z), Vector3(1.8, 0.85, 4.8), "ship_hull", C_GELCOAT))
 		b.append(box(Vector3(13.2, 1.05, z), Vector3(1.8, 0.85, 4.8), "ship_hull", C_GELCOAT))
@@ -211,7 +208,6 @@ func get_blocks() -> Array:
 
 
 func build_detail(d: MapDetail) -> void:
-	# Deck-LEDs, Pool-Unterwasserlicht, Unterwasser-Rumpfscheinwerfer & Kronleuchter
 	d.led_strip(Vector3(-16.9, 0.06, -37.2), Vector3(-16.9, 0.06, 37.2), Color(0.22, 0.78, 1.0), 3.6)
 	d.led_strip(Vector3(16.9, 0.06, -37.2), Vector3(16.9, 0.06, 37.2), Color(0.22, 0.78, 1.0), 3.6)
 	d.led_strip(Vector3(-6.4, 0.06, -6.0), Vector3(-6.4, 0.06, 6.0), Color(0.22, 0.78, 1.0), 3.2)
@@ -222,21 +218,18 @@ func build_detail(d: MapDetail) -> void:
 	d.bulb(Vector3(0, 0.95, -32.2), Color(0.15, 0.90, 1.0), 2.8, 2.4, 7.0)
 	d.glow(Vector3(0, UPPER_Y + 6.2, 17.8), Color(1.0, 0.15, 0.1), 1.4)
 
-	# Unterwasser-Rumpfbeleuchtung rund ums Schiff (strahlt blau-türkis aufs dunkle Nachtmeer!)
 	for uz in range(-32, 36, 12):
 		d.bulb(Vector3(-17.8, -1.8, float(uz)), Color(0.12, 0.72, 1.0), 3.6, 2.8, 12.0)
 		d.bulb(Vector3(17.8, -1.8, float(uz)), Color(0.12, 0.72, 1.0), 3.6, 2.8, 12.0)
 	d.bulb(Vector3(0.0, -1.8, 46.5), Color(0.12, 0.78, 1.0), 4.2, 3.2, 14.0)
 	d.bulb(Vector3(0.0, -1.8, -48.0), Color(0.12, 0.78, 1.0), 4.0, 3.0, 13.0)
 
-	# Kronleuchter in VIP-Lounge (Nord) & Disco-Club (Süd)
 	for cz in [-15.5, 15.5]:
 		var col := Color(1.0, 0.85, 0.55) if cz < 0.0 else Color(0.75, 0.35, 1.0)
 		d.add_cylinder(Vector3(0, 2.95, cz), 0.12, 0.5, "metal_panel", C_BRASS)
 		d.add_cylinder(Vector3(0, 2.68, cz), 1.4, 0.08, "metal_panel", C_BRASS)
 		d.bulb(Vector3(0, 2.55, cz), col, 2.2, 1.8, 11.0)
 
-	# Chrom-Relings mit sauberen Durchgängen
 	d.rail(Vector3(-17.2, 0.35, -37.8), Vector3(-17.2, 0.35, 37.8), 0.75)
 	d.rail(Vector3(17.2, 0.35, -37.8), Vector3(17.2, 0.35, 37.8), 0.75)
 	d.rail(Vector3(-7.3, UPPER_Y + 0.35, -8.0), Vector3(7.3, UPPER_Y + 0.35, -8.0), 0.75)
@@ -248,21 +241,11 @@ func build_detail(d: MapDetail) -> void:
 	for sx in [6.7, 10.5]:
 		d.rail(Vector3(sx, 0.0, -6.2), Vector3(sx, 0.0, 6.2), 0.95)
 
-	# Zwei schwarze RIB-Schlauchboote hinter der Heck-Badeplattform
 	for bx in [-5.2, 5.2]:
 		var bz := 48.0 if bx < 0.0 else 49.8
 		d.add_box(Vector3(bx, -2.15, bz), Vector3(2.2, 0.55, 4.8), "metal_panel", Color(0.10, 0.11, 0.13))
 		d.add_cylinder(Vector3(bx - 1.0, -1.95, bz), 0.35, 4.6, "metal_panel", Color(0.12, 0.13, 0.15), Basis(Vector3.RIGHT, PI * 0.5))
 		d.add_cylinder(Vector3(bx + 1.0, -1.95, bz), 0.35, 4.6, "metal_panel", Color(0.12, 0.13, 0.15), Basis(Vector3.RIGHT, PI * 0.5))
-
-	# Innenraum- & Maschinenraum-Ausleuchtung
-	d.lamp(Vector3(0, 3.0, -16.0), Color(1.0, 0.90, 0.72), 1.6, 14.0)
-	d.lamp(Vector3(0, 3.0, 15.5), Color(0.55, 0.30, 1.0), 1.8, 13.0)
-	d.lamp(Vector3(0, 2.8, 19.2), Color(0.15, 0.88, 1.0), 1.5, 10.0)
-	d.lamp(Vector3(0, UPPER_Y + 2.2, 15.5), Color(0.95, 0.98, 1.0), 1.3, 9.0)
-	for kz in [-18.0, -6.0, 6.0, 18.0]:
-		for kx in [-5.5, 5.5]:
-			d.lamp(Vector3(kx, LOWER_Y + 3.1, kz), Color(0.85, 0.94, 1.0), 1.8, 15.0)
 
 func _setup_midnight_atmosphere() -> void:
 	var we := get_node_or_null("WorldEnvironment") as WorldEnvironment
@@ -271,73 +254,7 @@ func _setup_midnight_atmosphere() -> void:
 	var env := we.environment
 
 	var sky_shd := Shader.new()
-	sky_shd.code = """
-shader_type sky;
-
-float hash(vec2 p) {
-	vec3 p3 = fract(vec3(p.xyx) * 0.1031);
-	p3 += dot(p3, p3.yzx + 33.33);
-	return fract((p3.x + p3.y) * p3.z);
-}
-float noise(vec2 p) {
-	vec2 i = floor(p); vec2 f = fract(p);
-	f = f * f * (3.0 - 2.0 * f);
-	return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), f.x), mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), f.x), f.y);
-}
-float fbm(vec2 p) {
-	float v = 0.0; float a = 0.5;
-	for (int i = 0; i < 6; i++) {
-		v += a * noise(p);
-		p = p * 2.05 + vec2(2.3, 6.8);
-		a *= 0.5;
-	}
-	return v;
-}
-
-void sky() {
-	vec3 d = normalize(EYEDIR);
-	vec3 moon_dir = normalize(LIGHT0_DIRECTION);
-	float h = clamp(d.y, 0.004, 1.0);
-
-	// 1. Schwarzer Nachthimmel + wahllos verteilte funkelnde Sterne
-	vec3 night_zenith = vec3(0.006, 0.010, 0.020);
-	vec3 night_horizon = vec3(0.028, 0.045, 0.080);
-	vec3 col = mix(night_horizon, night_zenith, smoothstep(0.0, 0.52, d.y));
-
-	vec2 star_uv = d.xz / (h + 0.35) * 95.0;
-	vec2 star_id = floor(star_uv);
-	vec2 star_gv = fract(star_uv) - 0.5;
-	float s_rnd = hash(star_id);
-	if (s_rnd > 0.962 && d.y > 0.03) {
-		float twinkle = 0.65 + 0.35 * sin(TIME * (1.8 + fract(s_rnd * 37.0) * 3.0) + s_rnd * 40.0);
-		float s_dot = smoothstep(0.14, 0.01, length(star_gv - (vec2(fract(s_rnd * 13.0), fract(s_rnd * 29.0)) - 0.5) * 0.5));
-		col += vec3(0.78, 0.88, 1.0) * s_dot * twinkle * smoothstep(0.03, 0.22, d.y) * 1.5;
-	}
-
-	// 2. Tiefstehender Riesenmond + Kraterstruktur + Bloom-Halo + Lens-Flare!
-	float moon_dot = max(dot(d, moon_dir), 0.0);
-	float moon_disc = smoothstep(0.9976, 0.9986, moon_dot);
-	float crater = fbm(d.xy * 42.0 + d.z * 18.0);
-	vec3 moon_surface = vec3(1.18, 1.22, 1.30) * (0.78 + 0.32 * crater);
-	float moon_halo = pow(moon_dot, 12.0) * 0.48 + pow(moon_dot, 95.0) * 1.35;
-	float lens_streak = exp(-abs(d.y - moon_dir.y) * 30.0) * pow(moon_dot, 8.0) * 0.58;
-	col += moon_surface * moon_disc * 3.0;
-	col += vec3(0.55, 0.72, 1.0) * (moon_halo + lens_streak);
-
-	// 3. Graue, plastische Nachtwolken vom Mondschein durchleuchtet
-	vec2 cuv = d.xz / (h + 0.16) * 0.82 + vec2(TIME * 0.024, TIME * 0.012);
-	float c1 = fbm(cuv);
-	float c2 = fbm(cuv * 2.6 - c1 * 0.85 + vec2(TIME * 0.018, 0.0));
-	float cloud = smoothstep(0.34, 0.84, c1 * 0.62 + c2 * 0.38) * smoothstep(0.01, 0.22, d.y);
-	float silver_lining = smoothstep(0.35, 0.62, c1) * (1.0 - smoothstep(0.62, 0.88, c1)) * pow(moon_dot, 2.2);
-	vec3 cloud_dark = vec3(0.025, 0.035, 0.055);
-	vec3 cloud_lit = vec3(0.22, 0.28, 0.38) + vec3(0.48, 0.60, 0.80) * silver_lining * 1.9;
-	col = mix(col, cloud_lit, cloud * 0.88);
-	col = mix(col, cloud_dark, smoothstep(0.65, 0.92, c2) * cloud * 0.65);
-
-	COLOR = col;
-}
-"""
+	sky_shd.code = "shader_type sky;\nfloat hash(vec2 p){vec3 p3=fract(vec3(p.xyx)*0.1031);p3+=dot(p3,p3.yzx+33.33);return fract((p3.x+p3.y)*p3.z);}\nfloat noise(vec2 p){vec2 i=floor(p);vec2 f=fract(p);f=f*f*(3.0-2.0*f);return mix(mix(hash(i),hash(i+vec2(1.0,0.0)),f.x),mix(hash(i+vec2(0.0,1.0)),hash(i+vec2(1.0,1.0)),f.x),f.y);}\nfloat fbm(vec2 p){float v=0.0;float a=0.5;for(int i=0;i<6;i++){v+=a*noise(p);p=p*2.05+vec2(2.3,6.8);a*=0.5;}return v;}\nvoid sky(){vec3 d=normalize(EYEDIR);vec3 moon_dir=normalize(LIGHT0_DIRECTION);float h=clamp(d.y,0.004,1.0);vec3 col=mix(vec3(0.028,0.045,0.080),vec3(0.006,0.010,0.020),smoothstep(0.0,0.52,d.y));vec2 star_uv=d.xz/(h+0.35)*95.0;vec2 star_id=floor(star_uv);vec2 star_gv=fract(star_uv)-0.5;float s_rnd=hash(star_id);if(s_rnd>0.962&&d.y>0.03){float twinkle=0.65+0.35*sin(TIME*(1.8+fract(s_rnd*37.0)*3.0)+s_rnd*40.0);float s_dot=smoothstep(0.14,0.01,length(star_gv-(vec2(fract(s_rnd*13.0),fract(s_rnd*29.0))-0.5)*0.5));col+=vec3(0.78,0.88,1.0)*s_dot*twinkle*smoothstep(0.03,0.22,d.y)*1.5;}float moon_dot=max(dot(d,moon_dir),0.0);float moon_disc=smoothstep(0.9976,0.9986,moon_dot);float crater=fbm(d.xy*42.0+d.z*18.0);vec3 moon_surface=vec3(1.18,1.22,1.30)*(0.78+0.32*crater);float moon_halo=pow(moon_dot,12.0)*0.48+pow(moon_dot,95.0)*1.35;float lens_streak=exp(-abs(d.y-moon_dir.y)*30.0)*pow(moon_dot,8.0)*0.58;col+=moon_surface*moon_disc*3.0;col+=vec3(0.55,0.72,1.0)*(moon_halo+lens_streak);vec2 cuv=d.xz/(h+0.16)*0.82+vec2(TIME*0.024,TIME*0.012);float c1=fbm(cuv);float c2=fbm(cuv*2.6-c1*0.85+vec2(TIME*0.018,0.0));float cloud=smoothstep(0.34,0.84,c1*0.62+c2*0.38)*smoothstep(0.01,0.22,d.y);float silver_lining=smoothstep(0.35,0.62,c1)*(1.0-smoothstep(0.62,0.88,c1))*pow(moon_dot,2.2);vec3 cloud_lit=vec3(0.22,0.28,0.38)+vec3(0.48,0.60,0.80)*silver_lining*1.9;col=mix(col,cloud_lit,cloud*0.88);col=mix(col,vec3(0.025,0.035,0.055),smoothstep(0.65,0.92,c2)*cloud*0.65);COLOR=col;}"
 	var smat := ShaderMaterial.new()
 	smat.shader = sky_shd
 	var sky := Sky.new()
@@ -368,7 +285,6 @@ void sky() {
 
 
 func _upgrade_reflective_materials() -> void:
-	# Glattes, spiegelndes Yacht-Gelcoat & feucht glänzendes Teakholz!
 	var gelcoat := StandardMaterial3D.new()
 	gelcoat.albedo_color = C_GELCOAT
 	gelcoat.roughness = 0.18
@@ -473,7 +389,6 @@ func _hull_half_width(z: float) -> float:
 
 
 func _build_midnight_ocean_and_liner() -> void:
-	# 1. Endloses, spiegelndes Mitternachts-Meer (1600m x 1600m) + Gischt-Aufprall aufs Deck!
 	var ocean := MeshInstance3D.new()
 	ocean.name = "MidnightStormOcean"
 	var plane := PlaneMesh.new()
@@ -484,53 +399,28 @@ func _build_midnight_ocean_and_liner() -> void:
 	ocean.position = Vector3(0.0, -4.2, 0.0)
 
 	var oshd := Shader.new()
-	oshd.code = """
-shader_type spatial;
-render_mode cull_back, diffuse_burley, specular_schlick_ggx;
+	oshd.code = "shader_type spatial;\nrender_mode cull_back,diffuse_burley,specular_schlick_ggx;\nuniform float ship_speed_offset=0.0;\nvarying float wave_h;\nvarying vec3 w_pos;\nvarying vec3 world_nrm;\nfloat hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}\nfloat noise(vec2 p){vec2 i=floor(p);vec2 f=fract(p);f=f*f*(3.0-2.0*f);return mix(mix(hash(i),hash(i+vec2(1.0,0.0)),f.x),mix(hash(i+vec2(0.0,1.0)),hash(i+vec2(1.0,1.0)),f.x),f.y);}\nfloat fbm(vec2 p){return noise(p)*0.6+noise(p*2.1+3.7)*0.28+noise(p*4.3-1.9)*0.12;}\nvoid vertex(){vec3 wp=(MODEL_MATRIX*vec4(VERTEX,1.0)).xyz;vec2 hull=abs(wp.xz)/vec2(19.5,52.0);float hull_dist=max(hull.x,hull.y);float damp=smoothstep(0.84,1.28,hull_dist);float bow_wake=exp(-abs(hull_dist-1.12)*4.2)*0.75;vec2 travel=wp.xz+vec2(0.0,ship_speed_offset);float t=TIME;vec2 d1=normalize(vec2(0.85,0.35));vec2 d2=normalize(vec2(0.55,-0.75));vec2 d3=normalize(vec2(-0.35,0.92));float p1=dot(travel,d1)*0.12+t*1.55;float p2=dot(travel,d2)*0.21+t*2.65+1.1;float p3=dot(travel,d3)*0.40+t*3.7;float h=(sin(p1)*1.75+sin(p2)*1.05+sin(p3)*0.50)*damp+bow_wake;VERTEX.y+=h;wave_h=h;w_pos=vec3(travel.x,wp.y+h,travel.y);vec2 grad=(d1*cos(p1)*0.12*1.75+d2*cos(p2)*0.21*1.05+d3*cos(p3)*0.40*0.50)*damp;world_nrm=normalize(vec3(-grad.x,1.0,-grad.y));}\nvoid fragment(){vec2 uv1=w_pos.xz*0.26+vec2(TIME*0.16,TIME*0.08);vec2 uv2=w_pos.xz*0.82-vec2(TIME*0.12,-TIME*0.18);float eps=0.12;float n0=fbm(uv1)+fbm(uv2)*0.5;float nx=fbm(uv1+vec2(eps,0.0))+fbm(uv2+vec2(eps,0.0))*0.5;float nz=fbm(uv1+vec2(0.0,eps))+fbm(uv2+vec2(0.0,eps))*0.5;vec3 detail_nrm=normalize(world_nrm+vec3((n0-nx)*2.1,0.0,(n0-nz)*2.1));NORMAL=normalize((VIEW_MATRIX*vec4(detail_nrm,0.0)).xyz);float crest=smoothstep(1.25,2.55,wave_h);float foam_tex=fbm(w_pos.xz*vec2(0.20,0.52)+vec2(TIME*0.35,0.0));float foam=clamp(crest*smoothstep(0.36,0.74,foam_tex)*1.35,0.0,1.0);vec3 sea_col=mix(vec3(0.008,0.025,0.055),vec3(0.025,0.085,0.16),smoothstep(-1.6,2.0,wave_h));ALBEDO=mix(sea_col,vec3(0.75,0.84,0.94),foam*0.85);ROUGHNESS=mix(0.03,0.38,foam);SPECULAR=0.98;}"
+	_my_ocean_mat = ShaderMaterial.new()
+	_my_ocean_mat.shader = oshd
+	ocean.material_override = _my_ocean_mat
+	add_child(ocean)
 
-uniform float ship_speed_offset = 0.0;
-varying float wave_h;
-varying vec3 w_pos;
-varying vec3 world_nrm;
-
-float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
-float noise(vec2 p) { vec2 i = floor(p); vec2 f = fract(p); f = f * f * (3.0 - 2.0 * f); return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), f.x), mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), f.x), f.y); }
-float fbm(vec2 p) { return noise(p) * 0.6 + noise(p * 2.1 + 3.7) * 0.28 + noise(p * 4.3 - 1.9) * 0.12; }
-
-void vertex() {
-	vec3 wp = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
-	vec2 hull = abs(wp.xz) / vec2(19.5, 52.0);
-	float hull_dist = max(hull.x, hull.y);
-	float damp = smoothstep(0.84, 1.28, hull_dist);
-	float bow_wake = exp(-abs(hull_dist - 1.12) * 4.2) * 0.75;
-
-	vec2 travel = wp.xz + vec2(0.0, ship_speed_offset);
-	float t = TIME;
-	vec2 d1 = normalize(vec2(0.85, 0.35));
-	vec2 d2 = normalize(vec2(0.55, -0.75));
-	vec2 d3 = normalize(vec2(-0.35, 0.92));
-
-	float p1 = dot(travel, d1) * 0.12 + t * 1.55;
-	float p2 = dot(travel, d2) * 0.21 + t * 2.65 + 1.1;
-	float p3 = dot(travel, d3) * 0.40 + t * 3.7;
-
-	float h = (sin(p1) * 1.75 + sin(p2) * 1.05 + sin(p3) * 0.50) * damp + bow_wake;
-	VERTEX.y += h;
-	wave_h = h;
-	w_pos = vec3(travel.x, wp.y + h, travel.y);
-
-	vec2 grad = (d1 * cos(p1) * 0.12 * 1.75 + d2 * cos(p2) * 0.21 * 1.05 + d3 * cos(p3) * 0.40 * 0.50) * damp;
-	world_nrm = normalize(vec3(-grad.x, 1.0, -grad.y));
-}
-
-void fragment() {
-	vec2 uv1 = w_pos.xz * 0.26 + vec2(TIME * 0.16, TIME * 0.08);
-	vec2 uv2 = w_pos.xz * 0.82 - vec2(TIME * 0.12, -TIME * 0.18);
-	float eps = 0.12;
-	float n0 = fbm(uv1) + fbm(uv2) * 0.5;
-	float nx = fbm(uv1 + vec2(eps, 0.0)) + fbm(uv2 + vec2(eps, 0.0)) * 0.5;
-	float nz = fbm(uv1 + vec2(0.0, eps)) + fbm(uv2 + vec2(0.0, eps)) * 0.5;
-	vec3 detail_nrm = normalize(world_nrm + vec3((n0 - nx) * 2.1, 0.0, (n0 - nz) * 2.1));
-	NORMAL = normalize((VIEW_MATRIX * vec4(detail_nrm, 0.0)).xyz);
-
-	float crest = smoothstep(1.25, 2.55, wave_h);
+	_my_spray = GPUParticles3D.new()
+	_my_spray.name = "MidnightWaveSpray"
+	_my_spray.amount = 380
+	_my_spray.lifetime = 0.85
+	_my_spray.emitting = false
+	var smat := ParticleProcessMaterial.new()
+	smat.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_BOX
+	smat.emission_box_extents = Vector3(0.8, 0.35, 11.0)
+	smat.direction = Vector3(-0.9, 1.2, -0.4).normalized()
+	smat.spread = 22.0
+	smat.initial_velocity_min = 8.0
+	smat.initial_velocity_max = 14.5
+	smat.gravity = Vector3(0.0, -18.0, -4.5)
+	smat.scale_min = 0.3
+	smat.scale_max = 0.85
+	_my_spray.process_material = smat
+	var sdrop := QuadMesh.new()
+	sdrop.size = Vector2(0.04, 0.42)
+	var sdmat := StandardMaterial3D.new()
