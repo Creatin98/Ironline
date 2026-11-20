@@ -356,7 +356,6 @@ func _hull_half_width(z: float) -> float:
 
 
 func _build_scenic_coast_and_liner() -> void:
-	# Alte glatte Kegel-Inseln aus block_map ausblenden
 	if has_node("HarborDistantIslands"):
 		get_node("HarborDistantIslands").visible = false
 
@@ -364,7 +363,7 @@ func _build_scenic_coast_and_liner() -> void:
 	env_root.name = "ScenicCoastAndLiner"
 	add_child(env_root)
 
-	# 1. Dichter Regenwald- & Felsgebirgs-Shader (360° Gebirgsketten in 3 Tiefen-Layern!)
+	# 1. Dichter, organischer Regenwald-Gebirgszug (keine Nadelspitzen & keine kaputten Bush-Meshes!)
 	var m_shd := Shader.new()
 	m_shd.code = """
 shader_type spatial;
@@ -380,7 +379,7 @@ float noise(vec2 p) {
 }
 float fbm(vec2 p) {
 	float v = 0.0; float a = 0.5;
-	for (int i = 0; i < 5; i++) {
+	for (int i = 0; i < 6; i++) {
 		v += a * noise(p);
 		p = p * 2.07 + vec2(1.7, 9.2);
 		a *= 0.5;
@@ -393,59 +392,55 @@ void vertex() {
 }
 
 void fragment() {
-	float eps = 1.1;
-	float h0 = fbm(w_pos.xz * 0.08 + w_pos.y * 0.04);
-	float hx = fbm((w_pos.xz + vec2(eps, 0.0)) * 0.08 + w_pos.y * 0.04);
-	float hz = fbm((w_pos.xz + vec2(0.0, eps)) * 0.08 + w_pos.y * 0.04);
-	vec3 detail_nrm = normalize(vec3((h0 - hx) * 3.4, 1.0, (h0 - hz) * 3.4));
-	NORMAL = normalize(mix(NORMAL, (VIEW_MATRIX * vec4(detail_nrm, 0.0)).xyz, 0.75));
+	// Hochauflösende Baumkronen- & Felsrelief-Normalen
+	float eps = 1.4;
+	float c0 = fbm(w_pos.xz * 0.28 + w_pos.y * 0.14);
+	float cx = fbm((w_pos.xz + vec2(eps, 0.0)) * 0.28 + w_pos.y * 0.14);
+	float cz = fbm((w_pos.xz + vec2(0.0, eps)) * 0.28 + w_pos.y * 0.14);
+	vec3 canopy_nrm = normalize(vec3((c0 - cx) * 4.5, 1.0, (c0 - cz) * 4.5));
+	NORMAL = normalize(mix(NORMAL, (VIEW_MATRIX * vec4(canopy_nrm, 0.0)).xyz, 0.82));
 
 	vec3 world_n = normalize((INV_VIEW_MATRIX * vec4(NORMAL, 0.0)).xyz);
 	float slope = 1.0 - clamp(world_n.y, 0.0, 1.0);
-	float canopy = fbm(w_pos.xz * 0.35 + w_pos.y * 0.18);
-	float n_macro = fbm(w_pos.xz * 0.03);
+	float n_macro = fbm(w_pos.xz * 0.025);
 	float h_var = w_pos.y + (n_macro - 0.5) * 24.0;
 
-	// Dichter Regenwald-Teppich (dunkle Baumkronen-Cluster & saftige Dschungelgrüntöne)
-	vec3 jungle_shadow = vec3(0.02, 0.08, 0.03);
-	vec3 jungle_canopy = vec3(0.08, 0.22, 0.08);
-	vec3 forest_col = mix(jungle_shadow, jungle_canopy, smoothstep(0.25, 0.78, canopy));
+	// Dichter tropischer Regenwald (tiefe Kronenschatten & sattes Blattgrün)
+	vec3 deep_canopy = vec3(0.015, 0.065, 0.025);
+	vec3 bright_canopy = vec3(0.075, 0.19, 0.065);
+	vec3 forest_col = mix(deep_canopy, bright_canopy, smoothstep(0.28, 0.78, c0));
 
-	// Steile Felswände & zerklüftete Berggrate
-	vec3 wet_rock = vec3(0.13, 0.15, 0.18);
-	vec3 ridge_rock = vec3(0.27, 0.29, 0.32);
-	vec3 rock_col = mix(wet_rock, ridge_rock, canopy);
+	// Dunkler Vulkan-/Schieferfels an steilen Klippen & hohen Graten
+	vec3 wet_rock = vec3(0.11, 0.13, 0.16);
+	vec3 ridge_rock = vec3(0.24, 0.26, 0.29);
+	vec3 rock_col = mix(wet_rock, ridge_rock, c0);
 
-	float rock_mask = clamp(smoothstep(34.0, 68.0, h_var) + smoothstep(0.36, 0.62, slope) * 0.85, 0.0, 1.0);
+	float rock_mask = clamp(smoothstep(42.0, 78.0, h_var) + smoothstep(0.42, 0.68, slope) * 0.85, 0.0, 1.0);
 	vec3 col = mix(forest_col, rock_col, rock_mask);
 
-	// Atmosphärischer Nebel zwischen den Gebirgsketten (Tiefe!)
+	// Atmosphärischer Nebel in den Tälern & auf Distanz
 	float dist = length(w_pos.xz);
-	float depth_haze = smoothstep(230.0, 440.0, dist);
-	float valley_mist = 1.0 - smoothstep(-4.0, 22.0, w_pos.y);
-	col = mix(col, vec3(0.36, 0.43, 0.50), clamp(depth_haze * 0.55 + valley_mist * 0.35, 0.0, 0.78));
+	float depth_haze = smoothstep(240.0, 460.0, dist);
+	float valley_mist = 1.0 - smoothstep(-2.0, 24.0, w_pos.y);
+	col = mix(col, vec3(0.36, 0.43, 0.50), clamp(depth_haze * 0.55 + valley_mist * 0.38, 0.0, 0.78));
 
 	ALBEDO = col;
-	ROUGHNESS = 0.90;
-	SPECULAR = 0.20;
+	ROUGHNESS = 0.92;
+	SPECULAR = 0.15;
 }
 """
 	var m_mat := ShaderMaterial.new()
 	m_mat.shader = m_shd
 
-	# 3 zusammenhängende Gebirgs-Layer rund um die Bucht (vorne detaillierte grüne Hügel, hinten hohe Felsketten!)
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 202699
-	var jungle_trees: Array = []
-
 	for layer in 3:
 		var count := 18 if layer == 0 else (20 if layer == 1 else 22)
-		var base_dist := 235.0 + float(layer) * 68.0
-		var max_h := 52.0 + float(layer) * 42.0
-		var base_rad := 78.0 + float(layer) * 28.0
+		var base_dist := 245.0 + float(layer) * 72.0
+		var max_h := 48.0 + float(layer) * 34.0
+		var base_rad := 95.0 + float(layer) * 35.0
 
 		for i in count:
-			# Lücke im Osten (ang ~ 0.0..0.45) für das offene Meer & das Kreuzfahrtschiff lassen!
 			var t := float(i) / float(count)
 			var ang := lerpf(0.55, TAU - 0.15, t) + rng.randf_range(-0.08, 0.08)
 			var dist := base_dist + rng.randf_range(-18.0, 22.0)
@@ -454,9 +449,9 @@ void fragment() {
 			var st := SurfaceTool.new()
 			st.begin(Mesh.PRIMITIVE_TRIANGLES)
 			var rad := base_rad * rng.randf_range(0.85, 1.25)
-			var h := max_h * rng.randf_range(0.75, 1.25)
-			var rings := 16 if layer == 0 else 12
-			var segs := 28 if layer == 0 else 20
+			var h := max_h * rng.randf_range(0.75, 1.2)
+			var rings := 14
+			var segs := 28
 			var p1 := rng.randf() * TAU
 			var p2 := rng.randf() * TAU
 			for r in rings:
@@ -470,10 +465,11 @@ void fragment() {
 						var vv := v0 if (idx == 0 or idx == 1) else v1
 						var aa := a0 if (idx == 0 or idx == 3) else a1
 						var ridge := 1.0 \
-							+ 0.36 * sin(aa * 3.0 + p1) * (1.0 - vv * 0.3) \
-							+ 0.22 * cos(aa * 5.0 + p2 + vv * 2.5) \
-							+ 0.12 * sin(aa * 8.0 - vv * 3.5)
-						var rr := rad * pow(1.0 - vv, 1.15) * ridge
+							+ 0.34 * sin(aa * 3.0 + p1) * (1.0 - vv * 0.25) \
+							+ 0.20 * cos(aa * 5.0 + p2 + vv * 2.0) \
+							+ 0.11 * sin(aa * 8.0 - vv * 3.0)
+						# Breite, organische Bergrücken statt spitzer Nadeln!
+						var rr := rad * pow(1.0 - vv, 0.62) * ridge
 						var yy := vv * h * (1.0 + 0.14 * sin(aa * 2.0 + p1) * vv)
 						pts.append(Vector3(cos(aa) * rr, yy, sin(aa) * rr))
 					st.add_vertex(pts.front()); st.add_vertex(pts.get(1)); st.add_vertex(pts.get(2))
@@ -485,68 +481,54 @@ void fragment() {
 			mi.position = m_pos
 			env_root.add_child(mi)
 
-			# Dichte 3D-Dschungel-Baumkronen auf dem vordersten Küsten-Layer!
-			if layer == 0:
-				for k in 14:
-					var ta := rng.randf() * TAU
-					var tv := rng.randf_range(0.08, 0.58)
-					var tr := rad * pow(1.0 - tv, 1.15) * 0.92
-					var tpos := m_pos + Vector3(cos(ta) * tr, tv * h, sin(ta) * tr)
-					jungle_trees.append({
-						"pos": tpos,
-						"scale3": Vector3(rng.randf_range(8.0, 14.0), rng.randf_range(6.0, 11.0), rng.randf_range(8.0, 14.0)),
-						"yaw": rng.randf() * TAU,
-						"color": Color(0.28, 0.48, 0.24).lerp(Color(0.14, 0.30, 0.14), rng.randf())
-					})
-
-	if not jungle_trees.is_empty():
-		Vegetation.scatter(env_root, Vegetation.bush_mesh(), jungle_trees, "CoastalRainforestCanopy")
-
-	# 2. Großer Ozeanriese frei auf dem offenen Meer (im Osten bei x=+195, z=-15)
+	# 2. Majestätisches Kreuzfahrtschiff hoch auf den Wellen (y = +0.4, mit beleuchteten Fensterreihen & Rettungsbooten!)
 	var liner := Node3D.new()
 	liner.name = "DistantCruiseLiner"
-	liner.position = Vector3(195.0, -3.2, -15.0)
+	liner.position = Vector3(195.0, 0.4, -15.0)
 	liner.rotation_degrees = Vector3(0.0, -18.0, 0.0)
 
 	var liner_shd := Shader.new()
 	liner_shd.code = """
 shader_type spatial;
 render_mode cull_back, diffuse_burley, specular_schlick_ggx;
-varying vec3 obj_p;
-void vertex() { obj_p = VERTEX; }
+varying vec3 w_p;
+void vertex() { w_p = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz; }
 void fragment() {
-	float deck_line = smoothstep(0.06, 0.0, abs(fract(obj_p.y * 0.45) - 0.5));
-	float win_x = step(0.32, fract(obj_p.z * 0.38)) * step(fract(obj_p.z * 0.38), 0.78);
-	float win_y = step(0.28, fract(obj_p.y * 0.45)) * step(fract(obj_p.y * 0.45), 0.62);
-	float is_win = win_x * win_y * step(4.2, obj_p.y);
-	vec3 hull_white = mix(vec3(0.90, 0.92, 0.95), vec3(0.55, 0.60, 0.66), deck_line * 0.55);
-	ALBEDO = mix(hull_white, vec3(0.12, 0.16, 0.22), is_win);
-	EMISSION = vec3(1.0, 0.84, 0.52) * is_win * 2.2;
+	float deck_line = smoothstep(0.07, 0.0, abs(fract(w_p.y * 0.32) - 0.5));
+	float win_z = step(0.28, fract(w_p.z * 0.32)) * step(fract(w_p.z * 0.32), 0.76);
+	float win_y = step(0.30, fract(w_p.y * 0.32)) * step(fract(w_p.y * 0.32), 0.62);
+	float is_win = win_z * win_y;
+	vec3 hull_white = mix(vec3(0.86, 0.89, 0.93), vec3(0.22, 0.28, 0.36), deck_line * 0.75);
+	ALBEDO = mix(hull_white, vec3(0.08, 0.12, 0.18), is_win);
+	EMISSION = vec3(1.0, 0.82, 0.48) * is_win * 2.8;
 	ROUGHNESS = mix(0.32, 0.08, is_win);
-	SPECULAR = 0.75;
+	SPECULAR = 0.80;
 }
 """
 	var lmat := ShaderMaterial.new()
 	lmat.shader = liner_shd
 
 	var navy_mat := StandardMaterial3D.new()
-	navy_mat.albedo_color = Color(0.05, 0.11, 0.20)
+	navy_mat.albedo_color = Color(0.04, 0.09, 0.18)
 	navy_mat.roughness = 0.28
-	navy_mat.metallic = 0.15
 
 	var red_accent := StandardMaterial3D.new()
-	red_accent.albedo_color = Color(0.75, 0.14, 0.14)
+	red_accent.albedo_color = Color(0.78, 0.15, 0.14)
 	red_accent.roughness = 0.35
 
+	var orange_mat := StandardMaterial3D.new()
+	orange_mat.albedo_color = Color(0.95, 0.45, 0.12)
+	orange_mat.roughness = 0.35
+
 	var tiers := [
-		{"size": Vector3(22.0, 6.8, 175.0), "pos": Vector3(0.0, 1.8, 0.0), "mat": navy_mat},
-		{"size": Vector3(22.3, 0.6, 176.0), "pos": Vector3(0.0, 5.1, 0.0), "mat": red_accent},
-		{"size": Vector3(20.0, 4.4, 152.0), "pos": Vector3(0.0, 7.4, 2.0), "mat": lmat},
-		{"size": Vector3(17.2, 4.2, 126.0), "pos": Vector3(0.0, 11.4, 4.0), "mat": lmat},
-		{"size": Vector3(13.8, 3.6, 92.0), "pos": Vector3(0.0, 15.0, 2.0), "mat": lmat},
-		{"size": Vector3(16.5, 2.2, 14.0), "pos": Vector3(0.0, 16.5, -36.0), "mat": lmat},
-		{"size": Vector3(5.8, 7.2, 11.0), "pos": Vector3(0.0, 19.8, 24.0), "mat": navy_mat},
-		{"size": Vector3(6.0, 1.4, 11.2), "pos": Vector3(0.0, 21.8, 24.0), "mat": red_accent}
+		{"size": Vector3(22.0, 7.5, 175.0), "pos": Vector3(0.0, 1.5, 0.0), "mat": navy_mat},
+		{"size": Vector3(22.4, 0.7, 176.0), "pos": Vector3(0.0, 5.4, 0.0), "mat": red_accent},
+		{"size": Vector3(20.0, 4.4, 152.0), "pos": Vector3(0.0, 7.8, 2.0), "mat": lmat},
+		{"size": Vector3(17.2, 4.2, 126.0), "pos": Vector3(0.0, 11.8, 4.0), "mat": lmat},
+		{"size": Vector3(13.8, 3.6, 92.0), "pos": Vector3(0.0, 15.4, 2.0), "mat": lmat},
+		{"size": Vector3(16.5, 2.2, 14.0), "pos": Vector3(0.0, 16.9, -36.0), "mat": lmat},
+		{"size": Vector3(5.8, 7.2, 11.0), "pos": Vector3(0.0, 20.2, 24.0), "mat": navy_mat},
+		{"size": Vector3(6.0, 1.4, 11.2), "pos": Vector3(0.0, 22.2, 24.0), "mat": red_accent}
 	]
 	for t in tiers:
 		var m := MeshInstance3D.new()
@@ -557,13 +539,24 @@ void fragment() {
 		m.position = t["pos"]
 		liner.add_child(m)
 
+	# Rettungsboote an den Flanken des Kreuzfahrtschiffs
+	for side in [-1.0, 1.0]:
+		for lz in range(-36, 42, 14):
+			var lb := MeshInstance3D.new()
+			var lbm := BoxMesh.new()
+			lbm.size = Vector3(1.6, 1.4, 8.5)
+			lb.mesh = lbm
+			lb.material_override = orange_mat
+			lb.position = Vector3(side * 10.6, 6.4, float(lz))
+			liner.add_child(lb)
+
 	var bow := MeshInstance3D.new()
 	var pm := PrismMesh.new()
-	pm.size = Vector3(22.0, 24.0, 7.2)
+	pm.size = Vector3(22.0, 24.0, 7.5)
 	bow.mesh = pm
 	bow.material_override = navy_mat
 	bow.rotation_degrees = Vector3(-90.0, 0.0, 0.0)
-	bow.position = Vector3(0.0, 1.8, -99.5)
+	bow.position = Vector3(0.0, 1.5, -99.5)
 	liner.add_child(bow)
 
 	for side in [-1.0, 1.0]:
@@ -578,7 +571,7 @@ void fragment() {
 		nmat.emission = ncol
 		nmat.emission_energy_multiplier = 6.0
 		nav.material_override = nmat
-		nav.position = Vector3(side * 9.5, 16.8, -36.0)
+		nav.position = Vector3(side * 9.5, 17.2, -36.0)
 		liner.add_child(nav)
 
 	env_root.add_child(liner)
