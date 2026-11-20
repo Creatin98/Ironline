@@ -380,9 +380,10 @@ func _upgrade_reflective_materials() -> void:
 				mat = mi.material_override
 			if mat == null:
 				continue
-			if mat.resource_path.contains("ship_hull") or mi.mesh.surface_get_name(s) == "ship_hull":
+			var m_id := (mat.resource_path + " " + mat.resource_name).to_lower()
+			if m_id.contains("ship_hull"):
 				mi.set_surface_override_material(s, gelcoat)
-			elif mat.resource_path.contains("wood_planks") or mi.mesh.surface_get_name(s) == "wood_planks":
+			elif m_id.contains("wood_planks"):
 				var pm := mat.duplicate() as StandardMaterial3D
 				if pm != null:
 					pm.uv1_triplanar = true
