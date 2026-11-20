@@ -791,7 +791,7 @@ void fragment() {
 		imat.roughness = 0.95
 		isl.material_override = imat
 		var side := -1.0 if i % 2 == 0 else 1.0
-		isl.position = Vector3(side * rng.randf_range(145.0, 210.0), 4.0, -160.0 + float(i) * 65.0)
+		isl.position = Vector3(side * rng.randf_range(220.0, 270.0), 4.0, -160.0 + float(i) * 65.0)
 		isl.rotation.y = rng.randf() * TAU
 		islands.add_child(isl)
 
