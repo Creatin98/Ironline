@@ -409,28 +409,6 @@ func _on_kill_zone_entered(body: Node3D) -> void:
 
 
 func _upgrade_cinematic_lighting() -> void:
-	var _rain_particles: GPUParticles3D
-var _rain_mat: ParticleProcessMaterial
-var _wind_time: float = 0.0
-var _wind_dir: Vector3 = Vector3(0.85, 0.0, 0.35).normalized()
-
-
-func _process(delta: float) -> void:
-	_wind_time += delta
-	# Dynamische Sturm-Böen (wechseln weich zwischen leichtem Wind und starken Böen)
-	var gust := 0.65 + 0.35 * sin(_wind_time * 0.7) + 0.2 * sin(_wind_time * 1.9)
-	RenderingServer.global_shader_parameter_set("wind_dir", Vector2(_wind_dir.x, _wind_dir.z))
-	RenderingServer.global_shader_parameter_set("wind_strength", gust)
-
-	# Regen neigt sich synchron zu den Windböen schräg!
-	if _rain_mat != null:
-		var slant := 7.5 * gust
-		_rain_mat.direction = Vector3(_wind_dir.x * slant, -22.0, _wind_dir.z * slant).normalized()
-		_rain_mat.initial_velocity_min = 22.0 + 6.0 * gust
-		_rain_mat.initial_velocity_max = 28.0 + 8.0 * gust
-
-
-func _upgrade_cinematic_lighting() -> void:
 	var env_node: WorldEnvironment = null
 	for child in get_children():
 		if child is WorldEnvironment:
