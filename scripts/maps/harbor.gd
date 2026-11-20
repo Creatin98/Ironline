@@ -262,17 +262,3 @@ func _setup_superyacht_spawns() -> void:
 			s.position = blue_spots[blue_i % blue_spots.size()]
 			s.rotation_degrees = Vector3(0.0, 0.0, 0.0)
 			blue_i += 1
-
-	# Falls schon SpawnPoint-Nodes existieren, diese sauber neu verteilen
-	var idx := 0
-	for s in old_spawns:
-		var team_val = s.get("team")
-		if team_val == 0 or str(s.name).to_lower().contains("red") or idx % 2 == 0:
-			var p := red_spots[idx % red_spots.size()]
-			s.global_position = p
-			s.rotation_degrees = Vector3(0.0, 180.0, 0.0) # Blick Richtung Süden (Mitteldeck)
-		else:
-			var p := blue_spots[idx % blue_spots.size()]
-			s.global_position = p
-			s.rotation_degrees = Vector3(0.0, 0.0, 0.0) # Blick Richtung Norden (Mitteldeck)
-		idx += 1
