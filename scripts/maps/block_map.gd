@@ -582,7 +582,7 @@ func _upgrade_cinematic_lighting() -> void:
 	_spawn_lightning_and_lens_overlay()
 	_spawn_rain_particles()
 	_spawn_jungle_backdrop()
-
+	_bake_roof_dry_mask()
 func _spawn_lightning_and_lens_overlay() -> void:
 	if has_node("LightningLayer"):
 		return
