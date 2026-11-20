@@ -125,24 +125,28 @@ func get_blocks() -> Array:
 	b.append(box(Vector3(0, STERN_Y - 0.25, 23.75), Vector3(34.6, 0.5, 28.5), "wood_planks", C_TEAK))
 	b.append(box(Vector3(0, -2.85, 0.0), Vector3(34.2, 2.8, 76.0), "ship_hull", C_GELCOAT))
 
-	# 2. Ordentlich platzierte Terrassen-Treppen LINKS & RECHTS bei z = ±9.5 (weit weg von den Türen!)
+	# 2. Bündige Terrassen-Treppen LINKS & RECHTS (liegen komplett VOR den Deck-Kanten z = ±9.5, nichts darunter vergraben!)
+	# Nord-Absatz: Mitteldeck (0.0) -> Vordeck (+1.10) bei z = -9.5
 	b.append(box(Vector3(0.0, BOW_Y * 0.5, -9.5), Vector3(15.6, BOW_Y, 0.5), "ship_hull", C_GELCOAT))
 	for side in [-1.0, 1.0]:
 		var tx: float = side * 12.2
-		b.append(ramp(Vector3(tx, MID_Y, -5.8), Vector3(tx, BOW_Y, -9.5), 8.8, "wood_planks", 0.35, C_TEAK))
+		b.append(ramp(Vector3(tx, MID_Y, -5.8), Vector3(tx, BOW_Y + 0.02, -9.5), 8.8, "wood_planks", 0.35, C_TEAK))
 		for st_i in 6:
 			var t := float(st_i + 1) / 6.0
 			var h := t * BOW_Y
-			b.append(box(Vector3(tx, h * 0.5, lerpf(-5.8, -9.5, t)), Vector3(8.8, h, 0.72), "wood_planks", C_TEAK))
+			var sz := lerpf(-5.8, -9.15, t)
+			b.append(box(Vector3(tx, h * 0.5, sz), Vector3(8.8, h, 0.65), "wood_planks", C_TEAK))
 
+	# Süd-Absatz: Achterdeck (-1.10) -> Mitteldeck (0.0) bei z = +9.5 (liegen komplett VOR z = +9.5 auf dem Achterdeck!)
 	b.append(box(Vector3(0.0, STERN_Y + 0.55, 9.5), Vector3(15.6, 1.1, 0.5), "ship_hull", C_GELCOAT))
 	for side in [-1.0, 1.0]:
 		var tx: float = side * 12.2
-		b.append(ramp(Vector3(tx, STERN_Y, 9.5), Vector3(tx, MID_Y, 5.8), 8.8, "wood_planks", 0.35, C_TEAK))
+		b.append(ramp(Vector3(tx, STERN_Y, 13.2), Vector3(tx, MID_Y + 0.02, 9.5), 8.8, "wood_planks", 0.35, C_TEAK))
 		for st_i in 6:
 			var t := float(st_i + 1) / 6.0
 			var h := t * 1.10
-			b.append(box(Vector3(tx, STERN_Y + h * 0.5, lerpf(9.5, 5.8, t)), Vector3(8.8, h, 0.72), "wood_planks", C_TEAK))
+			var sz := lerpf(13.2, 9.85, t)
+			b.append(box(Vector3(tx, STERN_Y + h * 0.5, sz), Vector3(8.8, h, 0.65), "wood_planks", C_TEAK))
 
 	# 3. Schanzkleid, Barrieren & Pools
 	for side in [-1.0, 1.0]:
