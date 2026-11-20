@@ -584,67 +584,83 @@ func _upgrade_cinematic_lighting() -> void:
 	_spawn_jungle_backdrop()
 
 
-func _spawn_lightning_and_lens_overlay() -> void:
-	if has_node("LightningLayer"):
+func _spawn_jungle_backdrop() -> void:
+	if has_node("JungleBackdrop"):
 		return
-	var layer := CanvasLayer.new()
-	layer.name = "LightningLayer"
-	layer.layer = 5
+	var root := Node3D.new()
+	root.name = "JungleBackdrop"
+	add_child(root)
 
-	var lens_code := "shader_type canvas_item;\n" \
-		+ "uniform float intensity = 0.0;\n" \
-		+ "vec2 hash2(vec2 p) { return fract(sin(vec2(dot(p, vec2(127.1, 311.7)), dot(p, vec2(269.5, 183.3)))) * 43758.5453); }\n" \
-		+ "void fragment() {\n" \
-		+ "	vec2 aspect = vec2(1.77, 1.0);\n" \
-		+ "	vec2 uv = UV * aspect * vec2(14.0, 8.0);\n" \
-		+ "	vec2 id = floor(uv);\n" \
-		+ "	vec2 gv = fract(uv) - 0.5;\n" \
-		+ "	vec2 rnd = hash2(id);\n" \
-		+ "	float cycle = fract(TIME * (0.18 + rnd.x * 0.22) + rnd.y * 6.28);\n" \
-		+ "	float slide = smoothstep(0.35, 1.0, cycle) * 0.45;\n" \
-		+ "	vec2 pos = (rnd - 0.5) * 0.45 + vec2(0.0, slide);\n" \
-		+ "	vec2 d = (gv - pos) * vec2(1.0, 0.65);\n" \
-		+ "	float dist = length(d);\n" \
-		+ "	float radius = 0.14 * (1.0 - smoothstep(0.65, 1.0, cycle)) * step(0.58, rnd.x);\n" \
-		+ "	float rim = smoothstep(radius, radius * 0.68, dist) - smoothstep(radius * 0.68, radius * 0.2, dist);\n" \
-		+ "	float glint = smoothstep(radius * 0.45, 0.0, length(d + vec2(0.03, 0.04))) * step(0.01, radius);\n" \
-		+ "	float edge_mask = smoothstep(0.18, 0.68, length(UV - 0.5));\n" \
-		+ "	float alpha = (rim * 0.16 + glint * 0.28) * intensity * edge_mask;\n" \
-		+ "	COLOR = vec4(0.82, 0.88, 0.96, clamp(alpha, 0.0, 0.35));\n" \
-		+ "}\n"
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 42012
 
-	var lshd := Shader.new()
-	lshd.code = lens_code
-	_lens_rain_mat = ShaderMaterial.new()
-	_lens_rain_mat.shader = lshd
-	_lens_rain_rect = ColorRect.new()
-	_lens_rain_rect.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_lens_rain_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_lens_rain_rect.material = _lens_rain_mat
-	layer.add_child(_lens_rain_rect)
+	var rock_st := SurfaceTool.new()
+	rock_st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var ico := SphereMesh.new()
+	ico.radial_segments = 10
+	ico.rings = 6
+	var arrays := ico.get_mesh_arrays()
+	var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	var idxs: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
+	for idx in idxs:
+		var v := verts[idx]
+		var n := sin(v.x * 5.1) * cos(v.z * 4.7) * 0.22 + sin(v.y * 6.3) * 0.14
+		v = v * (1.0 + n)
+		v.y = maxf(v.y * 0.75, -0.35)
+		rock_st.set_uv(Vector2(v.x + v.z, v.y) * 0.5)
+		rock_st.add_vertex(v)
+	rock_st.generate_normals()
+	var rock_mesh := rock_st.commit()
+	var rock_mat := StandardMaterial3D.new()
+	rock_mat.albedo_color = Color(0.18, 0.20, 0.19)
+	rock_mat.roughness = 0.92
+	rock_mesh.surface_set_material(0, rock_mat)
 
-	_lightning_flash = ColorRect.new()
-	_lightning_flash.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_lightning_flash.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_lightning_flash.color = Color(0.72, 0.82, 1.0, 0.0)
-	layer.add_child(_lightning_flash)
-	add_child(layer)
+	var rock_mm := MultiMesh.new()
+	rock_mm.transform_format = MultiMesh.TRANSFORM_3D
+	rock_mm.mesh = rock_mesh
+	rock_mm.instance_count = 34
+	for i in 34:
+		var ang := TAU * float(i) / 34.0 + rng.randf_range(-0.08, 0.08)
+		var dist := rng.randf_range(46.0, 74.0)
+		var pos := Vector3(cos(ang) * dist, rng.randf_range(-0.5, 1.5), sin(ang) * dist)
+		var sc := Vector3(rng.randf_range(5.0, 13.0), rng.randf_range(3.5, 10.0), rng.randf_range(5.0, 13.0))
+		rock_mm.set_instance_transform(i, Transform3D(Basis(Vector3.UP, rng.randf() * TAU).scaled_local(sc), pos))
+	var rock_mi := MultiMeshInstance3D.new()
+	rock_mi.multimesh = rock_mm
+	root.add_child(rock_mi)
 
+	var trunk_mesh := CylinderMesh.new()
+	trunk_mesh.top_radius = 0.35
+	trunk_mesh.bottom_radius = 0.65
+	trunk_mesh.height = 7.5
+	trunk_mesh.radial_segments = 8
+	var tmat := StandardMaterial3D.new()
+	tmat.albedo_color = Color(0.16, 0.13, 0.10)
+	tmat.roughness = 0.95
+	trunk_mesh.material = tmat
 
-func _spawn_rain_particles() -> void:
-	if has_node("RainParticles"):
-		get_node("RainParticles").queue_free()
-	if has_node("RainRoofCollider"):
-		get_node("RainRoofCollider").queue_free()
+	var canopy_mesh := Vegetation.bush_mesh()
+	var trunk_mm := MultiMesh.new()
+	trunk_mm.transform_format = MultiMesh.TRANSFORM_3D
+	trunk_mm.mesh = trunk_mesh
+	trunk_mm.instance_count = 42
 
-	var col := GPUParticlesCollisionHeightField3D.new()
-	col.name = "RainRoofCollider"
-	col.size = Vector3(160.0, 45.0, 160.0)
-	col.position = Vector3(0.0, 16.0, 0.0)
-	col.resolution = GPUParticlesCollisionHeightField3D.RESOLUTION_1024
-	col.update_mode = GPUParticlesCollisionHeightField3D.UPDATE_MODE_WHEN_MOVED
-	add_child(col)
+	var canopy_items: Array = []
+	for i in 42:
+		var ang := TAU * float(i) / 42.0 + rng.randf_range(-0.06, 0.06)
+		var dist := rng.randf_range(42.0, 68.0)
+		var pos := Vector3(cos(ang) * dist, 0.0, sin(ang) * dist)
+		var h_sc := rng.randf_range(0.9, 1.5)
+		trunk_mm.set_instance_transform(i, Transform3D(Basis(Vector3.UP, rng.randf() * TAU).scaled_local(Vector3(1.0, h_sc, 1.0)), pos + Vector3(0.0, 3.6 * h_sc, 0.0)))
+		canopy_items.append({
+			"pos": pos + Vector3(0.0, 6.8 * h_sc, 0.0),
+			"scale3": Vector3(rng.randf_range(5.5, 8.5), rng.randf_range(3.5, 5.5), rng.randf_range(5.5, 8.5)),
+			"yaw": rng.randf() * TAU,
+			"color": Color(0.55, 0.68, 0.52).lerp(Color(0.35, 0.50, 0.34), rng.randf())
+		})
 
-	var rain := GPUParticles3D.new()
-	rain.name = "RainParticles"
-	rain.amount = 5200
+	var trunk_mi := MultiMeshInstance3D.new()
+	trunk_mi.multimesh = trunk_mm
+	root.add_child(trunk_mi)
+	Vegetation.scatter(root, canopy_mesh, canopy_items, "JungleCanopies")
