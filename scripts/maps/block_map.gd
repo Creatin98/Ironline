@@ -439,6 +439,10 @@ func _process(delta: float) -> void:
 
 # 2. Harbor: Schiff bleibt auf (0,0,0) -> null schwimmende Kacheln! Ozean & Horizont arbeiten ums Schiff herum!
 	if is_harbor:
+		var liner := get_node_or_null("ScenicCoastAndLiner/DistantCruiseLiner") as Node3D
+		if liner != null:
+			liner.position.y = -3.2 + sin(_wind_time * 1.1) * 0.45
+			liner.rotation_degrees.x = cos(_wind_time * 0.85) * 1.1
 		if _lens_rain_mat != null:
 			_lens_rain_mat.set_shader_parameter("intensity", 0.0)
 		if _lightning_flash != null:
