@@ -226,7 +226,8 @@ func _build_curved_hull_ends(d: MapDetail) -> void:
 	mat.metallic = 0.05
 	mi.material_override = mat
 	add_child(mi)
-	func _ready() -> void:
+
+func _ready() -> void:
 	atmosphere_preset = "overcast_industrial"
 	super._ready()
 	_setup_superyacht_spawns()
