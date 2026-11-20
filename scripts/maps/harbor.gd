@@ -29,6 +29,10 @@ func _ready() -> void:
 	kill_y = -25.0
 	atmosphere_preset = "clear_day"
 	super._ready()
+	for old_sea in ["HarborStormOcean", "HarborDistantIslands"]:
+		if has_node(old_sea):
+			get_node(old_sea).visible = false
+
 	for area in find_children("*", "Area3D", true, false):
 		if area.global_position.y > -18.0:
 			area.global_position.y = -25.0
@@ -104,7 +108,7 @@ func get_blocks() -> Array:
 	b.append(box(Vector3(0, BOW_Y - 0.25, -24.5), Vector3(34.6, 0.5, 27.0), "wood_planks", C_TEAK))
 	b.append(box(Vector3(0, MID_Y - 0.25, 0.0), Vector3(34.6, 0.5, 22.0), "wood_planks", C_TEAK))
 	b.append(box(Vector3(0, STERN_Y - 0.25, 24.5), Vector3(34.6, 0.5, 27.0), "wood_planks", C_TEAK))
-	b.append(box(Vector3(0, -2.6, 0.0), Vector3(34.4, 2.5, 76.0), "ship_hull", C_GELCOAT))
+	b.append(box(Vector3(0, -2.85, 0.0), Vector3(34.2, 2.8, 76.0), "ship_hull", C_GELCOAT))
 
 	# 2. Treppen LINKS & RECHTS neben den Deckhäusern (Mitte = Terrassenwand)
 	b.append(box(Vector3(0.0, BOW_Y * 0.5, -11.0), Vector3(14.2, BOW_Y, 0.5), "ship_hull", C_GELCOAT))
@@ -152,10 +156,11 @@ func get_blocks() -> Array:
 	b.append_array(room_walls(Vector3(0, BOW_Y, -18.5), Vector3(13.2, 3.2, 13.0), 0.32, "ship_hull", C_GELCOAT,
 		[{"side": "n", "offset": 0.0, "width": 2.6}, {"side": "s", "offset": 0.0, "width": 2.8},
 		 {"side": "w", "offset": -2.0, "width": 2.2}, {"side": "e", "offset": 2.0, "width": 2.2}]))
-	b.append(header(Vector3(0, BOW_Y, -25.0), 2.6, BOW_Y + 2.35, BOW_Y + 3.2, 0.32, true, "ship_hull", C_GELCOAT))
-	b.append(header(Vector3(0, BOW_Y, -12.0), 2.8, BOW_Y + 2.35, BOW_Y + 3.2, 0.32, true, "ship_hull", C_GELCOAT))
-	b.append(header(Vector3(-6.6, BOW_Y, -20.5), 2.2, BOW_Y + 2.35, BOW_Y + 3.2, 0.32, false, "ship_hull", C_GELCOAT))
-	b.append(header(Vector3(6.6, BOW_Y, -16.5), 2.2, BOW_Y + 2.35, BOW_Y + 3.2, 0.32, false, "ship_hull", C_GELCOAT))
+	b.append(header(Vector3(0, 0.0, -25.0), 2.6, BOW_Y + 2.35, BOW_Y + 3.2, 0.32, true, "ship_hull", C_GELCOAT))
+	b.append(header(Vector3(0, 0.0, -12.0), 2.8, BOW_Y + 2.35, BOW_Y + 3.2, 0.32, true, "ship_hull", C_GELCOAT))
+	b.append(header(Vector3(-6.6, 0.0, -20.5), 2.2, BOW_Y + 2.35, BOW_Y + 3.2, 0.32, false, "ship_hull", C_GELCOAT))
+	b.append(header(Vector3(6.6, 0.0, -16.5), 2.2, BOW_Y + 2.35, BOW_Y + 3.2, 0.32, false, "ship_hull", C_GELCOAT))
+
 	b.append(box(Vector3(0, BOW_Y + 0.52, -21.2), Vector3(5.0, 1.04, 0.95), "wood_planks", C_TEAK))
 	b.append(box(Vector3(0, BOW_Y + 1.08, -21.2), Vector3(5.2, 0.1, 1.15), "tiles", C_MARBLE))
 	b.append(box(Vector3(-4.0, BOW_Y + 0.35, -16.0), Vector3(1.1, 0.7, 3.4), "metal_panel", C_NAVY))
@@ -179,10 +184,10 @@ func get_blocks() -> Array:
 	b.append_array(room_walls(Vector3(0, STERN_Y, 18.5), Vector3(13.2, 3.2, 13.0), 0.32, "ship_hull", C_GELCOAT,
 		[{"side": "n", "offset": 0.0, "width": 2.8}, {"side": "s", "offset": 0.0, "width": 2.6},
 		 {"side": "w", "offset": 2.0, "width": 2.2}, {"side": "e", "offset": -2.0, "width": 2.2}]))
-	b.append(header(Vector3(0, STERN_Y, 12.0), 2.8, STERN_Y + 2.35, STERN_Y + 3.2, 0.32, true, "ship_hull", C_GELCOAT))
-	b.append(header(Vector3(0, STERN_Y, 25.0), 2.6, STERN_Y + 2.35, STERN_Y + 3.2, 0.32, true, "ship_hull", C_GELCOAT))
-	b.append(header(Vector3(-6.6, STERN_Y, 20.5), 2.2, STERN_Y + 2.35, STERN_Y + 3.2, 0.32, false, "ship_hull", C_GELCOAT))
-	b.append(header(Vector3(6.6, STERN_Y, 16.5), 2.2, STERN_Y + 2.35, STERN_Y + 3.2, 0.32, false, "ship_hull", C_GELCOAT))
+	b.append(header(Vector3(0, 0.0, 12.0), 2.8, STERN_Y + 2.35, STERN_Y + 3.2, 0.32, true, "ship_hull", C_GELCOAT))
+	b.append(header(Vector3(0, 0.0, 25.0), 2.6, STERN_Y + 2.35, STERN_Y + 3.2, 0.32, true, "ship_hull", C_GELCOAT))
+	b.append(header(Vector3(-6.6, 0.0, 20.5), 2.2, STERN_Y + 2.35, STERN_Y + 3.2, 0.32, false, "ship_hull", C_GELCOAT))
+	b.append(header(Vector3(6.6, 0.0, 16.5), 2.2, STERN_Y + 2.35, STERN_Y + 3.2, 0.32, false, "ship_hull", C_GELCOAT))
 	b.append(box(Vector3(0, STERN_Y + 0.03, 18.0), Vector3(5.6, 0.06, 5.4), "tiles", C_NAVY))
 	b.append(box(Vector3(0, STERN_Y + 0.56, 21.8), Vector3(3.8, 1.12, 1.0), "metal_panel", C_DARK))
 	b.append(box(Vector3(0, STERN_Y + 1.15, 21.8), Vector3(4.0, 0.08, 1.1), "metal_panel", C_CHROME))
