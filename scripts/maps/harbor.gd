@@ -153,8 +153,8 @@ func get_blocks() -> Array:
 		b.append(box(Vector3(-12.8, 1.5, z), Vector3(2.1, 0.24, 5.0), "metal_panel", C_ORANGE))
 		b.append(box(Vector3(12.8, 1.5, z), Vector3(2.1, 0.24, 5.0), "metal_panel", C_ORANGE))
 	for z in [-24.0, -9.0, 9.0, 24.0]:
-		b.append(cylinder(Vector3(-14.5, 0.65, z), 0.72, 1.3, "plaster", C_HULL, Vector3(0, 0, 90)))
-		b.append(cylinder(Vector3(14.5, 0.65, z), 0.72, 1.3, "plaster", C_HULL, Vector3(0, 0, 90)))
+		b.append(cylinder(Vector3(-14.5, 0.65, z), 0.72, 1.3, "plaster", C_HULL))
+		b.append(cylinder(Vector3(14.5, 0.65, z), 0.72, 1.3, "plaster", C_HULL))
 
 	# Team-Markierungen an Bug & Heck
 	b.append(box(Vector3(0, 0.55, -43.1), Vector3(2.6, 0.25, 0.15), "plaster", C_RED))
