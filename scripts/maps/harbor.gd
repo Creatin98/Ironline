@@ -50,6 +50,13 @@ func _process(delta: float) -> void:
 	var wave_force := w1 * 0.72 + w2 * 0.28
 	var roll_deg := wave_force * 3.4
 	var pitch_deg := cos(_my_time * 1.05) * 1.85
+	var ship_rot := Vector3(cos(_my_time * 1.05) * 1.35, 0.0, wave_force * 2.45)
+	var ship_y := sin(_my_time * 1.45) * 0.28
+	for child in get_children():
+		if child is Node3D and not child.is_in_group("players") and not child.name in ["MidnightStormOcean", "FarHorizonSea", "DistantCruiseLiner", "MidnightWaveSpray"]:
+			child.rotation_degrees = ship_rot
+			child.position.y = ship_y
+
 
 	# 1. Spürbares Rollen & Stampfen von Meer und Kreuzer rund um die Yacht
 	var ocean := get_node_or_null("MidnightStormOcean") as MeshInstance3D
