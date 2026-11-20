@@ -184,9 +184,9 @@ func get_blocks() -> Array:
 	b.append(ramp(Vector3(3.4, P_N, -23.9), Vector3(3.4, U_N + 0.04, -18.2), 2.0, "wood_planks", 0.3, C_TEAK))  # Lauf 2 (180°-Knick!)
 
 	# Oberdeck Nord mit sauberer Deckenluke über Lauf 2 (x = 2.4..4.4, z = -23.8..-18.0)
-	b.append(box(Vector3(-2.6, U_N - 0.15, -20.5), Vector3(9.6, 0.3, 14.0), "ship_hull", C_GELCOAT))
-	b.append(box(Vector3(4.6, U_N - 0.15, -25.6), Vector3(5.4, 0.3, 3.8), "ship_hull", C_GELCOAT))
-	b.append(box(Vector3(4.6, U_N - 0.15, -15.6), Vector3(5.4, 0.3, 4.2), "ship_hull", C_GELCOAT))
+	b.append(box(Vector3(-2.6, U_N - 0.15, -20.5), Vector3(9.6, 0.3, 13.8), "ship_hull", C_GELCOAT))
+	b.append(box(Vector3(4.8, U_N - 0.15, -25.6), Vector3(5.2, 0.3, 3.6), "ship_hull", C_GELCOAT))
+	b.append(box(Vector3(6.2, U_N - 0.15, -18.7), Vector3(2.4, 0.3, 10.2), "ship_hull", C_GELCOAT))
 	b.append(box(Vector3(6.0, U_N - 0.15, -20.5), Vector3(2.6, 0.3, 6.2), "ship_hull", C_GELCOAT))
 	b.append(box(Vector3(0, U_N + 0.22, -13.6), Vector3(14.8, 0.44, 0.25), "ship_hull", C_GELCOAT))
 	b.append(box(Vector3(0, U_N + 0.22, -27.4), Vector3(14.8, 0.44, 0.25), "ship_hull", C_GELCOAT))
@@ -213,9 +213,9 @@ func get_blocks() -> Array:
 	b.append(ramp(Vector3(-3.4, P_S, 23.9), Vector3(-3.4, U_S + 0.04, 18.2), 2.0, "wood_planks", 0.3, C_TEAK))
 
 	# Oberdeck Süd mit sauberer Deckenluke über Lauf 2
-	b.append(box(Vector3(2.6, U_S - 0.15, 20.5), Vector3(9.6, 0.3, 14.0), "ship_hull", C_GELCOAT))
-	b.append(box(Vector3(-4.6, U_S - 0.15, 25.6), Vector3(5.4, 0.3, 3.8), "ship_hull", C_GELCOAT))
-	b.append(box(Vector3(-4.6, U_S - 0.15, 15.6), Vector3(5.4, 0.3, 4.2), "ship_hull", C_GELCOAT))
+	b.append(box(Vector3(2.6, U_S - 0.15, 20.5), Vector3(9.6, 0.3, 13.8), "ship_hull", C_GELCOAT))
+	b.append(box(Vector3(-4.8, U_S - 0.15, 25.6), Vector3(5.2, 0.3, 3.6), "ship_hull", C_GELCOAT))
+	b.append(box(Vector3(-6.2, U_S - 0.15, 18.7), Vector3(2.4, 0.3, 10.2), "ship_hull", C_GELCOAT))
 	b.append(box(Vector3(-6.0, U_S - 0.15, 20.5), Vector3(2.6, 0.3, 6.2), "ship_hull", C_GELCOAT))
 	b.append(box(Vector3(0, U_S + 0.22, 13.6), Vector3(14.8, 0.44, 0.25), "ship_hull", C_GELCOAT))
 	b.append(box(Vector3(0, U_S + 0.22, 27.4), Vector3(14.8, 0.44, 0.25), "ship_hull", C_GELCOAT))
