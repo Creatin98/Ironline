@@ -428,8 +428,7 @@ var _visor_flow: Vector2 = Vector2.ZERO
 func _process(delta: float) -> void:
 	_wind_time += delta
 	var is_mesa := (atmosphere_preset == "tropical_storm" or name.to_lower().contains("mesa"))
-	var is_harbor := (atmosphere_preset == "overcast_industrial" or name.to_lower().contains("harbor"))
-
+	var is_harbor := false
 	# 1. Wind läuft auf ALLEN Maps (Mesa = Tropensturm, Harbor = extremer Seewind, sonst leichte Brise)
 	var base_wind := 0.85 if is_mesa else (1.15 if is_harbor else 0.30)
 	var gust_amp := 0.45 if (is_mesa or is_harbor) else 0.12
