@@ -279,9 +279,13 @@ func _upgrade_yacht_materials() -> void:
 
 
 func _build_seamless_yacht_hull() -> void:
+	# 1. Nahtlose weiße Außenbordwand von Bugspitze (-52) bis Heck (+48)
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	var slices := 48
+	var deck_st := SurfaceTool.new()
+	deck_st.begin(Mesh.PRIMITIVE_TRIANGLES)
+
+	var slices := 56
 	for i in slices:
 		var t0 := float(i) / float(slices)
 		var t1 := float(i + 1) / float(slices)
@@ -289,8 +293,8 @@ func _build_seamless_yacht_hull() -> void:
 		var z1 := lerpf(-52.0, 48.0, t1)
 		var w0 := _hull_half_width(z0)
 		var w1 := _hull_half_width(z1)
-		var yt0 := 1.15 if z0 < -38.0 else 0.44
-		var yt1 := 1.15 if z1 < -38.0 else 0.44
+		var yt0 := lerpf(1.15, 0.44, smoothstep(-52.0, -37.5, z0))
+		var yt1 := lerpf(1.15, 0.44, smoothstep(-52.0, -37.5, z1))
 		for side in [-1.0, 1.0]:
 			var p00 := Vector3(side * w0, -4.4, z0)
 			var p10 := Vector3(side * w1, -4.4, z1)
@@ -302,6 +306,22 @@ func _build_seamless_yacht_hull() -> void:
 			else:
 				st.add_vertex(p00); st.add_vertex(p11); st.add_vertex(p10)
 				st.add_vertex(p00); st.add_vertex(p01); st.add_vertex(p11)
+
+		# Geschlossenes Teakholz-Deck für Bug- & Heckspitze (keine Lücken mehr zum Rumpf!)
+		if z0 < -37.0 or z1 > 37.0:
+			var dy0 := lerpf(0.75, 0.01, smoothstep(-52.0, -37.5, z0)) if z0 < 0.0 else 0.01
+			var dy1 := lerpf(0.75, 0.01, smoothstep(-52.0, -37.5, z1)) if z1 < 0.0 else 0.01
+			var d00 := Vector3(-w0, dy0, z0)
+			var d10 := Vector3(w0, dy0, z0)
+			var d11 := Vector3(w1, dy1, z1)
+			var d01 := Vector3(-w1, dy1, z1)
+			deck_st.set_uv(Vector2(0.0, z0 * 0.25)); deck_st.add_vertex(d00)
+			deck_st.set_uv(Vector2(1.0, z0 * 0.25)); deck_st.add_vertex(d10)
+			deck_st.set_uv(Vector2(1.0, z1 * 0.25)); deck_st.add_vertex(d11)
+			deck_st.set_uv(Vector2(0.0, z0 * 0.25)); deck_st.add_vertex(d00)
+			deck_st.set_uv(Vector2(1.0, z1 * 0.25)); deck_st.add_vertex(d11)
+			deck_st.set_uv(Vector2(0.0, z1 * 0.25)); deck_st.add_vertex(d01)
+
 	st.generate_normals()
 	var hull_mi := MeshInstance3D.new()
 	hull_mi.name = "SeamlessYachtHull"
@@ -313,6 +333,16 @@ func _build_seamless_yacht_hull() -> void:
 	hmat.clearcoat = 0.70
 	hull_mi.material_override = hmat
 	add_child(hull_mi)
+
+	deck_st.generate_normals()
+	var deck_mi := MeshInstance3D.new()
+	deck_mi.name = "SeamlessTeakEnds"
+	deck_mi.mesh = deck_st.commit()
+	var dmat := StandardMaterial3D.new()
+	dmat.albedo_color = C_TEAK
+	dmat.roughness = 0.45
+	deck_mi.material_override = dmat
+	add_child(deck_mi)
 
 
 func _hull_half_width(z: float) -> float:
@@ -326,10 +356,15 @@ func _hull_half_width(z: float) -> float:
 
 
 func _build_scenic_coast_and_liner() -> void:
+	# Alte glatte Kegel-Inseln aus block_map ausblenden
+	if has_node("HarborDistantIslands"):
+		get_node("HarborDistantIslands").visible = false
+
 	var env_root := Node3D.new()
 	env_root.name = "ScenicCoastAndLiner"
 	add_child(env_root)
 
+	# 1. Dichter Regenwald- & Felsgebirgs-Shader (360° Gebirgsketten in 3 Tiefen-Layern!)
 	var m_shd := Shader.new()
 	m_shd.code = """
 shader_type spatial;
@@ -358,91 +393,121 @@ void vertex() {
 }
 
 void fragment() {
-	float eps = 0.85;
-	float h0 = fbm(w_pos.xz * 0.055 + w_pos.y * 0.03);
-	float hx = fbm((w_pos.xz + vec2(eps, 0.0)) * 0.055 + w_pos.y * 0.03);
-	float hz = fbm((w_pos.xz + vec2(0.0, eps)) * 0.055 + w_pos.y * 0.03);
-	vec3 detail_nrm = normalize(vec3((h0 - hx) * 3.0, 1.0, (h0 - hz) * 3.0));
-	NORMAL = normalize(mix(NORMAL, (VIEW_MATRIX * vec4(detail_nrm, 0.0)).xyz, 0.7));
+	float eps = 1.1;
+	float h0 = fbm(w_pos.xz * 0.08 + w_pos.y * 0.04);
+	float hx = fbm((w_pos.xz + vec2(eps, 0.0)) * 0.08 + w_pos.y * 0.04);
+	float hz = fbm((w_pos.xz + vec2(0.0, eps)) * 0.08 + w_pos.y * 0.04);
+	vec3 detail_nrm = normalize(vec3((h0 - hx) * 3.4, 1.0, (h0 - hz) * 3.4));
+	NORMAL = normalize(mix(NORMAL, (VIEW_MATRIX * vec4(detail_nrm, 0.0)).xyz, 0.75));
 
 	vec3 world_n = normalize((INV_VIEW_MATRIX * vec4(NORMAL, 0.0)).xyz);
 	float slope = 1.0 - clamp(world_n.y, 0.0, 1.0);
-	float n_macro = fbm(w_pos.xz * 0.024);
-	float n_micro = fbm(w_pos.xz * 0.18 + w_pos.y * 0.12);
-	float h_var = w_pos.y + (n_macro - 0.5) * 28.0 + (n_micro - 0.5) * 8.0;
+	float canopy = fbm(w_pos.xz * 0.35 + w_pos.y * 0.18);
+	float n_macro = fbm(w_pos.xz * 0.03);
+	float h_var = w_pos.y + (n_macro - 0.5) * 24.0;
 
-	vec3 forest_col = mix(vec3(0.04, 0.12, 0.06), vec3(0.10, 0.22, 0.10), n_micro);
-	vec3 rock_col = mix(vec3(0.14, 0.16, 0.19), vec3(0.28, 0.30, 0.34), smoothstep(0.3, 0.8, n_micro));
-	vec3 snow_col = vec3(0.84, 0.88, 0.93);
+	// Dichter Regenwald-Teppich (dunkle Baumkronen-Cluster & saftige Dschungelgrüntöne)
+	vec3 jungle_shadow = vec3(0.02, 0.08, 0.03);
+	vec3 jungle_canopy = vec3(0.08, 0.22, 0.08);
+	vec3 forest_col = mix(jungle_shadow, jungle_canopy, smoothstep(0.25, 0.78, canopy));
 
-	float rock_mask = clamp(smoothstep(16.0, 46.0, h_var) + smoothstep(0.30, 0.56, slope) * 0.8, 0.0, 1.0);
-	float snow_mask = smoothstep(66.0, 92.0, h_var) * (1.0 - smoothstep(0.45, 0.72, slope) * 0.65);
+	// Steile Felswände & zerklüftete Berggrate
+	vec3 wet_rock = vec3(0.13, 0.15, 0.18);
+	vec3 ridge_rock = vec3(0.27, 0.29, 0.32);
+	vec3 rock_col = mix(wet_rock, ridge_rock, canopy);
 
+	float rock_mask = clamp(smoothstep(34.0, 68.0, h_var) + smoothstep(0.36, 0.62, slope) * 0.85, 0.0, 1.0);
 	vec3 col = mix(forest_col, rock_col, rock_mask);
-	col = mix(col, snow_col, snow_mask);
-	float shore_mist = 1.0 - smoothstep(-4.0, 15.0, w_pos.y);
-	col = mix(col, vec3(0.38, 0.45, 0.52), shore_mist * 0.45 + 0.26);
+
+	// Atmosphärischer Nebel zwischen den Gebirgsketten (Tiefe!)
+	float dist = length(w_pos.xz);
+	float depth_haze = smoothstep(230.0, 440.0, dist);
+	float valley_mist = 1.0 - smoothstep(-4.0, 22.0, w_pos.y);
+	col = mix(col, vec3(0.36, 0.43, 0.50), clamp(depth_haze * 0.55 + valley_mist * 0.35, 0.0, 0.78));
 
 	ALBEDO = col;
-	ROUGHNESS = mix(0.88, 0.45, snow_mask);
-	SPECULAR = 0.25;
+	ROUGHNESS = 0.90;
+	SPECULAR = 0.20;
 }
 """
 	var m_mat := ShaderMaterial.new()
 	m_mat.shader = m_shd
 
-	# Üppige Gebirgsketten links UND weit dahinter rechts auf der offenen Meeresseite!
+	# 3 zusammenhängende Gebirgs-Layer rund um die Bucht (vorne detaillierte grüne Hügel, hinten hohe Felsketten!)
 	var rng := RandomNumberGenerator.new()
-	rng.seed = 202606
-	for i in 22:
-		var ang := lerpf(-2.7, -0.8, float(i) / 10.0) if i < 11 else lerpf(-0.45, 1.35, float(i - 11) / 10.0)
-		var dist := rng.randf_range(240.0, 320.0) if i < 11 else rng.randf_range(310.0, 410.0)
-		var m_pos := Vector3(cos(ang) * dist, -6.0, sin(ang) * dist)
-		var st := SurfaceTool.new()
-		st.begin(Mesh.PRIMITIVE_TRIANGLES)
-		var rad := rng.randf_range(72.0, 128.0)
-		var h := rng.randf_range(65.0, 145.0)
-		var rings := 18
-		var segs := 32
-		var p1 := rng.randf() * TAU
-		var p2 := rng.randf() * TAU
-		for r in rings:
-			var v0 := float(r) / float(rings)
-			var v1 := float(r + 1) / float(rings)
-			for s in segs:
-				var a0 := TAU * float(s) / float(segs)
-				var a1 := TAU * float(s + 1) / float(segs)
-				var pts: Array[Vector3] = []
-				for idx in 4:
-					var vv := v0 if (idx == 0 or idx == 1) else v1
-					var aa := a0 if (idx == 0 or idx == 3) else a1
-					var ridge := 1.0 \
-						+ 0.35 * sin(aa * 3.0 + p1) * (1.0 - vv * 0.35) \
-						+ 0.21 * cos(aa * 5.0 + p2 + vv * 2.5) \
-						+ 0.12 * sin(aa * 9.0 - vv * 4.0)
-					var rr := rad * pow(1.0 - vv, 1.25) * ridge
-					var yy := vv * h * (1.0 + 0.12 * sin(aa * 2.0 + p1) * vv)
-					pts.append(Vector3(cos(aa) * rr, yy, sin(aa) * rr))
-				st.add_vertex(pts.front())
-				st.add_vertex(pts.get(1))
-				st.add_vertex(pts.get(2))
-				st.add_vertex(pts.front())
-				st.add_vertex(pts.get(2))
-				st.add_vertex(pts.back())
-		st.generate_normals()
-		var mi := MeshInstance3D.new()
-		mi.mesh = st.commit()
-		mi.material_override = m_mat
-		mi.position = m_pos
-		env_root.add_child(mi)
+	rng.seed = 202699
+	var jungle_trees: Array = []
 
-	# Detaillierter Ozeanriese frei auf dem offenen Meer (rechts/vorne bei x=+165, z=-60, vor der Gebirgskette!)
+	for layer in 3:
+		var count := 18 if layer == 0 else (20 if layer == 1 else 22)
+		var base_dist := 235.0 + float(layer) * 68.0
+		var max_h := 52.0 + float(layer) * 42.0
+		var base_rad := 78.0 + float(layer) * 28.0
+
+		for i in count:
+			# Lücke im Osten (ang ~ 0.0..0.45) für das offene Meer & das Kreuzfahrtschiff lassen!
+			var t := float(i) / float(count)
+			var ang := lerpf(0.55, TAU - 0.15, t) + rng.randf_range(-0.08, 0.08)
+			var dist := base_dist + rng.randf_range(-18.0, 22.0)
+			var m_pos := Vector3(cos(ang) * dist, -6.0, sin(ang) * dist)
+
+			var st := SurfaceTool.new()
+			st.begin(Mesh.PRIMITIVE_TRIANGLES)
+			var rad := base_rad * rng.randf_range(0.85, 1.25)
+			var h := max_h * rng.randf_range(0.75, 1.25)
+			var rings := 16 if layer == 0 else 12
+			var segs := 28 if layer == 0 else 20
+			var p1 := rng.randf() * TAU
+			var p2 := rng.randf() * TAU
+			for r in rings:
+				var v0 := float(r) / float(rings)
+				var v1 := float(r + 1) / float(rings)
+				for s in segs:
+					var a0 := TAU * float(s) / float(segs)
+					var a1 := TAU * float(s + 1) / float(segs)
+					var pts: Array[Vector3] = []
+					for idx in 4:
+						var vv := v0 if (idx == 0 or idx == 1) else v1
+						var aa := a0 if (idx == 0 or idx == 3) else a1
+						var ridge := 1.0 \
+							+ 0.36 * sin(aa * 3.0 + p1) * (1.0 - vv * 0.3) \
+							+ 0.22 * cos(aa * 5.0 + p2 + vv * 2.5) \
+							+ 0.12 * sin(aa * 8.0 - vv * 3.5)
+						var rr := rad * pow(1.0 - vv, 1.15) * ridge
+						var yy := vv * h * (1.0 + 0.14 * sin(aa * 2.0 + p1) * vv)
+						pts.append(Vector3(cos(aa) * rr, yy, sin(aa) * rr))
+					st.add_vertex(pts.front()); st.add_vertex(pts.get(1)); st.add_vertex(pts.get(2))
+					st.add_vertex(pts.front()); st.add_vertex(pts.get(2)); st.add_vertex(pts.back())
+			st.generate_normals()
+			var mi := MeshInstance3D.new()
+			mi.mesh = st.commit()
+			mi.material_override = m_mat
+			mi.position = m_pos
+			env_root.add_child(mi)
+
+			# Dichte 3D-Dschungel-Baumkronen auf dem vordersten Küsten-Layer!
+			if layer == 0:
+				for k in 14:
+					var ta := rng.randf() * TAU
+					var tv := rng.randf_range(0.08, 0.58)
+					var tr := rad * pow(1.0 - tv, 1.15) * 0.92
+					var tpos := m_pos + Vector3(cos(ta) * tr, tv * h, sin(ta) * tr)
+					jungle_trees.append({
+						"pos": tpos,
+						"scale3": Vector3(rng.randf_range(8.0, 14.0), rng.randf_range(6.0, 11.0), rng.randf_range(8.0, 14.0)),
+						"yaw": rng.randf() * TAU,
+						"color": Color(0.28, 0.48, 0.24).lerp(Color(0.14, 0.30, 0.14), rng.randf())
+					})
+
+	if not jungle_trees.is_empty():
+		Vegetation.scatter(env_root, Vegetation.bush_mesh(), jungle_trees, "CoastalRainforestCanopy")
+
+	# 2. Großer Ozeanriese frei auf dem offenen Meer (im Osten bei x=+195, z=-15)
 	var liner := Node3D.new()
 	liner.name = "DistantCruiseLiner"
-	liner.position = Vector3(165.0, -3.2, -60.0)
-	liner.rotation_degrees = Vector3(0.0, -28.0, 0.0)
+	liner.position = Vector3(195.0, -3.2, -15.0)
+	liner.rotation_degrees = Vector3(0.0, -18.0, 0.0)
 
-	# Detail-Shader für den Kreuzfahrtschiff-Aufbau (Kabinenfenster-Raster, Decksfugen & Stahlplatten!)
 	var liner_shd := Shader.new()
 	liner_shd.code = """
 shader_type spatial;
@@ -477,47 +542,6 @@ void fragment() {
 		{"size": Vector3(22.0, 6.8, 175.0), "pos": Vector3(0.0, 1.8, 0.0), "mat": navy_mat},
 		{"size": Vector3(22.3, 0.6, 176.0), "pos": Vector3(0.0, 5.1, 0.0), "mat": red_accent},
 		{"size": Vector3(20.0, 4.4, 152.0), "pos": Vector3(0.0, 7.4, 2.0), "mat": lmat},
-		{"size": Vector3(17.2, 4.2, 126.0), "pos": Vector3(0.0, 11.4, 4.0), "mat": lmat},
-		{"size": Vector3(13.8, 3.6, 92.0), "pos": Vector3(0.0, 15.0, 2.0), "mat": lmat},
-		{"size": Vector3(16.5, 2.2, 14.0), "pos": Vector3(0.0, 16.5, -36.0), "mat": lmat}, # Kommandobrücke vorne
-		{"size": Vector3(5.8, 7.2, 11.0), "pos": Vector3(0.0, 19.8, 24.0), "mat": navy_mat}, # Schornstein
-		{"size": Vector3(6.0, 1.4, 11.2), "pos": Vector3(0.0, 21.8, 24.0), "mat": red_accent}
-	]
-	for t in tiers:
-		var m := MeshInstance3D.new()
-		var bm := BoxMesh.new()
-		bm.size = t["size"]
-		m.mesh = bm
-		m.material_override = t["mat"]
-		m.position = t["pos"]
-		liner.add_child(m)
-
-	# Bug-Spitze & Positionslichter (Rot Backbord / Grün Steuerbord) am Kreuzfahrtschiff
-	var bow := MeshInstance3D.new()
-	var pm := PrismMesh.new()
-	pm.size = Vector3(22.0, 24.0, 7.2)
-	bow.mesh = pm
-	bow.material_override = navy_mat
-	bow.rotation_degrees = Vector3(-90.0, 0.0, 0.0)
-	bow.position = Vector3(0.0, 1.8, -99.5)
-	liner.add_child(bow)
-
-	for side in [-1.0, 1.0]:
-		var nav := MeshInstance3D.new()
-		var sm := SphereMesh.new()
-		sm.radius = 0.85
-		nav.mesh = sm
-		var nmat := StandardMaterial3D.new()
-		var ncol := Color(1.0, 0.12, 0.08) if side < 0.0 else Color(0.1, 1.0, 0.28)
-		nmat.albedo_color = ncol
-		nmat.emission_enabled = true
-		nmat.emission = ncol
-		nmat.emission_energy_multiplier = 6.0
-		nav.material_override = nmat
-		nav.position = Vector3(side * 9.5, 16.8, -36.0)
-		liner.add_child(nav)
-
-	env_root.add_child(liner)
 func get_spawns() -> Array:
 	var s: Array = []
 	var red_pts := [
