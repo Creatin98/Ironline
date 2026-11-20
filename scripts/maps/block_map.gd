@@ -424,10 +424,41 @@ var _outdoors_blend: float = 1.0
 
 func _process(delta: float) -> void:
 	_wind_time += delta
-	var gust := 0.85 + 0.45 * sin(_wind_time * 1.1) + 0.30 * sin(_wind_time * 2.6)
+	var is_mesa := (atmosphere_preset == "tropical_storm" or name.to_lower().contains("mesa"))
+	var is_harbor := (atmosphere_preset == "overcast_industrial" or name.to_lower().contains("harbor"))
+
+	# 1. Wind läuft auf ALLEN Maps (Mesa = Tropensturm, Harbor = extremer Seewind, sonst leichte Brise)
+	var base_wind := 0.85 if is_mesa else (1.15 if is_harbor else 0.30)
+	var gust_amp := 0.45 if (is_mesa or is_harbor) else 0.12
+	var gust := base_wind + gust_amp * sin(_wind_time * 1.1) + (gust_amp * 0.65) * sin(_wind_time * 2.6)
 	RenderingServer.global_shader_parameter_set("wind_dir", _wind_dir)
 	RenderingServer.global_shader_parameter_set("wind_strength", gust)
 
+	# 2. Harbor: Schiff arbeitet dynamisch gegen schwere Wellen (Rollen, Stampfen & Heben ohne Regen!)
+	if is_harbor:
+		RenderingServer.global_shader_parameter_set("rain_wetness", 0.0)
+		if _lens_rain_mat != null:
+			_lens_rain_mat.set_shader_parameter("intensity", 0.0)
+		if _lightning_flash != null:
+			_lightning_flash.color.a = 0.0
+		if geometry_root != null:
+			var roll := sin(_wind_time * 0.95) * 1.35 + sin(_wind_time * 1.85) * 0.55
+			var pitch := cos(_wind_time * 0.72) * 0.85 + sin(_wind_time * 1.45) * 0.35
+			var heave := sin(_wind_time * 1.15) * 0.24 + cos(_wind_time * 2.1) * 0.08
+			geometry_root.rotation_degrees = Vector3(pitch, 0.0, roll)
+			geometry_root.position.y = heave
+		return
+
+	# 3. Trockene Maps ohne Sturm
+	if not is_mesa:
+		RenderingServer.global_shader_parameter_set("rain_wetness", 0.0)
+		if _lens_rain_mat != null:
+			_lens_rain_mat.set_shader_parameter("intensity", 0.0)
+		if _lightning_flash != null:
+			_lightning_flash.color.a = 0.0
+		return
+
+	# 4. Ab hier AUSSCHLIESSLICH Mesa (Tropensturm mit Regen, Blitzen & Visier-Tropfen)
 	if _rain_mat != null:
 		var slant := 11.5 * gust
 		_rain_mat.direction = Vector3(_wind_dir.x * slant, -24.0, _wind_dir.y * slant).normalized()
@@ -437,22 +468,35 @@ func _process(delta: float) -> void:
 	if cam != null and is_inside_tree():
 		var q := PhysicsRayQueryParameters3D.create(cam.global_position, cam.global_position + Vector3.UP * 40.0)
 		outdoors = get_world_3d().direct_space_state.intersect_ray(q).is_empty()
-	_outdoors_blend = move_toward(_outdoors_blend, 1.0 if outdoors else 0.0, delta * 2.5)
+		var dt := maxf(delta, 0.001)
+		var local_vel := cam.global_basis.inverse() * ((cam.global_position - _last_cam_pos) / dt)
+		var yaw_delta := _last_cam_basis.z.cross(cam.global_basis.z).y / dt
+		var pitch_delta := (cam.global_basis.z.y - _last_cam_basis.z.y) / dt
+		var target_flow := Vector2(
+			clampf(yaw_delta * 0.18 - local_vel.x * 0.04, -1.8, 1.8),
+			clampf(1.0 + pitch_delta * 0.25 - local_vel.z * 0.03, 0.25, 2.5)
+		)
+		_visor_flow = _visor_flow.lerp(target_flow, minf(1.0, delta * 8.0))
+		_last_cam_basis = cam.global_basis
+		_last_cam_pos = cam.global_position
+
+	var wet_rate := 1.4 if outdoors else 0.35
+	_outdoors_blend = move_toward(_outdoors_blend, 1.0 if outdoors else 0.0, delta * wet_rate)
+	RenderingServer.global_shader_parameter_set("rain_wetness", _outdoors_blend)
 
 	if _lens_rain_mat != null:
-		_lens_rain_mat.set_shader_parameter("intensity", _outdoors_blend * clampf(gust * 0.75, 0.35, 1.0))
+		_lens_rain_mat.set_shader_parameter("intensity", _outdoors_blend * clampf(gust * 0.85, 0.4, 1.0))
+		_lens_rain_mat.set_shader_parameter("flow_vel", _visor_flow)
 
-	# Kräftiges, dramatisches Licht wenn die Sonne durch die Gewitterwolken bricht
 	var storm_pulse := 0.5 + 0.5 * sin(_wind_time * 0.35)
 	if _sun_light != null:
-		var base_energy := lerpf(1.25, 2.55, storm_pulse)
-		_sun_light.light_energy = base_energy + _lightning_flash_val * 4.0
-		_sun_light.light_color = Color(0.78, 0.86, 1.0) if _lightning_flash_val > 0.1 else Color(0.95, 0.82, 0.68).lerp(Color(1.0, 0.90, 0.78), storm_pulse)
-		_sun_light.rotation_degrees = Vector3(-24.0 + sin(_wind_time * 0.15) * 1.5, -48.0, 0.0)
+		var base_energy := lerpf(1.35, 2.25, storm_pulse)
+		_sun_light.light_energy = base_energy + _lightning_flash_val * 3.5
+		_sun_light.light_color = Color(0.78, 0.86, 1.0) if _lightning_flash_val > 0.1 else Color(0.95, 0.84, 0.72)
 
 	_lightning_timer -= delta
 	if _lightning_timer <= 0.0:
-		_lightning_timer = randf_range(4.0, 11.0)
+		_lightning_timer = randf_range(5.0, 12.0)
 		_lightning_flash_val = 1.0
 		if _sky_mat != null:
 			_sky_mat.set_shader_parameter("lightning_seed", randf() * 100.0)
@@ -463,7 +507,7 @@ func _process(delta: float) -> void:
 		if _sky_mat != null:
 			_sky_mat.set_shader_parameter("lightning_intensity", intensity)
 		if _lightning_flash != null:
-			_lightning_flash.color.a = intensity * 0.16 * _outdoors_blend
+			_lightning_flash.color.a = intensity * 0.14 * (1.0 if outdoors else 0.0)
 		_lightning_flash_val = maxf(0.0, _lightning_flash_val - delta * 2.4)
 	else:
 		if _sky_mat != null:
@@ -473,6 +517,21 @@ func _process(delta: float) -> void:
 
 
 func _upgrade_cinematic_lighting() -> void:
+	for n in find_children("*", "WorldEnvironment", true, false):
+		if n.get_parent() != self:
+			n.queue_free()
+	for old_name in ["LightningLayer", "RainParticles", "RainRoofCollider", "JungleBackdrop", "HarborStormOcean"]:
+		if has_node(old_name):
+			get_node(old_name).queue_free()
+
+	var map_id := name.to_lower()
+	if map_id.contains("mesa"):
+		atmosphere_preset = "tropical_storm"
+	elif map_id.contains("harbor"):
+		atmosphere_preset = "overcast_industrial"
+	else:
+		atmosphere_preset = "clear_day"
+
 	var env_node: WorldEnvironment = null
 	for child in get_children():
 		if child is WorldEnvironment:
@@ -486,103 +545,147 @@ func _upgrade_cinematic_lighting() -> void:
 
 	var env := env_node.environment
 	env.tonemap_mode = 3
-	env.tonemap_exposure = 1.02
-	env.tonemap_white = 7.0
-
-	# Böser Gewitterhimmel OHNE Regenbogen + dramatischer Sonnen-Durchbruch & Lens-Streaks beim Blick zur Sonne
-	var cloud_code := "shader_type sky;\n" \
-		+ "uniform float lightning_intensity = 0.0;\n" \
-		+ "uniform float lightning_seed = 0.0;\n" \
-		+ "float hash(vec2 p) { vec3 p3 = fract(vec3(p.xyx) * 0.1031); p3 += dot(p3, p3.yzx + 33.33); return fract((p3.x + p3.y) * p3.z); }\n" \
-		+ "float noise(vec2 p) { vec2 i = floor(p); vec2 f = fract(p); f = f * f * (3.0 - 2.0 * f); return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), f.x), mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), f.x), f.y); }\n" \
-		+ "float fbm(vec2 p) { float v = 0.0; float a = 0.5; for (int i = 0; i < 6; i++) { v += a * noise(p); p = p * 2.05 + vec2(2.1, 7.4); a *= 0.5; } return v; }\n" \
-		+ "void sky() {\n" \
-		+ "	vec3 d = normalize(EYEDIR);\n" \
-		+ "	vec3 sun_dir = normalize(LIGHT0_DIRECTION);\n" \
-		+ "	float h = clamp(d.y, 0.005, 1.0);\n" \
-		+ "	vec2 uv = d.xz / (h + 0.16) * 0.85 + vec2(TIME * 0.045, TIME * 0.02);\n" \
-		+ "	float c1 = fbm(uv);\n" \
-		+ "	float c2 = fbm(uv * 2.7 - c1 * 0.9 + vec2(TIME * 0.03, 0.0));\n" \
-		+ "	float storm = smoothstep(0.15, 0.85, c1 * 0.6 + c2 * 0.4);\n" \
-		+ "	float sun_dot = max(dot(d, sun_dir), 0.0);\n" \
-		+ "	vec3 abyss = vec3(0.07, 0.08, 0.11);\n" \
-		+ "	vec3 slate = vec3(0.20, 0.23, 0.28);\n" \
-		+ "	vec3 steel_rim = vec3(0.42, 0.45, 0.50);\n" \
-		+ "	vec3 col = mix(slate, abyss, storm);\n" \
-		+ "	col = mix(col, steel_rim, smoothstep(0.55, 0.92, c2) * (1.0 - storm * 0.5));\n" \
-		+ "	// Dramatischer Sonnen-Durchbruch + anamorphotischer Lens-Flare-Streifen in Sonnenrichtung\n" \
-		+ "	float sun_break = pow(sun_dot, 5.0) * (1.15 - storm * 0.65);\n" \
-		+ "	float sun_core = pow(sun_dot, 90.0) * 1.6;\n" \
-		+ "	float anamorphic_streak = exp(-abs(d.y - sun_dir.y) * 28.0) * pow(sun_dot, 6.0) * 0.55;\n" \
-		+ "	col += vec3(1.0, 0.82, 0.62) * (sun_break + sun_core + anamorphic_streak);\n" \
-		+ "	vec3 horizon = mix(vec3(0.26, 0.29, 0.33), vec3(0.55, 0.46, 0.38), pow(sun_dot, 2.0));\n" \
-		+ "	col = mix(horizon, col, smoothstep(0.0, 0.30, d.y));\n" \
-		+ "	if (lightning_intensity > 0.001) {\n" \
-		+ "		float bolt_x = fract(sin(lightning_seed) * 43758.5453) * 2.0 - 1.0;\n" \
-		+ "		float jag = (noise(vec2(d.y * 20.0, lightning_seed)) - 0.5) * 0.08;\n" \
-		+ "		float bolt = exp(-abs((d.x - bolt_x * 0.7) + jag) * 160.0) * smoothstep(0.02, 0.42, d.y) * (1.0 - smoothstep(0.42, 0.60, d.y));\n" \
-		+ "		float glow = exp(-length(d.xz - vec2(bolt_x * 0.7, -0.4)) * 2.4) * (0.35 + 0.65 * (1.0 - storm));\n" \
-		+ "		col += vec3(0.68, 0.80, 1.0) * lightning_intensity * (bolt * 4.5 + glow * 1.6);\n" \
-		+ "	}\n" \
-		+ "	COLOR = col;\n" \
-		+ "}\n"
-
-	var sky_shd := Shader.new()
-	sky_shd.code = cloud_code
-	_sky_mat = ShaderMaterial.new()
-	_sky_mat.shader = sky_shd
-	var sky := Sky.new()
-	sky.sky_material = _sky_mat
-	env.background_mode = Environment.BG_SKY
-	env.sky = sky
-
+	env.tonemap_exposure = 1.0
+	env.tonemap_white = 7.5
 	env.ssr_enabled = true
 	env.ssr_max_steps = 28
 	env.ssr_fade_in = 0.12
 	env.ssr_fade_out = 2.0
 	env.ssr_depth_tolerance = 0.25
-
 	env.ssao_enabled = true
-	env.ssao_radius = 1.5
-	env.ssao_intensity = 1.3
+	env.ssao_radius = 1.4
+	env.ssao_intensity = 1.15
 	env.ssil_enabled = false
-
-	# Lässt die Lens-Flare & den Sonnen-Durchbruch durch die Wolken schön glühen
 	env.glow_enabled = true
-	env.glow_intensity = 0.42
-	env.glow_bloom = 0.10
-
-	env.volumetric_fog_enabled = false
-	env.fog_enabled = true
-	env.fog_mode = Environment.FOG_MODE_DEPTH
-	env.fog_light_color = Color(0.30, 0.32, 0.35)
-	env.fog_light_energy = 1.0
-	env.fog_sun_scatter = 0.18
-	env.fog_density = 0.56
-	env.fog_depth_begin = 16.0
-	env.fog_depth_end = 105.0
-	env.fog_height = 4.0
-	env.fog_height_density = 0.018
-
+	env.glow_intensity = 0.25
+	env.glow_bloom = 0.05
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	env.ambient_light_color = Color(0.38, 0.40, 0.44)
-	env.ambient_light_energy = 1.35
+	env.ambient_light_color = Color(0.56, 0.58, 0.62)
+	env.ambient_light_energy = 1.65
 
 	for child in get_children():
 		if child is DirectionalLight3D:
 			_sun_light = child
-			_sun_light.light_color = Color(1.0, 0.86, 0.72)
-			_sun_light.light_energy = 1.85
-			_sun_light.rotation_degrees = Vector3(-24.0, -48.0, 0.0)
 			_sun_light.shadow_enabled = true
-			_sun_light.shadow_blur = 2.4
+			_sun_light.shadow_blur = 2.2
 			_sun_light.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS
 			_sun_light.directional_shadow_max_distance = 110.0
 
-	_spawn_lightning_and_lens_overlay()
-	_spawn_rain_particles()
-	_spawn_jungle_backdrop()
-	_bake_roof_dry_mask()
+	if atmosphere_preset == "tropical_storm":
+		_apply_tropical_storm(env)
+	elif atmosphere_preset == "overcast_industrial":
+		_apply_harbor_atmosphere(env)
+	else:
+		_apply_clean_daylight(env)
+
+
+func _apply_clean_daylight(env: Environment) -> void:
+	var sky := Sky.new()
+	var mat := ProceduralSkyMaterial.new()
+	mat.sky_top_color = Color(0.24, 0.44, 0.72)
+	mat.sky_horizon_color = Color(0.62, 0.70, 0.78)
+	mat.ground_bottom_color = Color(0.25, 0.26, 0.28)
+	mat.ground_horizon_color = Color(0.55, 0.60, 0.66)
+	sky.sky_material = mat
+	env.background_mode = Environment.BG_SKY
+	env.sky = sky
+
+	env.fog_enabled = true
+	env.fog_mode = Environment.FOG_MODE_DEPTH
+	env.fog_light_color = Color(0.62, 0.68, 0.75)
+	env.fog_density = 0.22
+	env.fog_depth_begin = 35.0
+	env.fog_depth_end = 180.0
+
+	if _sun_light != null:
+		_sun_light.light_color = Color(1.0, 0.95, 0.88)
+		_sun_light.light_energy = 1.85
+		_sun_light.rotation_degrees = Vector3(-42.0, -45.0, 0.0)
+
+	RenderingServer.global_shader_parameter_set("rain_wetness", 0.0)
+
+
+func _apply_harbor_atmosphere(env: Environment) -> void:
+	var sky_shd := Shader.new()
+	sky_shd.code = """
+shader_type sky;
+float hash(vec2 p) { vec3 p3 = fract(vec3(p.xyx) * 0.1031); p3 += dot(p3, p3.yzx + 33.33); return fract((p3.x + p3.y) * p3.z); }
+float noise(vec2 p) { vec2 i = floor(p); vec2 f = fract(p); f = f * f * (3.0 - 2.0 * f); return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), f.x), mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), f.x), f.y); }
+float fbm(vec2 p) { float v = 0.0; float a = 0.5; for (int i = 0; i < 5; i++) { v += a * noise(p); p = p * 2.04 + vec2(1.9, 6.2); a *= 0.5; } return v; }
+void sky() {
+	vec3 d = normalize(EYEDIR);
+	vec3 sun_dir = normalize(LIGHT0_DIRECTION);
+	float h = clamp(d.y, 0.005, 1.0);
+	vec2 uv = d.xz / (h + 0.18) * 0.9 + vec2(TIME * 0.075, TIME * 0.03);
+	float c = fbm(uv) * 0.65 + fbm(uv * 2.4 + vec2(TIME * 0.04, 0.0)) * 0.35;
+	float sun_dot = max(dot(d, sun_dir), 0.0);
+	vec3 sky_col = mix(vec3(0.22, 0.30, 0.38), vec3(0.11, 0.15, 0.21), smoothstep(0.2, 0.85, c));
+	sky_col += vec3(0.95, 0.88, 0.78) * pow(sun_dot, 8.0) * (1.0 - c * 0.5) * 0.85;
+	vec3 horizon = vec3(0.36, 0.43, 0.50);
+	COLOR = mix(horizon, sky_col, smoothstep(0.0, 0.28, d.y));
+}
+"""
+	var smat := ShaderMaterial.new()
+	smat.shader = sky_shd
+	var sky := Sky.new()
+	sky.sky_material = smat
+	env.background_mode = Environment.BG_SKY
+	env.sky = sky
+
+	env.fog_enabled = true
+	env.fog_mode = Environment.FOG_MODE_DEPTH
+	env.fog_light_color = Color(0.42, 0.48, 0.55)
+	env.fog_density = 0.34
+	env.fog_depth_begin = 24.0
+	env.fog_depth_end = 150.0
+
+	if _sun_light != null:
+		_sun_light.light_color = Color(0.92, 0.94, 0.98)
+		_sun_light.light_energy = 1.75
+		_sun_light.rotation_degrees = Vector3(-30.0, 125.0, 0.0)
+
+	RenderingServer.global_shader_parameter_set("rain_wetness", 0.0)
+	_spawn_harbor_storm_ocean()
+
+
+func _spawn_harbor_storm_ocean() -> void:
+	var ocean := MeshInstance3D.new()
+	ocean.name = "HarborStormOcean"
+	var plane := PlaneMesh.new()
+	plane.size = Vector2(360.0, 360.0)
+	plane.subdivide_width = 140
+	plane.subdivide_depth = 140
+	ocean.mesh = plane
+	ocean.position = Vector3(0.0, -2.4, 0.0)
+
+	var oshd := Shader.new()
+	oshd.code = """
+shader_type spatial;
+render_mode cull_back, diffuse_burley, specular_schlick_ggx;
+
+varying float wave_h;
+varying vec3 w_pos;
+
+float wave(vec2 p, vec2 dir, float freq, float speed, float t) {
+	return sin(dot(p, dir) * freq + t * speed);
+}
+
+void vertex() {
+	vec3 wp = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
+	float t = TIME;
+	float h = 0.0;
+	h += wave(wp.xz, normalize(vec2(0.85, 0.35)), 0.16, 2.8, t) * 1.45;
+	h += wave(wp.xz, normalize(vec2(0.55, -0.75)), 0.28, 3.6, t) * 0.85;
+	h += wave(wp.xz, normalize(vec2(-0.35, 0.92)), 0.55, 4.9, t) * 0.38;
+	h += wave(wp.xz, normalize(vec2(0.95, 0.15)), 1.15, 6.5, t) * 0.16;
+	VERTEX.y += h;
+	wave_h = h;
+	w_pos = wp + vec3(0.0, h, 0.0);
+}
+
+void fragment() {
+	vec3 dx = dFdx(w_pos);
+	vec3 dz = dFdy(w_pos);
 func _spawn_lightning_and_lens_overlay() -> void:
 	if has_node("LightningLayer"):
 		return
