@@ -451,16 +451,16 @@ func _build_midnight_ocean_and_liner() -> void:
 	var red_accent := StandardMaterial3D.new()
 	red_accent.albedo_color = Color(0.72, 0.14, 0.13)
 	var tiers := [
-	{"size": Vector3(26.0, 10.0, 195.0), "pos": Vector3(0.0, 0.5, 0.0), "mat": navy_mat},
-	{"size": Vector3(26.4, 0.8, 196.0), "pos": Vector3(0.0, 5.6, 0.0), "mat": red_accent},
-	{"size": Vector3(23.0, 4.6, 166.0), "pos": Vector3(0.0, 8.0, 2.0), "mat": lmat},
-	{"size": Vector3(19.8, 4.4, 138.0), "pos": Vector3(0.0, 12.2, 4.0), "mat": lmat},
-	{"size": Vector3(16.0, 3.8, 102.0), "pos": Vector3(0.0, 16.0, 2.0), "mat": lmat},
-	{"size": Vector3(18.5, 2.4, 15.0), "pos": Vector3(0.0, 17.5, -40.0), "mat": lmat},
-	{"size": Vector3(6.6, 8.0, 12.0), "pos": Vector3(0.0, 21.2, 26.0), "mat": navy_mat},
-	{"size": Vector3(6.8, 1.6, 12.2), "pos": Vector3(0.0, 23.4, 26.0), "mat": red_accent}
+		{"size": Vector3(26.0, 10.0, 195.0), "pos": Vector3(0.0, 0.5, 0.0), "mat": navy_mat},
+		{"size": Vector3(26.4, 0.8, 196.0), "pos": Vector3(0.0, 5.6, 0.0), "mat": red_accent},
+		{"size": Vector3(23.0, 4.6, 166.0), "pos": Vector3(0.0, 8.0, 2.0), "mat": lmat},
+		{"size": Vector3(19.8, 4.4, 138.0), "pos": Vector3(0.0, 12.2, 4.0), "mat": lmat},
+		{"size": Vector3(16.0, 3.8, 102.0), "pos": Vector3(0.0, 16.0, 2.0), "mat": lmat},
+		{"size": Vector3(18.5, 2.4, 15.0), "pos": Vector3(0.0, 17.5, -40.0), "mat": lmat},
+		{"size": Vector3(6.6, 8.0, 12.0), "pos": Vector3(0.0, 21.2, 26.0), "mat": navy_mat},
+		{"size": Vector3(6.8, 1.6, 12.2), "pos": Vector3(0.0, 23.4, 26.0), "mat": red_accent}
 	]
-		for t in tiers:
+	for t in tiers:
 		var m := MeshInstance3D.new()
 		var bm := BoxMesh.new()
 		bm.size = t["size"]
@@ -468,6 +468,7 @@ func _build_midnight_ocean_and_liner() -> void:
 		m.material_override = t["mat"]
 		m.position = t["pos"]
 		_my_liner.add_child(m)
+
 	var bow := MeshInstance3D.new()
 	var pm := PrismMesh.new()
 	pm.size = Vector3(26.0, 28.0, 10.0)
@@ -477,43 +478,49 @@ func _build_midnight_ocean_and_liner() -> void:
 	bow.position = Vector3(0.0, 0.5, -111.5)
 	_my_liner.add_child(bow)
 	add_child(_my_liner)
+
+
 func get_spawns() -> Array:
 	var s: Array = []
 	var red_pts := [
-	Vector3(-9.5, 0.25, -31.0), Vector3(-4.5, 0.25, -33.0), Vector3(0.0, 0.25, -34.0),
-	Vector3(4.5, 0.25, -33.0), Vector3(9.5, 0.25, -31.0), Vector3(-13.5, 0.25, -29.0),
-	Vector3(13.5, 0.25, -29.0), Vector3(0.0, 0.25, -30.5)
+		Vector3(-9.5, 0.25, -31.0), Vector3(-4.5, 0.25, -33.0), Vector3(0.0, 0.25, -34.0),
+		Vector3(4.5, 0.25, -33.0), Vector3(9.5, 0.25, -31.0), Vector3(-13.5, 0.25, -29.0),
+		Vector3(13.5, 0.25, -29.0), Vector3(0.0, 0.25, -30.5)
 	]
-		for p in red_pts:
-	s.append({"pos": p, "yaw": 180.0, "team": 0})
+	for p in red_pts:
+		s.append({"pos": p, "yaw": 180.0, "team": 0})
 	var blue_pts := [
-	Vector3(-9.5, 0.25, 31.0), Vector3(-4.5, 0.25, 33.0), Vector3(0.0, 0.25, 34.0),
-	Vector3(4.5, 0.25, 33.0), Vector3(9.5, 0.25, 31.0), Vector3(-13.5, 0.25, 29.0),
-	Vector3(13.5, 0.25, 29.0), Vector3(0.0, 0.25, 30.5)
+		Vector3(-9.5, 0.25, 31.0), Vector3(-4.5, 0.25, 33.0), Vector3(0.0, 0.25, 34.0),
+		Vector3(4.5, 0.25, 33.0), Vector3(9.5, 0.25, 31.0), Vector3(-13.5, 0.25, 29.0),
+		Vector3(13.5, 0.25, 29.0), Vector3(0.0, 0.25, 30.5)
 	]
-		for p in blue_pts:
-	s.append({"pos": p, "yaw": 0.0, "team": 1})
+	for p in blue_pts:
+		s.append({"pos": p, "yaw": 0.0, "team": 1})
 	return s
+
+
 func get_lanes() -> Dictionary:
 	return {
-	"left": [
-	Vector3(-13.8, 0.25, -28.0), Vector3(-13.8, 0.25, -12.0),
-	Vector3(-13.8, 0.25, 0.0), Vector3(-13.8, 0.25, 12.0), Vector3(-13.8, 0.25, 28.0)
-	],
-	"mid": [
-	Vector3(0.0, 0.25, -28.0), Vector3(0.0, 0.25, -16.0),
-	Vector3(0.0, 0.25, -5.0), Vector3(0.0, 0.25, 5.0),
-	Vector3(0.0, 0.25, 16.0), Vector3(0.0, 0.25, 28.0)
-	],
-	"right": [
-	Vector3(13.8, 0.25, -28.0), Vector3(13.8, 0.25, -12.0),
-	Vector3(13.8, 0.25, 0.0), Vector3(13.8, 0.25, 12.0), Vector3(13.8, 0.25, 28.0)
-	]
+		"left": [
+			Vector3(-13.8, 0.25, -28.0), Vector3(-13.8, 0.25, -12.0),
+			Vector3(-13.8, 0.25, 0.0), Vector3(-13.8, 0.25, 12.0), Vector3(-13.8, 0.25, 28.0)
+		],
+		"mid": [
+			Vector3(0.0, 0.25, -28.0), Vector3(0.0, 0.25, -16.0),
+			Vector3(0.0, 0.25, -5.0), Vector3(0.0, 0.25, 5.0),
+			Vector3(0.0, 0.25, 16.0), Vector3(0.0, 0.25, 28.0)
+		],
+		"right": [
+			Vector3(13.8, 0.25, -28.0), Vector3(13.8, 0.25, -12.0),
+			Vector3(13.8, 0.25, 0.0), Vector3(13.8, 0.25, 12.0), Vector3(13.8, 0.25, 28.0)
+		]
 	}
+
+
 func get_cover_points() -> Array:
 	return [
-	Vector3(-4.5, 0.25, -4.6), Vector3(4.5, 0.25, 4.6),
-	Vector3(-13.8, 0.25, -12.0), Vector3(13.8, 0.25, 12.0),
-	Vector3(0.0, UPPER_Y + 0.25, -12.0), Vector3(0.0, UPPER_Y + 0.25, 10.5),
-	Vector3(-4.2, LOWER_Y + 0.25, -8.0), Vector3(4.2, LOWER_Y + 0.25, 8.0)
+		Vector3(-4.5, 0.25, -4.6), Vector3(4.5, 0.25, 4.6),
+		Vector3(-13.8, 0.25, -12.0), Vector3(13.8, 0.25, 12.0),
+		Vector3(0.0, UPPER_Y + 0.25, -12.0), Vector3(0.0, UPPER_Y + 0.25, 10.5),
+		Vector3(-4.2, LOWER_Y + 0.25, -8.0), Vector3(4.2, LOWER_Y + 0.25, 8.0)
 	]
