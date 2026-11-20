@@ -474,7 +474,7 @@ func _process(delta: float) -> void:
 		if _ocean_mat != null:
 			_ocean_mat.set_shader_parameter("ship_speed_offset", _wind_time * 6.5)
 			_ocean_mat.set_shader_parameter("deck_splash", Vector2(splash_side, _outdoors_blend))
-			var isl_node := get_node_or_null("HarborDistantIslands") as Node3D
+		var isl_node := get_node_or_null("HarborDistantIslands") as Node3D
 		if isl_node != null:
 			isl_node.position.z = fmod(_wind_time * 1.4, 180.0) - 60.0
 		return
