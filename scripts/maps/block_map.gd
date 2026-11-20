@@ -437,26 +437,44 @@ func _process(delta: float) -> void:
 	RenderingServer.global_shader_parameter_set("wind_dir", _wind_dir)
 	RenderingServer.global_shader_parameter_set("wind_strength", gust)
 
-# 2. Harbor: Schiff fährt durch schwere Dünung, Wellen knallen gegen den Rumpf & schwappen aufs Deck!
+# 2. Harbor: Schiff bleibt auf (0,0,0) -> null schwimmende Kacheln! Ozean & Horizont arbeiten ums Schiff herum!
 	if is_harbor:
 		if _lens_rain_mat != null:
 			_lens_rain_mat.set_shader_parameter("intensity", 0.0)
 		if _lightning_flash != null:
 			_lightning_flash.color.a = 0.0
 
-		# Dieselbe Wellen-Mathematik wie im Ozean-Shader -> Schiff reagiert physikalisch exakt auf jede Welle!
 		var w1 := sin(_wind_time * 1.65)
 		var w2 := sin(_wind_time * 2.75 + 1.1)
 		var wave_force := w1 * 0.7 + w2 * 0.3
 
-		# Gezieltes Rollen & Stampfen passend zur Wellenrichtung (ohne Kollisionen zu verschieben!)
-		var roll := wave_force * 1.15
-		var pitch := cos(_wind_time * 1.25) * 0.75 + sin(_wind_time * 2.1) * 0.25
-		var heave := w1 * 0.16
-		for child in get_children():
-			if child is Node3D and not (child is Area3D) and not (child is CharacterBody3D) and not (child is DirectionalLight3D) and not (child is WorldEnvironment) and not child.name.begins_with("Harbor"):
-				child.rotation_degrees = Vector3(pitch, 0.0, roll)
-				child.position.y = heave
+		# Wellen & ferne Inseln neigen und heben sich relativ zum Schiff -> perfektes Seegang-Gefühl ohne Textur-Versatz!
+		var ocean_node := get_node_or_null("HarborStormOcean") as Node3D
+		if ocean_node != null:
+			ocean_node.position.y = -3.4 - w1 * 0.32
+			ocean_node.rotation_degrees = Vector3(-cos(_wind_time * 1.25) * 0.85, 0.0, -wave_force * 1.35)
+
+		var isl_node := get_node_or_null("HarborDistantIslands") as Node3D
+		if isl_node != null:
+			isl_node.position.z = fmod(_wind_time * 1.4, 180.0) - 60.0
+			isl_node.position.y = -w1 * 0.65
+			isl_node.rotation_degrees = Vector3(-cos(_wind_time * 1.25) * 0.9, 0.0, -wave_force * 1.5)
+
+		# Wellenschlag an Backbord / Steuerbord -> weiche Gischt + Wasserlache auf dem Deck
+		var splash_side := 0.0
+		if absf(wave_force) > 0.78:
+			splash_side = signf(wave_force)
+			var spray := get_node_or_null("HarborBowSpray") as GPUParticles3D
+			if spray != null:
+				spray.position = Vector3(splash_side * 15.5, 0.2, randf_range(-22.0, 22.0))
+				spray.process_material.direction = Vector3(-splash_side * 0.85, 1.35, -0.35).normalized()
+				spray.emitting = true
+
+		_outdoors_blend = move_toward(_outdoors_blend, 0.45 if absf(wave_force) > 0.75 else 0.12, delta * 0.4)
+		RenderingServer.global_shader_parameter_set("rain_wetness", 0.0)
+		if _ocean_mat != null:
+			_ocean_mat.set_shader_parameter("ship_speed_offset", _wind_time * 6.5)
+		return
 
 		# Wenn eine schwere Welle gegen Backbord oder Steuerbord schlägt -> Gischt-Fontäne + Deck-Nässe!
 		var splash_side := 0.0
