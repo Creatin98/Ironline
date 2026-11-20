@@ -353,33 +353,32 @@ func _setup_midnight_atmosphere() -> void:
 func _upgrade_reflective_materials() -> void:
 	var gelcoat := StandardMaterial3D.new()
 	gelcoat.albedo_color = C_GELCOAT
-	gelcoat.roughness = 0.24
-	gelcoat.metallic = 0.05
-	gelcoat.clearcoat = 0.65
-	gelcoat.clearcoat_roughness = 0.16
+	gelcoat.roughness = 0.22
+	gelcoat.metallic = 0.04
+	gelcoat.clearcoat = 0.68
+	gelcoat.clearcoat_roughness = 0.15
 
-	var plank_mat: StandardMaterial3D = null
 	for mi in find_children("*", "MeshInstance3D", true, false):
-		var mat = mi.material_override
-		if mat == null and mi.mesh != null and mi.mesh.get_surface_count() > 0:
-			mat = mi.mesh.surface_get_material(0)
-		if mat == null:
+		if mi.mesh == null:
 			continue
-		if mat.resource_path.contains("ship_hull"):
-			mi.material_override = gelcoat
-		elif mat.resource_path.contains("wood_planks"):
-			if plank_mat == null:
-				plank_mat = mat.duplicate() as StandardMaterial3D
-				if plank_mat != null:
-					plank_mat.uv1_triplanar = true
-					plank_mat.uv1_world_triplanar = true
-					plank_mat.uv1_scale = Vector3(0.35, 0.35, 0.35)
-					plank_mat.roughness = 0.24
-					plank_mat.specular = 0.85
-					plank_mat.clearcoat = 0.45
-					plank_mat.clearcoat_roughness = 0.20
-			if plank_mat != null:
-				mi.material_override = plank_mat
+		for s in mi.mesh.get_surface_count():
+			var mat := mi.mesh.surface_get_material(s)
+			if mat == null:
+				mat = mi.material_override
+			if mat == null:
+				continue
+			if mat.resource_path.contains("ship_hull") or mi.mesh.surface_get_name(s) == "ship_hull":
+				mi.set_surface_override_material(s, gelcoat)
+			elif mat.resource_path.contains("wood_planks") or mi.mesh.surface_get_name(s) == "wood_planks":
+				var pm := mat.duplicate() as StandardMaterial3D
+				if pm != null:
+					pm.uv1_triplanar = true
+					pm.uv1_world_triplanar = true
+					pm.uv1_scale = Vector3(0.35, 0.35, 0.35)
+					pm.roughness = 0.24
+					pm.specular = 0.85
+					pm.clearcoat = 0.45
+					mi.set_surface_override_material(s, pm)
 
 func _build_seamless_yacht_hull() -> void:
 	var st := SurfaceTool.new()
