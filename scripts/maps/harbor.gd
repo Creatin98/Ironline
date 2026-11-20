@@ -421,3 +421,99 @@ func _build_midnight_ocean_and_liner() -> void:
 	smat.emission_box_extents = Vector3(0.8, 0.35, 11.0)
 	smat.direction = Vector3(-0.9, 1.2, -0.4).normalized()
 	smat.spread = 22.0
+smat.initial_velocity_min = 8.0
+smat.initial_velocity_max = 14.5
+smat.gravity = Vector3(0.0, -18.0,
+-4.5)
+smat.scale_min = 0.3
+smat.scale_max = 0.85
+_my_spray.process_material = smat
+var sdrop := QuadMesh.new()
+sdrop.size = Vector2(0.04, 0.42)
+var sdmat := StandardMaterial3D.new()
+sdmat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+sdmat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+sdmat.albedo_color = Color(0.78, 0.88, 0.98, 0.26)
+sdrop.material = sdmat
+_my_spray.draw_pass_1 = sdrop
+add_child(_my_spray)
+_my_liner = Node3D.new()
+_my_liner.name = "DistantCruiseLiner"
+_my_liner.position = Vector3(175.0, -1.6, -75.0)
+_my_liner.rotation_degrees = Vector3(0.0, -28.0, 0.0)
+var liner_shd := Shader.new()
+liner_shd.code = "shader_type spatial;\nrender_mode cull_back,diffuse_burley,specular_schlick_ggx;\nvarying vec3 w_p;\nvoid vertex(){w_p=(MODEL_MATRIXvec4(VERTEX,1.0)).xyz;}\nvoid fragment(){float deck_line=smoothstep(0.06,0.0,abs(fract(w_p.y0.32)-0.5));float win_z=step(0.30,fract(w_p.z0.34))step(fract(w_p.z0.34),0.74);float win_y=step(0.32,fract(w_p.y0.32))step(fract(w_p.y0.32),0.62);float is_win=win_zwin_y;vec3 steel=mix(vec3(0.78,0.82,0.88),vec3(0.25,0.30,0.38),deck_line0.7);ALBEDO=mix(steel,vec3(0.06,0.09,0.14),is_win);EMISSION=vec3(1.0,0.82,0.46)is_win3.8;ROUGHNESS=mix(0.38,0.08,is_win);METALLIC=0.22;}"
+var lmat := ShaderMaterial.new()
+lmat.shader = liner_shd
+var navy_mat := StandardMaterial3D.new()
+navy_mat.albedo_color = Color(0.04, 0.08, 0.16)
+navy_mat.roughness = 0.35
+var red_accent := StandardMaterial3D.new()
+red_accent.albedo_color = Color(0.72, 0.14, 0.13)
+var tiers := [
+{"size": Vector3(26.0, 10.0, 195.0), "pos": Vector3(0.0, 0.5, 0.0), "mat": navy_mat},
+{"size": Vector3(26.4, 0.8, 196.0), "pos": Vector3(0.0, 5.6, 0.0), "mat": red_accent},
+{"size": Vector3(23.0, 4.6, 166.0), "pos": Vector3(0.0, 8.0, 2.0), "mat": lmat},
+{"size": Vector3(19.8, 4.4, 138.0), "pos": Vector3(0.0, 12.2, 4.0), "mat": lmat},
+{"size": Vector3(16.0, 3.8, 102.0), "pos": Vector3(0.0, 16.0, 2.0), "mat": lmat},
+{"size": Vector3(18.5, 2.4, 15.0), "pos": Vector3(0.0, 17.5, -40.0), "mat": lmat},
+{"size": Vector3(6.6, 8.0, 12.0), "pos": Vector3(0.0, 21.2, 26.0), "mat": navy_mat},
+{"size": Vector3(6.8, 1.6, 12.2), "pos": Vector3(0.0, 23.4, 26.0), "mat": red_accent}
+]
+for t in tiers:
+var m := MeshInstance3D.new()
+var bm := BoxMesh.new()
+bm.size = t["size"]
+m.mesh = bm
+m.material_override = t["mat"]
+m.position = t["pos"]
+_my_liner.add_child(m)
+var bow := MeshInstance3D.new()
+var pm := PrismMesh.new()
+pm.size = Vector3(26.0, 28.0, 10.0)
+bow.mesh = pm
+bow.material_override = navy_mat
+bow.rotation_degrees = Vector3(-90.0, 0.0, 0.0)
+bow.position = Vector3(0.0, 0.5, -111.5)
+_my_liner.add_child(bow)
+add_child(_my_liner)
+func get_spawns() -> Array:
+var s: Array = []
+var red_pts := [
+Vector3(-9.5, 0.25, -31.0), Vector3(-4.5, 0.25, -33.0), Vector3(0.0, 0.25, -34.0),
+Vector3(4.5, 0.25, -33.0), Vector3(9.5, 0.25, -31.0), Vector3(-13.5, 0.25, -29.0),
+Vector3(13.5, 0.25, -29.0), Vector3(0.0, 0.25, -30.5)
+]
+for p in red_pts:
+s.append({"pos": p, "yaw": 180.0, "team": 0})
+var blue_pts := [
+Vector3(-9.5, 0.25, 31.0), Vector3(-4.5, 0.25, 33.0), Vector3(0.0, 0.25, 34.0),
+Vector3(4.5, 0.25, 33.0), Vector3(9.5, 0.25, 31.0), Vector3(-13.5, 0.25, 29.0),
+Vector3(13.5, 0.25, 29.0), Vector3(0.0, 0.25, 30.5)
+]
+for p in blue_pts:
+s.append({"pos": p, "yaw": 0.0, "team": 1})
+return s
+func get_lanes() -> Dictionary:
+return {
+"left": [
+Vector3(-13.8, 0.25, -28.0), Vector3(-13.8, 0.25, -12.0),
+Vector3(-13.8, 0.25, 0.0), Vector3(-13.8, 0.25, 12.0), Vector3(-13.8, 0.25, 28.0)
+],
+"mid": [
+Vector3(0.0, 0.25, -28.0), Vector3(0.0, 0.25, -16.0),
+Vector3(0.0, 0.25, -5.0), Vector3(0.0, 0.25, 5.0),
+Vector3(0.0, 0.25, 16.0), Vector3(0.0, 0.25, 28.0)
+],
+"right": [
+Vector3(13.8, 0.25, -28.0), Vector3(13.8, 0.25, -12.0),
+Vector3(13.8, 0.25, 0.0), Vector3(13.8, 0.25, 12.0), Vector3(13.8, 0.25, 28.0)
+]
+}
+func get_cover_points() -> Array:
+return [
+Vector3(-4.5, 0.25, -4.6), Vector3(4.5, 0.25, 4.6),
+Vector3(-13.8, 0.25, -12.0), Vector3(13.8, 0.25, 12.0),
+Vector3(0.0, UPPER_Y + 0.25, -12.0), Vector3(0.0, UPPER_Y + 0.25, 10.5),
+Vector3(-4.2, LOWER_Y + 0.25, -8.0), Vector3(4.2, LOWER_Y + 0.25, 8.0)
+]
