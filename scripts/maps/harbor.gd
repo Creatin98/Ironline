@@ -54,23 +54,39 @@ func _process(delta: float) -> void:
 	# 1. Spürbares Rollen & Stampfen von Meer und Kreuzer rund um die Yacht
 	var ocean := get_node_or_null("MidnightStormOcean") as MeshInstance3D
 	if ocean != null:
-		ocean.position.y = -5.6 - w1 * 0.45
-		ocean.rotation_degrees = Vector3(-pitch_deg, 0.0, -roll_deg)
-		var smat := ocean.material_override as StandardMaterial3D
-		if smat != null:
-			smat.uv1_offset.z += delta * 0.35
-
-	# Sanftes, aber spürbares Kamera-Rollen beim Laufen & Zielen (ohne Maus-Look zu blockieren)
-	var cam := get_viewport().get_camera_3d()
-	if cam != null:
-		cam.rotation.z = lerp_angle(cam.rotation.z, deg_to_rad(roll_deg * 0.55), minf(1.0, delta * 8.0))
+		ocean.position.y = -4.6
+		ocean.rotation_degrees = Vector3.ZERO
 
 	if _my_ocean_mat != null:
-		_my_ocean_mat.set_shader_parameter("ship_speed_offset", _my_time * 7.8)
+		_my_ocean_mat.set_shader_parameter("ship_speed_offset", _my_time * 9.5)
 
 	if _my_liner != null:
-		_my_liner.position.y = -3.6 + sin(_my_time * 1.0) * 0.85
-		_my_liner.rotation_degrees = Vector3(cos(_my_time * 0.8) * 1.6, -28.0, sin(_my_time * 0.9) * 2.1)
+		_my_liner.position.y = -5.6 + sin(_my_time * 1.1) * 0.25
+		_my_liner.rotation_degrees = Vector3(cos(_my_time * 0.9) * 0.8, -28.0, sin(_my_time * 1.0) * 1.1)
+
+	if absf(wave_force) > 0.35:
+		var side := signf(wave_force)
+		if side < 0.0:
+			_wash_l = minf(1.0, _wash_l + delta * 1.6)
+		else:
+			_wash_r = minf(1.0, _wash_r + delta * 1.6)
+		if _my_spray != null:
+			var sz := sin(_my_time * 2.1) * 28.0
+			var sy := 1.15 if sz < -9.5 else (0.05 if sz < 9.5 else -1.05)
+			_my_spray.position = Vector3(side * 17.3, sy, sz)
+			var pmat := _my_spray.process_material as ParticleProcessMaterial
+			if pmat != null:
+				pmat.direction = Vector3(-side * 0.85, 1.65, -0.45).normalized()
+			_my_spray.emitting = true
+	else:
+		if _my_spray != null:
+			_my_spray.emitting = false
+
+	_wash_l = maxf(0.0, _wash_l - delta * 0.28)
+	_wash_r = maxf(0.0, _wash_r - delta * 0.28)
+	if _my_wash_mat != null:
+		_my_wash_mat.set_shader_parameter("wash_l", _wash_l)
+		_my_wash_mat.set_shader_parameter("wash_r", _wash_r)
 
 	# 2. Wellen schlagen ans Boot -> Gischt spritzt hoch & Wasser läuft über Mittel- & Achterdeck!
 	if absf(wave_force) > 0.48:
@@ -550,38 +566,86 @@ func _hull_half_width(z: float) -> float:
 
 
 func _build_midnight_ocean_and_liner() -> void:
+	var far_sea := MeshInstance3D.new()
+	far_sea.name = "FarHorizonSea"
+	var far_plane := PlaneMesh.new()
+	far_plane.size = Vector2(2400.0, 2400.0)
+	far_sea.mesh = far_plane
+	far_sea.position = Vector3(0.0, -5.4, 0.0)
+	var far_mat := StandardMaterial3D.new()
+	far_mat.albedo_color = Color(0.005, 0.018, 0.042)
+	far_mat.roughness = 0.08
+	far_mat.metallic = 0.2
+	far_sea.material_override = far_mat
+	add_child(far_sea)
+
 	var ocean := MeshInstance3D.new()
 	ocean.name = "MidnightStormOcean"
 	var plane := PlaneMesh.new()
-	plane.size = Vector2(2000.0, 2000.0)
+	plane.size = Vector2(460.0, 460.0)
+	plane.subdivide_width = 256
+	plane.subdivide_depth = 256
 	ocean.mesh = plane
-	ocean.position = Vector3(0.0, -5.6, 0.0)
+	ocean.position = Vector3(0.0, -4.6, 0.0)
 
-	var wmat := StandardMaterial3D.new()
-	wmat.albedo_color = Color(0.015, 0.048, 0.095)
-	wmat.metallic = 0.25
-	wmat.roughness = 0.06
-	wmat.specular_mode = BaseMaterial3D.SPECULAR_SCHLICK_GGX
-	wmat.uv1_triplanar = true
-	wmat.uv1_world_triplanar = true
-	wmat.uv1_scale = Vector3(0.08, 0.08, 0.08)
-
-	var fn := FastNoiseLite.new()
-	fn.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
-	fn.frequency = 0.035
-	fn.fractal_octaves = 4
-	var ntex := NoiseTexture2D.new()
-	ntex.width = 512
-	ntex.height = 512
-	ntex.seamless = true
-	ntex.as_normal_map = true
-	ntex.bump_strength = 4.2
-	ntex.noise = fn
-	wmat.normal_enabled = true
-	wmat.normal_texture = ntex
-	wmat.normal_scale = 0.85
-	ocean.material_override = wmat
+	var oshd := Shader.new()
+	oshd.code = "shader_type spatial;\nrender_mode cull_back,diffuse_burley,specular_schlick_ggx;\nuniform float ship_speed_offset=0.0;\nvarying float wave_h;\nvarying vec3 w_pos;\nfloat hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}\nfloat noise(vec2 p){vec2 i=floor(p);vec2 f=fract(p);f=f*f*(3.0-2.0*f);return mix(mix(hash(i),hash(i+vec2(1.0,0.0)),f.x),mix(hash(i+vec2(0.0,1.0)),hash(i+vec2(1.0,1.0)),f.x),f.y);}\nfloat fbm(vec2 p){float v=0.0;float a=0.5;for(int i=0;i<5;i++){v+=a*noise(p);p=p*2.03+vec2(1.9,4.3);a*=0.5;}return v;}\nfloat wave_height(vec2 xz,float t){return sin(xz.x*0.18+xz.y*0.07+t*2.4)*0.85+sin(xz.x*0.34-xz.y*0.19+t*3.3)*0.52+sin(xz.x*0.65+xz.y*0.42+t*4.5)*0.26+sin(xz.y*0.24+t*2.9)*0.45;}\nvoid vertex(){vec3 wp=(MODEL_MATRIX*vec4(VERTEX,1.0)).xyz;vec2 travel=wp.xz+vec2(0.0,ship_speed_offset);float hull_d=max(abs(wp.x)/17.8,abs(wp.z)/48.0);float splash_boost=1.0+exp(-abs(hull_d-1.05)*5.0)*0.85;float inner_damp=smoothstep(0.88,1.03,hull_d);float h=wave_height(travel,TIME)*splash_boost*inner_damp;VERTEX.y+=h;wave_h=h;w_pos=vec3(travel.x,wp.y+h,travel.y);float e=0.25;float hx=wave_height(travel+vec2(e,0.0),TIME)*splash_boost*inner_damp;float hz=wave_height(travel+vec2(0.0,e),TIME)*splash_boost*inner_damp;NORMAL=normalize(vec3(h-hx,e,h-hz));}\nvoid fragment(){vec2 uv1=w_pos.xz*0.45+vec2(TIME*0.25,TIME*0.12);vec2 uv2=w_pos.xz*1.45-vec2(TIME*0.18,-TIME*0.24);float e=0.06;float n0=fbm(uv1)+fbm(uv2)*0.5;float nx=fbm(uv1+vec2(e,0.0))+fbm(uv2+vec2(e,0.0))*0.5;float nz=fbm(uv1+vec2(0.0,e))+fbm(uv2+vec2(0.0,e))*0.5;vec3 wn=normalize(vec3((n0-nx)*2.2,1.0,(n0-nz)*2.2));NORMAL=normalize(NORMAL+(VIEW_MATRIX*vec4(wn.x,0.0,wn.z,0.0)).xyz*0.65);float crest=smoothstep(0.75,1.65,wave_h);float foam_n=fbm(w_pos.xz*0.35+vec2(TIME*0.4,0.0));float foam=clamp(crest*smoothstep(0.38,0.72,foam_n)*1.25,0.0,1.0);vec3 deep=vec3(0.006,0.022,0.052);vec3 mid=vec3(0.018,0.075,0.145);ALBEDO=mix(mix(deep,mid,smoothstep(-1.2,1.4,wave_h)),vec3(0.82,0.90,0.98),foam*0.85);ROUGHNESS=mix(0.03,0.35,foam);METALLIC=0.15;SPECULAR=1.0;}"
+	_my_ocean_mat = ShaderMaterial.new()
+	_my_ocean_mat.shader = oshd
+	ocean.material_override = _my_ocean_mat
 	add_child(ocean)
+
+	_my_spray = GPUParticles3D.new()
+	_my_spray.name = "MidnightWaveSpray"
+	_my_spray.amount = 900
+	_my_spray.lifetime = 1.15
+	_my_spray.emitting = false
+	var smat := ParticleProcessMaterial.new()
+	smat.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_BOX
+	smat.emission_box_extents = Vector3(0.45, 0.25, 14.0)
+	smat.direction = Vector3(-0.85, 1.65, -0.45).normalized()
+	smat.spread = 28.0
+	smat.initial_velocity_min = 6.5
+	smat.initial_velocity_max = 12.5
+	smat.gravity = Vector3(0.0, -16.5, -3.0)
+	smat.scale_min = 0.04
+	smat.scale_max = 0.14
+	_my_spray.process_material = smat
+	var sdrop := SphereMesh.new()
+	sdrop.radius = 0.5
+	sdrop.height = 1.0
+	sdrop.radial_segments = 8
+	sdrop.rings = 4
+	var sdmat := StandardMaterial3D.new()
+	sdmat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	sdmat.albedo_color = Color(0.84, 0.93, 1.0, 0.42)
+	sdmat.roughness = 0.05
+	sdrop.material = sdmat
+	_my_spray.draw_pass_1 = sdrop
+	add_child(_my_spray)
+
+	var wash_shd := Shader.new()
+	wash_shd.code = "shader_type spatial;\nrender_mode blend_mix,depth_draw_never,cull_back,diffuse_burley,specular_schlick_ggx;\nuniform float wash_l=0.0;\nuniform float wash_r=0.0;\nvarying vec3 w_p;\nfloat hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}\nfloat noise(vec2 p){vec2 i=floor(p);vec2 f=fract(p);f=f*f*(3.0-2.0*f);return mix(mix(hash(i),hash(i+vec2(1.0,0.0)),f.x),mix(hash(i+vec2(0.0,1.0)),hash(i+vec2(1.0,1.0)),f.x),f.y);}\nfloat fbm(vec2 p){return noise(p)*0.55+noise(p*2.1+3.1)*0.30+noise(p*4.3-1.7)*0.15;}\nvoid vertex(){w_p=(MODEL_MATRIX*vec4(VERTEX,1.0)).xyz;}\nvoid fragment(){float surge=w_p.x<0.0?wash_l:wash_r;float edge_dist=clamp((17.0-abs(w_p.x))/7.5,0.0,1.0);float organic=fbm(w_p.xz*vec2(0.28,0.16)+vec2(0.0,TIME*0.45));float puddle_mask=smoothstep(0.46,0.62,organic+(1.0-edge_dist)*surge*0.55);float border_fade=smoothstep(1.0,0.65,edge_dist);float water_alpha=puddle_mask*border_fade;float foam_rim=smoothstep(0.08,0.0,abs((organic+(1.0-edge_dist)*surge*0.55)-0.50))*surge*border_fade;vec2 rip=w_p.xz*2.2+vec2(TIME*0.4,-TIME*0.3);float r0=fbm(rip);float rx=fbm(rip+vec2(0.08,0.0));float rz=fbm(rip+vec2(0.0,0.08));NORMAL=normalize(NORMAL+(VIEW_MATRIX*vec4((r0-rx)*1.4,0.0,(r0-rz)*1.4,0.0)).xyz);ALBEDO=mix(vec3(0.04,0.12,0.20),vec3(0.86,0.94,1.0),foam_rim*0.85);ALPHA=clamp(water_alpha*0.62+foam_rim*0.55,0.0,0.82);ROUGHNESS=0.015;METALLIC=0.25;SPECULAR=1.0;}"
+	_my_wash_mat = ShaderMaterial.new()
+	_my_wash_mat.shader = wash_shd
+
+	var deck_zones := [
+		{"pos": Vector3(-11.8, 1.115, -24.0), "size": Vector2(10.2, 27.5)},
+		{"pos": Vector3(11.8, 1.115, -24.0), "size": Vector2(10.2, 27.5)},
+		{"pos": Vector3(-11.8, 0.015, 0.0), "size": Vector2(10.2, 18.5)},
+		{"pos": Vector3(11.8, 0.015, 0.0), "size": Vector2(10.2, 18.5)},
+		{"pos": Vector3(-11.8, -1.085, 24.0), "size": Vector2(10.2, 27.5)},
+		{"pos": Vector3(11.8, -1.085, 24.0), "size": Vector2(10.2, 27.5)}
+	]
+	for dz in deck_zones:
+		var wmi := MeshInstance3D.new()
+		var wpm := PlaneMesh.new()
+		wpm.size = dz["size"]
+		wmi.mesh = wpm
+		wmi.material_override = _my_wash_mat
+		wmi.position = dz["pos"]
+		add_child(wmi)
+
 
 
 	_my_liner = Node3D.new()
