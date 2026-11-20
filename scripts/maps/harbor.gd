@@ -448,7 +448,7 @@ func _build_seamless_yacht_hull() -> void:
 	deck_mi.mesh = deck_st.commit()
 	for mi in find_children("*", "MeshInstance3D", true, false):
 		if mi.mesh != null and mi.mesh.get_surface_count() > 0:
-			var s_mat := mi.get_surface_override_material(0)
+			var s_mat: Material = mi.get_surface_override_material(0)
 			if s_mat != null and s_mat is StandardMaterial3D and (s_mat as StandardMaterial3D).uv1_triplanar:
 				deck_mi.material_override = s_mat
 				break
