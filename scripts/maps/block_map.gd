@@ -583,7 +583,99 @@ func _upgrade_cinematic_lighting() -> void:
 	_spawn_rain_particles()
 	_spawn_jungle_backdrop()
 
+func _spawn_lightning_and_lens_overlay() -> void:
+	if has_node("LightningLayer"):
+		return
+	var layer := CanvasLayer.new()
+	layer.name = "LightningLayer"
+	layer.layer = 5
 
+	var lens_code := "shader_type canvas_item;\n" \
+		+ "uniform float intensity = 0.0;\n" \
+		+ "vec2 hash2(vec2 p) { return fract(sin(vec2(dot(p, vec2(127.1, 311.7)), dot(p, vec2(269.5, 183.3)))) * 43758.5453); }\n" \
+		+ "void fragment() {\n" \
+		+ "	vec2 aspect = vec2(1.77, 1.0);\n" \
+		+ "	vec2 uv = UV * aspect * vec2(14.0, 8.0);\n" \
+		+ "	vec2 id = floor(uv);\n" \
+		+ "	vec2 gv = fract(uv) - 0.5;\n" \
+		+ "	vec2 rnd = hash2(id);\n" \
+		+ "	float cycle = fract(TIME * (0.18 + rnd.x * 0.22) + rnd.y * 6.28);\n" \
+		+ "	float slide = smoothstep(0.35, 1.0, cycle) * 0.45;\n" \
+		+ "	vec2 pos = (rnd - 0.5) * 0.45 + vec2(0.0, slide);\n" \
+		+ "	vec2 d = (gv - pos) * vec2(1.0, 0.65);\n" \
+		+ "	float dist = length(d);\n" \
+		+ "	float radius = 0.14 * (1.0 - smoothstep(0.65, 1.0, cycle)) * step(0.58, rnd.x);\n" \
+		+ "	float rim = smoothstep(radius, radius * 0.68, dist) - smoothstep(radius * 0.68, radius * 0.2, dist);\n" \
+		+ "	float glint = smoothstep(radius * 0.45, 0.0, length(d + vec2(0.03, 0.04))) * step(0.01, radius);\n" \
+		+ "	float edge_mask = smoothstep(0.18, 0.68, length(UV - 0.5));\n" \
+		+ "	float alpha = (rim * 0.16 + glint * 0.28) * intensity * edge_mask;\n" \
+		+ "	COLOR = vec4(0.82, 0.88, 0.96, clamp(alpha, 0.0, 0.35));\n" \
+		+ "}\n"
+
+	var lshd := Shader.new()
+	lshd.code = lens_code
+	_lens_rain_mat = ShaderMaterial.new()
+	_lens_rain_mat.shader = lshd
+	_lens_rain_rect = ColorRect.new()
+	_lens_rain_rect.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_lens_rain_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_lens_rain_rect.material = _lens_rain_mat
+	layer.add_child(_lens_rain_rect)
+
+	_lightning_flash = ColorRect.new()
+	_lightning_flash.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_lightning_flash.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_lightning_flash.color = Color(0.72, 0.82, 1.0, 0.0)
+	layer.add_child(_lightning_flash)
+	add_child(layer)
+
+
+func _spawn_rain_particles() -> void:
+	if has_node("RainParticles"):
+		get_node("RainParticles").queue_free()
+	if has_node("RainRoofCollider"):
+		get_node("RainRoofCollider").queue_free()
+
+	var col := GPUParticlesCollisionHeightField3D.new()
+	col.name = "RainRoofCollider"
+	col.size = Vector3(160.0, 45.0, 160.0)
+	col.position = Vector3(0.0, 16.0, 0.0)
+	col.resolution = GPUParticlesCollisionHeightField3D.RESOLUTION_1024
+	col.update_mode = GPUParticlesCollisionHeightField3D.UPDATE_MODE_WHEN_MOVED
+	add_child(col)
+
+	var rain := GPUParticles3D.new()
+	rain.name = "RainParticles"
+	rain.amount = 5200
+	rain.lifetime = 0.85
+	rain.preprocess = 1.0
+	rain.visibility_aabb = AABB(Vector3(-80, -5, -80), Vector3(160, 40, 160))
+	rain.position = Vector3(0.0, 18.0, 0.0)
+
+	_rain_mat = ParticleProcessMaterial.new()
+	_rain_mat.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_BOX
+	_rain_mat.emission_box_extents = Vector3(60.0, 3.0, 60.0)
+	_rain_mat.direction = Vector3(0.45, -1.0, 0.18).normalized()
+	_rain_mat.spread = 2.5
+	_rain_mat.initial_velocity_min = 26.0
+	_rain_mat.initial_velocity_max = 35.0
+	_rain_mat.gravity = Vector3(7.5, -16.0, 3.0)
+	_rain_mat.collision_mode = ParticleProcessMaterial.COLLISION_HIDE_ON_CONTACT
+	rain.process_material = _rain_mat
+
+	var drop := QuadMesh.new()
+	drop.size = Vector2(0.007, 0.78)
+	var dmat := StandardMaterial3D.new()
+	dmat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	dmat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	dmat.billboard_mode = BaseMaterial3D.BILLBOARD_DISABLED
+	dmat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	dmat.albedo_color = Color(0.78, 0.83, 0.90, 0.30)
+	drop.material = dmat
+	rain.draw_pass_1 = drop
+
+	rain.rotation_degrees = Vector3(9.0, 0.0, -23.0)
+	add_child(rain)
 func _spawn_jungle_backdrop() -> void:
 	if has_node("JungleBackdrop"):
 		return
