@@ -421,7 +421,9 @@ var _lightning_timer: float = 3.5
 var _lightning_flash_val: float = 0.0
 var _outdoors_blend: float = 1.0
 
-
+var _last_cam_basis: Basis = Basis.IDENTITY
+var _last_cam_pos: Vector3 = Vector3.ZERO
+var _visor_flow: Vector2 = Vector2.ZERO
 func _process(delta: float) -> void:
 	_wind_time += delta
 	var is_mesa := (atmosphere_preset == "tropical_storm" or name.to_lower().contains("mesa"))
