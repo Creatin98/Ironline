@@ -1,4 +1,4 @@
-class_name BlockMap
+varclass_name BlockMap
 extends Node3D
 ## Base class for maps built from block descriptions. Subclasses return a list of
 ## block dictionaries from get_blocks() and spawn descriptions from get_spawns();
@@ -411,7 +411,7 @@ func _on_kill_zone_entered(body: Node3D) -> void:
 
 
 
-
+@export_enum("clear_day", "overcast_industrial", "tropical_storm") var atmosphere_preset: String = "clear_day"
 var _sun_light: DirectionalLight3D
 var _sky_mat: ShaderMaterial
 var _lightning_flash: ColorRect
