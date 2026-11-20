@@ -454,7 +454,7 @@ func _process(delta: float) -> void:
 		var pitch := cos(_wind_time * 1.25) * 0.75 + sin(_wind_time * 2.1) * 0.25
 		var heave := w1 * 0.16
 		for child in get_children():
-			if child is Node3D and not child.name.begins_with("Harbor") and not (child is DirectionalLight3D) and not (child is WorldEnvironment):
+			if child is Node3D and not (child is Area3D) and not (child is CharacterBody3D) and not (child is DirectionalLight3D) and not (child is WorldEnvironment) and not child.name.begins_with("Harbor"):
 				child.rotation_degrees = Vector3(pitch, 0.0, roll)
 				child.position.y = heave
 
