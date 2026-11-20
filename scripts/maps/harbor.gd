@@ -461,13 +461,13 @@ func _build_midnight_ocean_and_liner() -> void:
 	{"size": Vector3(6.8, 1.6, 12.2), "pos": Vector3(0.0, 23.4, 26.0), "mat": red_accent}
 	]
 		for t in tiers:
-	var m := MeshInstance3D.new()
-	var bm := BoxMesh.new()
-	bm.size = t["size"]
-	m.mesh = bm
-	m.material_override = t["mat"]
-	m.position = t["pos"]
-	_my_liner.add_child(m)
+		var m := MeshInstance3D.new()
+		var bm := BoxMesh.new()
+		bm.size = t["size"]
+		m.mesh = bm
+		m.material_override = t["mat"]
+		m.position = t["pos"]
+		_my_liner.add_child(m)
 	var bow := MeshInstance3D.new()
 	var pm := PrismMesh.new()
 	pm.size = Vector3(26.0, 28.0, 10.0)
