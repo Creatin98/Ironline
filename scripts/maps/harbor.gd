@@ -136,6 +136,7 @@ func _process(delta: float) -> void:
 		if _visor_rain_mat != null:
 			var raw_w = _visor_rain_mat.get_shader_parameter("wetness")
 			var cur_w: float = float(raw_w) if raw_w != null else 1.0
+			var target_w := 0.12 if indoors else 1.0
 			_visor_rain_mat.set_shader_parameter("wetness", lerpf(cur_w, target_w, minf(1.0, delta * 2.5)))
 
 		# Waffen & Hände der Ego-Kamera einmalig mit nassem Hochglanz-Klarlack überziehen
