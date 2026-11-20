@@ -104,8 +104,7 @@ func get_blocks() -> Array:
 	# Luken-Einfassung & CS-Steigleitern (hoch & runter wie in CS!)
 	b.append(box(Vector3(0, 0.18, -8.9), Vector3(3.2, 0.36, 0.25), "metal_panel", C_CHROME))
 	b.append(box(Vector3(0, 0.18, 8.9), Vector3(3.2, 0.36, 0.25), "metal_panel", C_CHROME))
-	b.append(ladder(Vector3(0, LOWER_Y, -8.55), 3.7, 1.4, "n"))
-	b.append(ladder(Vector3(0, LOWER_Y, 8.55), 3.7, 1.4, "s"))
+	
 
 	# 3. Schanzkleid & lückenlose Barrieren
 	b.append(box(Vector3(-17.2, 0.22, 0), Vector3(0.3, 0.44, 76.0), "ship_hull", C_GELCOAT))
