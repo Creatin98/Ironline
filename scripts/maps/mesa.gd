@@ -1,4 +1,7 @@
 extends BlockMap
+func _ready() -> void:
+	atmosphere_preset = "tropical_storm"
+	super._ready()
 ## MESA – a desert hillside villa estate (own design, three-lane structure in the spirit of classic CoD maps), extended by a
 ## vineyard wing (west) and a market wing (east) behind gated inner walls: x -42..42, z -28..28.
 ## Rot spawns north (z < 0), Blau south (z > 0). The map is mirrored across z = 0, so every position is written
