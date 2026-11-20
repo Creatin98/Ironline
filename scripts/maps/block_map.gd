@@ -451,7 +451,7 @@ func _process(delta: float) -> void:
 		# Wellen & ferne Inseln neigen und heben sich relativ zum Schiff -> perfektes Seegang-Gefühl ohne Textur-Versatz!
 		var ocean_node := get_node_or_null("HarborStormOcean") as Node3D
 		if ocean_node != null:
-			ocean_node.position.y = -3.4 - w1 * 0.32
+			ocean_node.position.y = -4.4 - w1 * 0.32
 			ocean_node.rotation_degrees = Vector3(-cos(_wind_time * 1.25) * 0.85, 0.0, -wave_force * 1.35)
 
 		var isl_node := get_node_or_null("HarborDistantIslands") as Node3D
@@ -679,7 +679,7 @@ func _spawn_harbor_storm_ocean() -> void:
 	plane.subdivide_width = 160
 	plane.subdivide_depth = 160
 	ocean.mesh = plane
-	ocean.position = Vector3(0.0, -3.4, 0.0)
+	ocean.position = Vector3(0.0, -4.4, 0.0)
 
 	var oshd := Shader.new()
 	oshd.code = """
@@ -704,7 +704,7 @@ float fbm(vec2 p) {
 
 void vertex() {
 	vec3 wp = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
-	vec2 hull = abs(wp.xz) / vec2(17.5, 43.0);
+	vec2 hull = abs(wp.xz) / vec2(19.5, 48.0);
 	float hull_dist = max(hull.x, hull.y);
 	float damp = smoothstep(0.82, 1.28, hull_dist);
 	float bow_wake = exp(-abs(hull_dist - 1.15) * 4.5) * 0.65;
