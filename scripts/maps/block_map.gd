@@ -877,3 +877,123 @@ func _spawn_rain_particles() -> void:
 	_rain_mat.initial_velocity_min = 26.0
 	_rain_mat.initial_velocity_max = 35.0
 	_rain_mat.gravity = Vector3(7.5, -16.0, 3.0)
+	_rain_mat.collision_mode = ParticleProcessMaterial.COLLISION_HIDE_ON_CONTACT
+	rain.process_material = _rain_mat
+
+	var drop := QuadMesh.new()
+	drop.size = Vector2(0.007, 0.78)
+	var dmat := StandardMaterial3D.new()
+	dmat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	dmat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	dmat.billboard_mode = BaseMaterial3D.BILLBOARD_DISABLED
+	dmat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	dmat.albedo_color = Color(0.78, 0.83, 0.90, 0.30)
+	drop.material = dmat
+	rain.draw_pass_1 = drop
+
+	rain.rotation_degrees = Vector3(9.0, 0.0, -23.0)
+	add_child(rain)
+
+
+func _spawn_jungle_backdrop() -> void:
+	if has_node("JungleBackdrop"):
+		return
+	var root := Node3D.new()
+	root.name = "JungleBackdrop"
+	add_child(root)
+
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 42012
+
+	var rock_st := SurfaceTool.new()
+	rock_st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var ico := SphereMesh.new()
+	ico.radial_segments = 10
+	ico.rings = 6
+	var arrays := ico.get_mesh_arrays()
+	var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	var idxs: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
+	for idx in idxs:
+		var v := verts[idx]
+		var n := sin(v.x * 5.1) * cos(v.z * 4.7) * 0.22 + sin(v.y * 6.3) * 0.14
+		v = v * (1.0 + n)
+		v.y = maxf(v.y * 0.75, -0.35)
+		rock_st.set_uv(Vector2(v.x + v.z, v.y) * 0.5)
+		rock_st.add_vertex(v)
+	rock_st.generate_normals()
+	var rock_mesh := rock_st.commit()
+	var rock_mat := StandardMaterial3D.new()
+	rock_mat.albedo_color = Color(0.18, 0.20, 0.19)
+	rock_mat.roughness = 0.92
+	rock_mesh.surface_set_material(0, rock_mat)
+
+	var rock_mm := MultiMesh.new()
+	rock_mm.transform_format = MultiMesh.TRANSFORM_3D
+	rock_mm.mesh = rock_mesh
+	rock_mm.instance_count = 34
+	for i in 34:
+		var ang := TAU * float(i) / 34.0 + rng.randf_range(-0.08, 0.08)
+		var dist := rng.randf_range(46.0, 74.0)
+		var pos := Vector3(cos(ang) * dist, rng.randf_range(-0.5, 1.5), sin(ang) * dist)
+		var sc := Vector3(rng.randf_range(5.0, 13.0), rng.randf_range(3.5, 10.0), rng.randf_range(5.0, 13.0))
+		rock_mm.set_instance_transform(i, Transform3D(Basis(Vector3.UP, rng.randf() * TAU).scaled_local(sc), pos))
+	var rock_mi := MultiMeshInstance3D.new()
+	rock_mi.multimesh = rock_mm
+	root.add_child(rock_mi)
+
+	var trunk_mesh := CylinderMesh.new()
+	trunk_mesh.top_radius = 0.35
+	trunk_mesh.bottom_radius = 0.65
+	trunk_mesh.height = 7.5
+	trunk_mesh.radial_segments = 8
+	var tmat := StandardMaterial3D.new()
+	tmat.albedo_color = Color(0.16, 0.13, 0.10)
+	tmat.roughness = 0.95
+	trunk_mesh.material = tmat
+
+	var canopy_mesh := Vegetation.bush_mesh()
+	var trunk_mm := MultiMesh.new()
+	trunk_mm.transform_format = MultiMesh.TRANSFORM_3D
+	trunk_mm.mesh = trunk_mesh
+	trunk_mm.instance_count = 42
+
+	var canopy_items: Array = []
+	for i in 42:
+		var ang := TAU * float(i) / 42.0 + rng.randf_range(-0.06, 0.06)
+		var dist := rng.randf_range(42.0, 68.0)
+		var pos := Vector3(cos(ang) * dist, 0.0, sin(ang) * dist)
+		var h_sc := rng.randf_range(0.9, 1.5)
+		trunk_mm.set_instance_transform(i, Transform3D(Basis(Vector3.UP, rng.randf() * TAU).scaled_local(Vector3(1.0, h_sc, 1.0)), pos + Vector3(0.0, 3.6 * h_sc, 0.0)))
+		canopy_items.append({
+			"pos": pos + Vector3(0.0, 6.8 * h_sc, 0.0),
+			"scale3": Vector3(rng.randf_range(5.5, 8.5), rng.randf_range(3.5, 5.5), rng.randf_range(5.5, 8.5)),
+			"yaw": rng.randf() * TAU,
+			"color": Color(0.55, 0.68, 0.52).lerp(Color(0.35, 0.50, 0.34), rng.randf())
+		})
+
+	var trunk_mi := MultiMeshInstance3D.new()
+	trunk_mi.multimesh = trunk_mm
+	root.add_child(trunk_mi)
+	Vegetation.scatter(root, canopy_mesh, canopy_items, "JungleCanopies")
+
+
+func _bake_roof_dry_mask() -> void:
+	if not is_inside_tree():
+		return
+	var res := 128
+	var min_x := -85.0
+	var min_z := -85.0
+	var span := 170.0
+	var img := Image.create(res, res, false, Image.FORMAT_RF)
+	var space := get_world_3d().direct_space_state
+	for z in res:
+		for x in res:
+			var wx := min_x + (float(x) + 0.5) / float(res) * span
+			var wz := min_z + (float(z) + 0.5) / float(res) * span
+			var q := PhysicsRayQueryParameters3D.create(Vector3(wx, 32.0, wz), Vector3(wx, -4.0, wz))
+			var hit := space.intersect_ray(q)
+			var top_y := -5.0 if hit.is_empty() else float(hit["position"].y)
+			img.set_pixel(x, z, Color(clampf((top_y + 5.0) / 40.0, 0.0, 1.0), 0.0, 0.0, 1.0))
+	var tex := ImageTexture.create_from_image(img)
+	RenderingServer.global_shader_parameter_set("roof_bounds", Vector4(min_x, min_z, span, span))
+	RenderingServer.global_shader_parameter_set("roof_mask_tex", tex)
