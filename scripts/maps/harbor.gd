@@ -229,26 +229,39 @@ func _build_curved_hull_ends(d: MapDetail) -> void:
 
 func _ready() -> void:
 	atmosphere_preset = "overcast_industrial"
-	super._ready()
 	_setup_superyacht_spawns()
-
+	super._ready()
 
 func _setup_superyacht_spawns() -> void:
-	# Alte, falsch platzierte Spawns entfernen & saubere, breit gefächerte Team-Spawns setzen
-	var old_spawns: Array[Node] = []
-	for s in find_children("*", "SpawnPoint", true, false):
-		old_spawns.append(s)
+	var spawns: Array[Node3D] = []
+	for n in find_children("*", "Node3D", true, false):
+		if n.is_in_group("spawn_points") or n.get("team") != null or n.name.to_lower().contains("spawn"):
+			spawns.append(n)
 
 	var red_spots: Array[Vector3] = [
-		Vector3(-9.0, 0.2, -31.0), Vector3(-4.5, 0.2, -35.5), Vector3(0.0, 0.2, -37.5),
-		Vector3(4.5, 0.2, -35.5), Vector3(9.0, 0.2, -31.0), Vector3(-13.5, 0.2, -28.0),
-		Vector3(13.5, 0.2, -28.0), Vector3(0.0, 0.2, -28.5)
+		Vector3(-11.0, 0.5, -29.0), Vector3(-6.0, 0.5, -32.0), Vector3(0.0, 0.5, -34.0),
+		Vector3(6.0, 0.5, -32.0), Vector3(11.0, 0.5, -29.0), Vector3(-13.5, 0.5, -26.5),
+		Vector3(13.5, 0.5, -26.5), Vector3(0.0, 0.5, -28.0)
 	]
 	var blue_spots: Array[Vector3] = [
-		Vector3(-9.0, 0.2, 31.0), Vector3(-4.5, 0.2, 36.5), Vector3(0.0, 0.2, 38.5),
-		Vector3(4.5, 0.2, 36.5), Vector3(9.0, 0.2, 31.0), Vector3(-13.5, 0.2, 28.0),
-		Vector3(13.5, 0.2, 28.0), Vector3(0.0, 0.2, 28.5)
+		Vector3(-11.0, 0.5, 29.0), Vector3(-6.0, 0.5, 32.0), Vector3(0.0, 0.5, 34.0),
+		Vector3(6.0, 0.5, 32.0), Vector3(11.0, 0.5, 29.0), Vector3(-13.5, 0.5, 26.5),
+		Vector3(13.5, 0.5, 26.5), Vector3(0.0, 0.5, 28.0)
 	]
+
+	var red_i := 0
+	var blue_i := 0
+	for s in spawns:
+		var t = s.get("team")
+		var is_red := (t != null and int(t) == 0) or s.name.to_lower().contains("red") or (t == null and (red_i + blue_i) % 2 == 0)
+		if is_red:
+			s.position = red_spots[red_i % red_spots.size()]
+			s.rotation_degrees = Vector3(0.0, 180.0, 0.0)
+			red_i += 1
+		else:
+			s.position = blue_spots[blue_i % blue_spots.size()]
+			s.rotation_degrees = Vector3(0.0, 0.0, 0.0)
+			blue_i += 1
 
 	# Falls schon SpawnPoint-Nodes existieren, diese sauber neu verteilen
 	var idx := 0
