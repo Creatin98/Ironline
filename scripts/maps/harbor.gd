@@ -103,24 +103,22 @@ func get_blocks() -> Array:
 	b.append(box(Vector3(0, STERN_Y - 0.25, 24.5), Vector3(34.6, 0.5, 27.0), "wood_planks", C_TEAK))
 	b.append(box(Vector3(0, -2.2, 0.0), Vector3(34.4, 2.2, 76.0), "ship_hull", C_GELCOAT))
 
-	# 2. Breite Verbindungstreppen zwischen den 3 Deck-Höhen
-	b.append(box(Vector3(-12.5, BOW_Y * 0.5, -11.0), Vector3(9.6, BOW_Y, 0.4), "ship_hull", C_GELCOAT))
-	b.append(box(Vector3(12.5, BOW_Y * 0.5, -11.0), Vector3(9.6, BOW_Y, 0.4), "ship_hull", C_GELCOAT))
-	for sx in [-5.8, 5.8]:
-		for st_i in 8:
-			var t := float(st_i + 1) / 8.0
-			var h := t * BOW_Y
-			var sz := lerpf(-9.2, -11.0, t)
-			b.append(box(Vector3(sx, h * 0.5, sz), Vector3(3.4, h, 0.35), "wood_planks", C_TEAK))
+	# 2. Breite, durchgehende Terrassen-Treppen über die VOLLE Gangbreite (x = -17 bis +17!)
+	# Vordeck (+1.10) <-> Mitteldeck (0.0) bei z = -11.0 bis -7.8 (glatte Lauf-Rampe + 5 breite Stufen)
+	b.append(ramp(Vector3(0.0, MID_Y, -7.8), Vector3(0.0, BOW_Y, -11.0), 34.0, "wood_planks", 0.35, C_TEAK))
+	for st_i in 5:
+		var t := float(st_i + 1) / 5.0
+		var h := t * BOW_Y
+		var sz := lerpf(-7.8, -11.0, t)
+		b.append(box(Vector3(0.0, h * 0.5, sz), Vector3(34.0, h, 0.72), "wood_planks", C_TEAK))
 
-	b.append(box(Vector3(-12.5, STERN_Y + 0.55, 11.0), Vector3(9.6, 1.1, 0.4), "ship_hull", C_GELCOAT))
-	b.append(box(Vector3(12.5, STERN_Y + 0.55, 11.0), Vector3(9.6, 1.1, 0.4), "ship_hull", C_GELCOAT))
-	for sx in [-5.8, 5.8]:
-		for st_i in 8:
-			var t := float(st_i + 1) / 8.0
-			var h := t * 1.10
-			var sz := lerpf(12.8, 11.0, t)
-			b.append(box(Vector3(sx, STERN_Y + h * 0.5, sz), Vector3(3.4, h, 0.35), "wood_planks", C_TEAK))
+	# Mitteldeck (0.0) <-> Achterdeck (-1.10) bei z = +7.8 bis +11.0 (glatte Lauf-Rampe + 5 breite Stufen)
+	b.append(ramp(Vector3(0.0, STERN_Y, 11.0), Vector3(0.0, MID_Y, 7.8), 34.0, "wood_planks", 0.35, C_TEAK))
+	for st_i in 5:
+		var t := float(st_i + 1) / 5.0
+		var h := t * 1.10
+		var sz := lerpf(11.0, 7.8, t)
+		b.append(box(Vector3(0.0, STERN_Y + h * 0.5, sz), Vector3(34.0, h, 0.72), "wood_planks", C_TEAK))
 
 	# 3. Schanzkleid & Barrieren
 	for side in [-1.0, 1.0]:
@@ -165,12 +163,12 @@ func get_blocks() -> Array:
 	b.append(box(Vector3(0, U_N + 0.22, -11.4), Vector3(14.8, 0.44, 0.25), "ship_hull", C_GELCOAT))
 	b.append(box(Vector3(2.2, U_N + 0.22, -25.6), Vector3(10.4, 0.44, 0.25), "ship_hull", C_GELCOAT))
 	b.append(box(Vector3(-7.3, U_N + 0.22, -17.0), Vector3(0.25, 0.44, 11.2), "ship_hull", C_GELCOAT))
-	b.append(box(Vector3(7.3, U_N + 0.22, -18.5), Vector3(0.25, 0.44, 14.2), "ship_hull", C_GELCOAT))
-	for st_i in 22:
-		var t_st := float(st_i + 1) / 22.0
+	b.append(ramp(Vector3(-5.2, BOW_Y, -32.4), Vector3(-5.2, U_N + 0.04, -25.4), 3.2, "wood_planks", 0.32, C_TEAK))
+	for st_i in 18:
+		var t_st := float(st_i + 1) / 18.0
 		var sy := t_st * UPPER_Y
 		var sz := lerpf(-32.2, -25.6, t_st)
-		b.append(box(Vector3(-5.2, BOW_Y + sy * 0.5, sz), Vector3(3.0, sy, 0.42), "wood_planks", C_TEAK))
+		b.append(box(Vector3(-5.2, BOW_Y + sy * 0.5, sz), Vector3(3.0, sy, 0.45), "wood_planks", C_TEAK))
 
 	# 6. Süd-Deckhaus: Club-Lounge auf tieferem Achterdeck (STERN_Y = -1.10)
 	b.append_array(room_walls(Vector3(0, STERN_Y, 18.5), Vector3(13.2, 3.2, 13.0), 0.32, "ship_hull", C_GELCOAT,
@@ -193,12 +191,13 @@ func get_blocks() -> Array:
 	b.append(box(Vector3(0, U_S + 0.22, 11.4), Vector3(14.8, 0.44, 0.25), "ship_hull", C_GELCOAT))
 	b.append(box(Vector3(-2.2, U_S + 0.22, 25.6), Vector3(10.4, 0.44, 0.25), "ship_hull", C_GELCOAT))
 	b.append(box(Vector3(-7.3, U_S + 0.22, 18.5), Vector3(0.25, 0.44, 14.2), "ship_hull", C_GELCOAT))
-	b.append(box(Vector3(7.3, U_S + 0.22, 17.0), Vector3(0.25, 0.44, 11.2), "ship_hull", C_GELCOAT))
-	for st_i in 22:
-		var t_st := float(st_i + 1) / 22.0
+	b.append(ramp(Vector3(5.2, STERN_Y, 32.4), Vector3(5.2, U_S + 0.04, 25.4), 3.2, "wood_planks", 0.32, C_TEAK))
+	for st_i in 18:
+		var t_st := float(st_i + 1) / 18.0
 		var sy := t_st * UPPER_Y
 		var sz := lerpf(32.2, 25.6, t_st)
-		b.append(box(Vector3(5.2, STERN_Y + sy * 0.5, sz), Vector3(3.0, sy, 0.42), "wood_planks", C_TEAK))
+		b.append(box(Vector3(5.2, STERN_Y + sy * 0.5, sz), Vector3(3.0, sy, 0.45), "wood_planks", C_TEAK))
+
 
 	# 7. Kommandobrücke auf Oberdeck Süd (U_S = 2.30) & taktische Seiten-Deckung
 	b.append_array(room_walls(Vector3(0, U_S, 18.0), Vector3(7.4, 2.35, 6.0), 0.26, "ship_hull", C_GELCOAT,
@@ -471,18 +470,20 @@ func _build_midnight_ocean_and_liner() -> void:
 	var ocean := MeshInstance3D.new()
 	ocean.name = "MidnightStormOcean"
 	var plane := PlaneMesh.new()
-	plane.size = Vector2(1600.0, 1600.0)
-	plane.subdivide_width = 180
-	plane.subdivide_depth = 180
+	plane.size = Vector2(1800.0, 1800.0)
+	plane.subdivide_width = 64
+	plane.subdivide_depth = 64
 	ocean.mesh = plane
-	ocean.position = Vector3(0.0, -4.85, 0.0)
+	ocean.position = Vector3(0.0, -4.45, 0.0)
 
+	# AAA-Tiefsee-Shader: Fein gekräuselte Wasser-Normals + Fresnel-Mondspiegelung (null Klötzchen!)
 	var oshd := Shader.new()
-	oshd.code = "shader_type spatial;\nrender_mode cull_back,diffuse_burley,specular_schlick_ggx;\nuniform float ship_speed_offset=0.0;\nvarying float wave_h;\nvarying vec3 w_pos;\nvarying vec3 world_nrm;\nfloat hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}\nfloat noise(vec2 p){vec2 i=floor(p);vec2 f=fract(p);f=f*f*(3.0-2.0*f);return mix(mix(hash(i),hash(i+vec2(1.0,0.0)),f.x),mix(hash(i+vec2(0.0,1.0)),hash(i+vec2(1.0,1.0)),f.x),f.y);}\nfloat fbm(vec2 p){float v=0.0;float a=0.5;for(int i=0;i<5;i++){v+=a*noise(p);p=p*2.08+vec2(2.1,5.7);a*=0.5;}return v;}\nvoid vertex(){vec3 wp=(MODEL_MATRIX*vec4(VERTEX,1.0)).xyz;vec2 hull=abs(wp.xz)/vec2(23.5,58.0);float hull_dist=max(hull.x,hull.y);float damp=smoothstep(0.84,1.35,hull_dist);float bow_wake=exp(-abs(hull_dist-1.12)*4.5)*0.35;vec2 travel=wp.xz+vec2(0.0,ship_speed_offset);float t=TIME;vec2 d1=normalize(vec2(0.85,0.35));vec2 d2=normalize(vec2(0.45,-0.88));float p1=dot(travel,d1)*0.055+t*1.35;float p2=dot(travel,d2)*0.095+t*2.05+1.1;float h=(sin(p1)*0.65+sin(p2)*0.35)*damp+bow_wake;VERTEX.y+=h;wave_h=h;w_pos=vec3(travel.x,wp.y+h,travel.y);vec2 grad=(d1*cos(p1)*0.055*0.65+d2*cos(p2)*0.095*0.35)*damp;world_nrm=normalize(vec3(-grad.x,1.0,-grad.y));}\nvoid fragment(){vec2 uv1=w_pos.xz*0.42+vec2(TIME*0.16,TIME*0.08);vec2 uv2=w_pos.xz*1.35-vec2(TIME*0.12,-TIME*0.19);float eps=0.07;float n0=fbm(uv1)+fbm(uv2)*0.55;float nx=fbm(uv1+vec2(eps,0.0))+fbm(uv2+vec2(eps,0.0))*0.55;float nz=fbm(uv1+vec2(0.0,eps))+fbm(uv2+vec2(0.0,eps))*0.55;vec3 detail_nrm=normalize(world_nrm+vec3((n0-nx)*3.1,0.0,(n0-nz)*3.1));NORMAL=normalize((VIEW_MATRIX*vec4(detail_nrm,0.0)).xyz);float crest=smoothstep(0.55,1.15,wave_h);float foam_tex=fbm(w_pos.xz*vec2(0.24,0.58)+vec2(TIME*0.32,0.0));float foam=clamp(crest*smoothstep(0.44,0.78,foam_tex)*0.95,0.0,1.0);vec3 sea_col=mix(vec3(0.004,0.016,0.042),vec3(0.012,0.058,0.13),smoothstep(-0.9,1.0,wave_h));ALBEDO=mix(sea_col,vec3(0.76,0.86,0.97),foam*0.72);ROUGHNESS=mix(0.035,0.32,foam);SPECULAR=1.0;}"
+	oshd.code = "shader_type spatial;\nrender_mode cull_back,diffuse_burley,specular_schlick_ggx;\nuniform float ship_speed_offset=0.0;\nvarying vec3 w_pos;\nfloat hash(vec2 p){vec3 p3=fract(vec3(p.xyx)*0.1031);p3+=dot(p3,p3.yzx+33.33);return fract((p3.x+p3.y)*p3.z);}\nfloat noise(vec2 p){vec2 i=floor(p);vec2 f=fract(p);f=f*f*(3.0-2.0*f);return mix(mix(hash(i),hash(i+vec2(1.0,0.0)),f.x),mix(hash(i+vec2(0.0,1.0)),hash(i+vec2(1.0,1.0)),f.x),f.y);}\nfloat wave_fbm(vec2 p){float v=0.0;float a=0.52;mat2 rot=mat2(vec2(0.8,-0.6),vec2(0.6,0.8));for(int i=0;i<6;i++){v+=a*noise(p);p=rot*p*2.07+vec2(1.7,3.1);a*=0.48;}return v;}\nvoid vertex(){vec3 wp=(MODEL_MATRIX*vec4(VERTEX,1.0)).xyz;w_pos=vec3(wp.x,wp.y,wp.z+ship_speed_offset);}\nvoid fragment(){vec2 uv1=w_pos.xz*0.65+vec2(TIME*0.14,TIME*0.08);vec2 uv2=w_pos.xz*1.85-vec2(TIME*0.11,-TIME*0.16);float eps=0.045;float h0=wave_fbm(uv1)+wave_fbm(uv2)*0.45;float hx=wave_fbm(uv1+vec2(eps,0.0))+wave_fbm(uv2+vec2(eps,0.0))*0.45;float hz=wave_fbm(uv1+vec2(0.0,eps))+wave_fbm(uv2+vec2(0.0,eps))*0.45;vec3 wn=normalize(vec3((h0-hx)*2.4,1.0,(h0-hz)*2.4));NORMAL=normalize((VIEW_MATRIX*vec4(wn,0.0)).xyz);vec3 vdir=normalize(CAMERA_POSITION_WORLD-w_pos);float fresnel=pow(1.0-max(dot(vdir,wn),0.0),4.0);vec3 deep=vec3(0.004,0.015,0.038);vec3 shallow=vec3(0.014,0.055,0.115);vec3 sky_refl=vec3(0.14,0.22,0.34);float crest=smoothstep(1.18,1.38,h0);ALBEDO=mix(mix(deep,shallow,h0*0.55),sky_refl,fresnel*0.65)+vec3(0.45,0.58,0.72)*crest*0.35;ROUGHNESS=mix(0.03,0.14,crest);METALLIC=0.12;SPECULAR=1.0;}"
 	_my_ocean_mat = ShaderMaterial.new()
 	_my_ocean_mat.shader = oshd
 	ocean.material_override = _my_ocean_mat
 	add_child(ocean)
+
 
 	_my_spray = GPUParticles3D.new()
 	_my_spray.name = "MidnightWaveSpray"
