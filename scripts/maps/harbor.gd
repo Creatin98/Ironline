@@ -41,6 +41,8 @@ func _process(delta: float) -> void:
 	var w1 := sin(_my_time * 1.45)
 	var w2 := sin(_my_time * 2.55 + 1.1)
 	var wave_force := w1 * 0.7 + w2 * 0.3
+	var roll_deg := wave_force * 2.1
+	var pitch_deg := cos(_my_time * 1.1) * 1.2
 
 	var ocean := get_node_or_null("MidnightStormOcean") as Node3D
 	if ocean != null:
