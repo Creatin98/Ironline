@@ -278,8 +278,7 @@ func build_detail(d: MapDetail) -> void:
 	for lz in [-28.0, -24.5, 24.5, 28.0]:
 		for side in [-1.0, 1.0]:
 			d.add_box(Vector3(side * 15.4, 0.28, lz), Vector3(1.5, 0.14, 0.75), "metal_panel", C_DARK)
-			d.add_box(Vector3(side * 15.9, 0.48, lz), Vector3(0.55, 0.12, 0.75), "metal_panel", C_DARK, Vector3(0, 0, side * 28.0))
-
+			d.add_box(Vector3(side * 15.9, 0.48, lz), Vector3(0.55, 0.12, 0.75), "metal_panel", C_DARK, Basis(Vector3.BACK, side * 0.48))
 	# Navigationslichter, Pool-Licht & Chrom-Relings
 	d.bulb(Vector3(-17.0, 1.15, -37.5), Color(1.0, 0.12, 0.08), 1.6, 1.4, 5.5)
 	d.bulb(Vector3(17.0, 1.15, -37.5), Color(0.1, 1.0, 0.25), 1.6, 1.4, 5.5)
