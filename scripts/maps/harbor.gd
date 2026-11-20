@@ -42,38 +42,53 @@ func _process(delta: float) -> void:
 	super._process(delta)
 	_my_time += delta
 	var w1 := sin(_my_time * 1.45)
-	var w2 := sin(_my_time * 2.55 + 1.1)
-	var wave_force := w1 * 0.7 + w2 * 0.3
-	var roll_deg := wave_force * 2.1
-	var pitch_deg := cos(_my_time * 1.1) * 1.2
+	var w2 := sin(_my_time * 2.45 + 1.1)
+	var wave_force := w1 * 0.72 + w2 * 0.28
+	var roll_deg := wave_force * 3.4
+	var pitch_deg := cos(_my_time * 1.05) * 1.85
 
+	# 1. Spürbares Rollen & Stampfen von Meer und Kreuzer rund um die Yacht
 	var ocean := get_node_or_null("MidnightStormOcean") as Node3D
 	if ocean != null:
-		ocean.position.y = -4.85 - w1 * 0.35
+		ocean.position.y = -4.65 - w1 * 0.68
 		ocean.rotation_degrees = Vector3(-pitch_deg, 0.0, -roll_deg)
 
+	# Sanftes, aber spürbares Kamera-Rollen beim Laufen & Zielen (ohne Maus-Look zu blockieren)
+	var cam := get_viewport().get_camera_3d()
+	if cam != null:
+		cam.rotation.z = lerp_angle(cam.rotation.z, deg_to_rad(roll_deg * 0.55), minf(1.0, delta * 8.0))
+
 	if _my_ocean_mat != null:
-		_my_ocean_mat.set_shader_parameter("ship_speed_offset", _my_time * 6.8)
+		_my_ocean_mat.set_shader_parameter("ship_speed_offset", _my_time * 7.8)
 
 	if _my_liner != null:
-		_my_liner.position.y = -3.6 + sin(_my_time * 1.0) * 0.55
-		_my_liner.rotation_degrees = Vector3(cos(_my_time * 0.8) * 1.1, -28.0, sin(_my_time * 0.9) * 1.3)
+		_my_liner.position.y = -3.6 + sin(_my_time * 1.0) * 0.85
+		_my_liner.rotation_degrees = Vector3(cos(_my_time * 0.8) * 1.6, -28.0, sin(_my_time * 0.9) * 2.1)
 
-	if _my_spray != null:
-		if absf(wave_force) > 0.78:
-			var side := signf(wave_force)
-			_my_spray.position = Vector3(side * 17.2, 0.45, randf_range(-26.0, 26.0))
+	# 2. Wellen schlagen ans Boot -> Gischt spritzt hoch & Wasser läuft über Mittel- & Achterdeck!
+	if absf(wave_force) > 0.48:
+		var side := signf(wave_force)
+		if side < 0.0:
+			_wash_l = minf(1.0, _wash_l + delta * 1.9)
+		else:
+			_wash_r = minf(1.0, _wash_r + delta * 1.9)
+		if _my_spray != null:
+			var sz := sin(_my_time * 1.8) * 24.0
+			var sy := 1.35 if sz < -11.0 else (0.25 if sz < 11.0 else -0.85)
+			_my_spray.position = Vector3(side * 17.1, sy, sz)
 			var pmat := _my_spray.process_material as ParticleProcessMaterial
 			if pmat != null:
-				pmat.direction = Vector3(-side * 0.92, 1.15, -0.45).normalized()
+				pmat.direction = Vector3(-side * 1.05, 1.35, -0.35).normalized()
 			_my_spray.emitting = true
-		else:
+	else:
+		if _my_spray != null:
 			_my_spray.emitting = false
-	for body in get_tree().get_nodes_in_group("players"):
-		if body is CharacterBody3D:
-			var bp: Vector3 = body.global_position
-			if absf(bp.x) < 0.85 and (absf(bp.z + 8.55) < 0.75 or absf(bp.z - 8.55) < 0.75) and bp.y < 0.25:
-				body.velocity.y = 5.8
+
+	_wash_l = maxf(0.0, _wash_l - delta * 0.35)
+	_wash_r = maxf(0.0, _wash_r - delta * 0.35)
+	if _my_wash_mat != null:
+		_my_wash_mat.set_shader_parameter("wash_l", _wash_l)
+		_my_wash_mat.set_shader_parameter("wash_r", _wash_r)
 
 
 func get_blocks() -> Array:
@@ -500,13 +515,23 @@ func _build_midnight_ocean_and_liner() -> void:
 	_my_wash_mat = ShaderMaterial.new()
 	_my_wash_mat.shader = wash_shd
 	for side in [-1.0, 1.0]:
-		var wash_mi := MeshInstance3D.new()
-		var wm := PlaneMesh.new()
-		wm.size = Vector2(11.5, 74.0)
-		wash_mi.mesh = wm
-		wash_mi.material_override = _my_wash_mat
-		wash_mi.position = Vector3(side * 11.4, 0.025, 0.0)
-		add_child(wash_mi)
+		# Wasserfilm auf dem Mitteldeck (y = 0.025, z = -10.8 bis +10.8)
+		var wash_mid := MeshInstance3D.new()
+		var wm_mid := PlaneMesh.new()
+		wm_mid.size = Vector2(11.5, 21.6)
+		wash_mid.mesh = wm_mid
+		wash_mid.material_override = _my_wash_mat
+		wash_mid.position = Vector3(side * 11.4, 0.025, 0.0)
+		add_child(wash_mid)
+
+		# Wasserfilm auf dem tieferen Achterdeck (y = -1.075, z = +11.2 bis +37.5)
+		var wash_stern := MeshInstance3D.new()
+		var wm_stern := PlaneMesh.new()
+		wm_stern.size = Vector2(11.5, 26.2)
+		wash_stern.mesh = wm_stern
+		wash_stern.material_override = _my_wash_mat
+		wash_stern.position = Vector3(side * 11.4, -1.075, 24.4)
+		add_child(wash_stern)
 
 	_my_liner = Node3D.new()
 	_my_liner.name = "DistantCruiseLiner"
