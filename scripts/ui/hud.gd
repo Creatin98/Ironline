@@ -400,7 +400,6 @@ func _process(delta: float) -> void:
 	if _kill_flash != null and _kill_flash.color.a > 0.0:
 		_kill_flash.color.a = maxf(0.0, _kill_flash.color.a - delta * 0.65)
 	if _player and _player.alive:
-	if _player and _player.alive:
 		var w := _player.weapon_manager.get_current_weapon()
 		var target_spread := 0.0
 		if w:
