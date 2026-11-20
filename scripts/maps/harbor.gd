@@ -80,7 +80,6 @@ func get_blocks() -> Array:
 	b.append(box(Vector3(-8.5, 0.38, 32.0), Vector3(1.2, 0.76, 4.8), "plaster", C_GELCOAT))
 	b.append(box(Vector3(8.5, 0.38, 32.0), Vector3(1.2, 0.76, 4.8), "plaster", C_GELCOAT))
 	b.append(box(Vector3(0, 0.52, 42.0), Vector3(7.0, 1.04, 1.0), "wood_planks", C_TEAK))
-
 	# ---------------------------------------------------------------- 5. OFFENES MITTELDECK (MARMOR-POOL & LOUNGE)
 	b.append(cylinder(Vector3(0, 0.36, 0), 3.4, 0.72, "tiles", C_MARBLE))
 	b.append(cylinder(Vector3(0, 0.66, 0), 2.8, 0.14, "water", Color(0.18, 0.85, 0.95)))
@@ -202,7 +201,6 @@ func build_detail(d: MapDetail) -> void:
 	d.lamp(Vector3(0, UPPER_Y + 2.2, 15.5), Color(0.95, 0.97, 1.0), 1.2, 8.0)
 	for kz in [-16.0, 0.0, 16.0]:
 		d.lamp(Vector3(0, LOWER_Y + 3.0, kz), Color(0.75, 0.90, 1.0), 1.5, 14.0) # Helles Maschinenraum-Licht
-
 func _build_curved_hull_ends(d: MapDetail) -> void:
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
