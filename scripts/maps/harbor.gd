@@ -246,7 +246,7 @@ func build_detail(d: MapDetail) -> void:
 	for sx in [-6.7, -10.5]:
 		d.rail(Vector3(sx, 0.0, -6.2), Vector3(sx, 0.0, 6.2), 0.95)
 	for sx in [6.7, 10.5]:
-	d.rail(Vector3(sx, 0.0, -6.2), Vector3(sx, 0.0, 6.2), 0.95)
+		d.rail(Vector3(sx, 0.0, -6.2), Vector3(sx, 0.0, 6.2), 0.95)
 
 	# Zwei schwarze RIB-Schlauchboote hinter der Heck-Badeplattform
 	for bx in [-5.2, 5.2]:
@@ -263,6 +263,7 @@ func build_detail(d: MapDetail) -> void:
 	for kz in [-18.0, -6.0, 6.0, 18.0]:
 		for kx in [-5.5, 5.5]:
 			d.lamp(Vector3(kx, LOWER_Y + 3.1, kz), Color(0.85, 0.94, 1.0), 1.8, 15.0)
+
 func _setup_midnight_atmosphere() -> void:
 	var we := get_node_or_null("WorldEnvironment") as WorldEnvironment
 	if we == null or we.environment == null:
