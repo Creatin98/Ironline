@@ -196,32 +196,73 @@ func get_blocks() -> Array:
 	b.append(box(Vector3(-7.3, U_N + 0.22, -20.5), Vector3(0.25, 0.44, 13.8), "ship_hull", C_GELCOAT))
 	b.append(box(Vector3(7.3, U_N + 0.22, -18.8), Vector3(0.25, 0.44, 10.4), "ship_hull", C_GELCOAT))
 
-	# 5. Hohes Süd-Deckhaus (3.8m hoch) – ohne schwarze header-Balken, mit logischem Galerie-Treppenhaus!
-	b.append_array(room_walls(Vector3(0, STERN_Y, 20.5), Vector3(13.8, UPPER_Y, 13.0), 0.34, "ship_hull", C_GELCOAT,
+	# ---------------------------------------------------------------- 5. KAPITÄNSHAUS & SALON-TOWER (2 VOLLE ETAGEN, 7.6m HOCH!)
+	var F1_H := 3.80 # Erdgeschoss-Höhe (Salon & Atrium)
+	var F2_H := 3.60 # 1. Obergeschoss-Höhe (Panorama-Kommandobrücke)
+	var U_S := STERN_Y + F1_H        # Boden 1. OG (y = +2.70)
+	var ROOF_S := U_S + F2_H         # Radar-Dach (y = +6.30)
+
+	# --- ERDGESCHOSS (Salon & Treppen-Atrium, z = 14.0 bis 27.0) ---
+	b.append_array(room_walls(Vector3(0, STERN_Y, 20.5), Vector3(13.8, F1_H, 13.0), 0.34, "ship_hull", C_GELCOAT,
 		[{"side": "n", "offset": 2.4, "width": 2.8}, {"side": "s", "offset": 2.4, "width": 2.6},
 		 {"side": "e", "offset": 0.0, "width": 2.4}]))
-	b.append(box(Vector3(3.2, STERN_Y + 0.56, 23.5), Vector3(4.2, 1.12, 1.0), "metal_panel", C_DARK))
-	b.append(box(Vector3(3.2, STERN_Y + 1.15, 23.5), Vector3(4.4, 0.08, 1.1), "metal_panel", C_CHROME))
+	# Edle Lounge-Bar & Sitzgruppe rechts im EG
+	b.append(box(Vector3(3.6, STERN_Y + 0.56, 22.8), Vector3(4.2, 1.12, 1.0), "metal_panel", C_DARK))
+	b.append(box(Vector3(3.6, STERN_Y + 1.15, 22.8), Vector3(4.4, 0.08, 1.1), "tiles", C_MARBLE))
+	b.append(box(Vector3(3.8, STERN_Y + 0.35, 17.5), Vector3(3.6, 0.7, 1.1), "metal_panel", C_NAVY))
 
-	# Logischer Galerie-Aufgang Süd: Westwand hoch -> Podest hinten links -> entlang Rückwand direkt aufs offene Sonnendeck!
-	var U_S := STERN_Y + UPPER_Y
-	var P_S := STERN_Y + UPPER_Y * 0.5
-	b.append(box(Vector3(-5.3, P_S - 0.12, 25.4), Vector3(2.8, 0.24, 2.8), "wood_planks", C_TEAK)) # Podest hinten links
-	b.append(ramp(Vector3(-5.3, STERN_Y, 17.5), Vector3(-5.3, P_S, 24.0), 2.2, "wood_planks", 0.24, C_TEAK)) # Lauf 1 (Westwand)
-	b.append(ramp(Vector3(-3.9, P_S, 25.4), Vector3(1.8, U_S + 0.02, 25.4), 2.2, "wood_planks", 0.24, C_TEAK)) # Lauf 2 (Rückwand -> Oben!)
+	# Ruckelfreies L-Treppenhaus EG -> 1. OG (3.2m breites Podest + sanfte Rampen, komplett offene Galerie!)
+	var P_S1 := STERN_Y + F1_H * 0.5
+	b.append(box(Vector3(-4.6, P_S1 - 0.12, 24.8), Vector3(4.0, 0.24, 3.6), "wood_planks", C_TEAK))
+	b.append(ramp(Vector3(-4.8, STERN_Y, 16.5), Vector3(-4.8, P_S1 + 0.02, 23.0), 2.8, "wood_planks", 0.26, C_TEAK))
+	b.append(ramp(Vector3(-3.0, P_S1, 24.8), Vector3(2.8, U_S + 0.03, 24.8), 2.8, "wood_planks", 0.26, C_TEAK))
 
-	# Oberdeck Süd: Hinterer Streifen über der Treppe (z=23.8..27.0, x=-6.9..2.0) ist 100% offen!
-	b.append(box(Vector3(0.0, U_S - 0.15, 18.8), Vector3(14.6, 0.3, 10.2), "ship_hull", C_GELCOAT))
-	b.append(box(Vector3(4.6, U_S - 0.15, 25.4), Vector3(5.4, 0.3, 3.4), "ship_hull", C_GELCOAT))
-	b.append(box(Vector3(0, U_S + 0.22, 13.6), Vector3(14.8, 0.44, 0.25), "ship_hull", C_GELCOAT))
-	b.append(box(Vector3(4.6, U_S + 0.22, 27.2), Vector3(5.6, 0.44, 0.25), "ship_hull", C_GELCOAT))
-	b.append(box(Vector3(-7.3, U_S + 0.22, 18.8), Vector3(0.25, 0.44, 10.4), "ship_hull", C_GELCOAT))
-	b.append(box(Vector3(7.3, U_S + 0.22, 20.5), Vector3(0.25, 0.44, 13.8), "ship_hull", C_GELCOAT))
+	# --- 1. OBERGESCHOSS: PANORAMA-KOMMANDOBRÜCKE (U_S = +2.70 bis +6.30, 13.6m x 12.6m) ---
+	# Bodenplatte 1. OG (hinterer Streifen z=23.2..26.6, x=-6.4..3.2 ist für die Treppe 100% offen!)
+	b.append(box(Vector3(0.0, U_S - 0.15, 18.6), Vector3(13.8, 0.3, 9.2), "wood_planks", C_TEAK))
+	b.append(box(Vector3(4.9, U_S - 0.15, 25.0), Vector3(4.0, 0.3, 3.6), "wood_planks", C_TEAK))
+	# Brüstung um die Treppenöffnung im 1. OG
+	b.append(box(Vector3(-1.8, U_S + 0.45, 23.2), Vector3(9.4, 0.9, 0.22), "ship_hull", C_GELCOAT))
 
-	# 6. Kommandobrücke auf Oberdeck Süd + taktische Seiten-Deckung
-	b.append_array(room_walls(Vector3(1.5, U_S, 19.5), Vector3(6.8, 2.5, 5.8), 0.26, "ship_hull", C_GELCOAT,
-		[{"side": "w", "offset": 0.0, "width": 1.8}, {"side": "e", "offset": 0.0, "width": 1.8},
-		 {"side": "n", "offset": -1.4, "width": 1.8}, {"side": "n", "offset": 1.4, "width": 1.8}]))
+	# Außenwände 1. OG mit riesigen Panorama-Fensterfronten (Nord aufs Schiff, West, Ost & Süd aufs Helipad)
+	b.append_array(room_walls(Vector3(0, U_S, 20.5), Vector3(13.6, F2_H, 12.6), 0.30, "ship_hull", C_GELCOAT,
+		[{"side": "n", "offset": -3.2, "width": 3.4}, {"side": "n", "offset": 3.2, "width": 3.4},
+		 {"side": "s", "offset": 0.0, "width": 4.2},
+		 {"side": "w", "offset": -1.5, "width": 3.6}, {"side": "e", "offset": -1.5, "width": 3.6}]))
+	# Brüstungs-Unterteile & getöntes Brückenglas in allen Panorama-Fenstern!
+	for fx in [-3.2, 3.2]:
+		b.append(box(Vector3(fx, U_S + 0.50, 14.2), Vector3(3.4, 1.0, 0.28), "ship_hull", C_GELCOAT))
+		b.append(box(Vector3(fx, U_S + 1.85, 14.2), Vector3(3.4, 1.7, 0.08), "glass", Color(0.15, 0.45, 0.65, 0.38)))
+	b.append(box(Vector3(0.0, U_S + 0.50, 26.8), Vector3(4.2, 1.0, 0.28), "ship_hull", C_GELCOAT))
+	b.append(box(Vector3(0.0, U_S + 1.85, 26.8), Vector3(4.2, 1.7, 0.08), "glass", Color(0.15, 0.45, 0.65, 0.38)))
+	for sx in [-6.8, 6.8]:
+		b.append(box(Vector3(sx, U_S + 0.50, 19.0), Vector3(0.28, 1.0, 3.6), "ship_hull", C_GELCOAT))
+		b.append(box(Vector3(sx, U_S + 1.85, 19.0), Vector3(0.08, 1.7, 3.6), "glass", Color(0.15, 0.45, 0.65, 0.38)))
+
+	# Kapitänspult & Cockpit-Ausstattung im 1. OG (Blickrichtung Bug!)
+	b.append(box(Vector3(0.0, U_S + 0.52, 15.3), Vector3(8.6, 1.04, 1.05), "metal_panel", C_DARK))
+	b.append(box(Vector3(0.0, U_S + 1.08, 15.3), Vector3(8.8, 0.10, 1.15), "wood_planks", C_TEAK))
+	for mx in [-2.8, -1.0, 1.0, 2.8]:
+		b.append(box(Vector3(mx, U_S + 1.36, 15.05), Vector3(1.1, 0.52, 0.08), "metal_panel", Color(0.06, 0.52, 0.78), Vector3(-24, 0, 0)))
+	b.append(cylinder(Vector3(0.0, U_S + 1.22, 15.85), 0.44, 0.08, "metal_panel", C_BRASS))
+	b.append(box(Vector3(1.1, U_S + 1.24, 15.65), Vector3(0.32, 0.28, 0.24), "metal_panel", C_CHROME))
+	b.append(box(Vector3(0.0, U_S + 0.48, 16.9), Vector3(1.0, 0.96, 1.0), "metal_panel", C_NAVY))
+	b.append(box(Vector3(0.0, U_S + 1.12, 17.32), Vector3(1.0, 0.85, 0.18), "metal_panel", C_NAVY))
+	# Kartentisch hinter dem Kapitänspult
+	b.append(box(Vector3(-3.4, U_S + 0.48, 19.6), Vector3(2.8, 0.96, 1.5), "wood_planks", C_TEAK))
+	b.append(box(Vector3(-3.4, U_S + 0.98, 19.6), Vector3(2.2, 0.04, 1.1), "tiles", C_MARBLE))
+
+	# --- 2. TREPPENLAUF 1. OG -> RADAR-DACHTERRASSE (ROOF_S = +6.30) ---
+	b.append(ramp(Vector3(5.3, U_S, 23.8), Vector3(5.3, ROOF_S + 0.03, 17.2), 2.2, "wood_planks", 0.26, C_TEAK))
+	# Radar-Dach mit sauberer Treppen-Öffnung rechts (x = 4.1..6.6, z = 16.8..24.2)
+	b.append(box(Vector3(-1.3, ROOF_S - 0.15, 20.5), Vector3(11.4, 0.3, 13.0), "ship_hull", C_GELCOAT))
+	b.append(box(Vector3(5.6, ROOF_S - 0.15, 15.4), Vector3(2.8, 0.3, 2.8), "ship_hull", C_GELCOAT))
+	b.append(box(Vector3(5.6, ROOF_S - 0.15, 25.6), Vector3(2.8, 0.3, 2.8), "ship_hull", C_GELCOAT))
+	b.append(box(Vector3(0, ROOF_S + 0.22, 14.0), Vector3(14.0, 0.44, 0.25), "ship_hull", C_GELCOAT))
+	b.append(box(Vector3(0, ROOF_S + 0.22, 27.0), Vector3(14.0, 0.44, 0.25), "ship_hull", C_GELCOAT))
+	b.append(box(Vector3(-6.9, ROOF_S + 0.22, 20.5), Vector3(0.25, 0.44, 13.0), "ship_hull", C_GELCOAT))
+	b.append(box(Vector3(6.9, ROOF_S + 0.22, 20.5), Vector3(0.25, 0.44, 13.0), "ship_hull", C_GELCOAT))
+
 
 	for side in [-1.0, 1.0]:
 		b.append(box(Vector3(side * 12.2, BOW_Y + 0.52, -21.0), Vector3(2.4, 1.04, 1.2), "ship_hull", C_GELCOAT))
@@ -302,6 +343,23 @@ func build_detail(d: MapDetail) -> void:
 	d.rail(Vector3(-7.3, U_N + 0.35, -27.4), Vector3(7.3, U_N + 0.35, -27.4), 0.75)
 	d.rail(Vector3(-7.3, U_S + 0.35, 13.6), Vector3(7.3, U_S + 0.35, 13.6), 0.75)
 	d.rail(Vector3(-7.3, U_S + 0.35, 27.4), Vector3(7.3, U_S + 0.35, 27.4), 0.75)
+	
+	# Show-Beleuchtung, Panorama-LEDs & Radar-Dach für das neue 2-Etagen-Kapitänshaus (Süd)
+	var U_S2 := STERN_Y + 3.80
+	var ROOF_S2 := U_S2 + 3.60
+	d.led_strip(Vector3(-6.7, U_S2 + 0.06, 14.1), Vector3(6.7, U_S2 + 0.06, 14.1), Color(0.22, 0.82, 1.0), 3.6)
+	d.led_strip(Vector3(-6.7, ROOF_S2 + 0.06, 14.0), Vector3(6.7, ROOF_S2 + 0.06, 14.0), Color(0.75, 0.28, 1.0), 3.6)
+	d.rail(Vector3(-6.9, ROOF_S2 + 0.35, 14.0), Vector3(6.9, ROOF_S2 + 0.35, 14.0), 0.75)
+	d.rail(Vector3(-6.9, ROOF_S2 + 0.35, 27.0), Vector3(6.9, ROOF_S2 + 0.35, 27.0), 0.75)
+	d.lamp(Vector3(2.2, STERN_Y + 3.3, 20.5), Color(1.0, 0.76, 0.38), 1.8, 14.0) # Warmes EG-Salonlicht
+	d.lamp(Vector3(-4.6, STERN_Y + 3.3, 24.5), Color(0.55, 0.30, 1.0), 1.3, 10.0) # Violettes Treppenhaus-Ambiente
+	d.lamp(Vector3(0.0, U_S2 + 3.1, 18.0), Color(1.0, 0.72, 0.36), 1.1, 12.0)    # Gemütliches Cockpit-Amber im 1. OG
+	d.bulb(Vector3(0.0, U_S2 + 1.45, 15.1), Color(0.15, 0.85, 1.0), 1.2, 0.9, 6.0) # Blaues Instrumenten-Leuchten
+	# Großer Satcom- & Radar-Turm auf dem Kapitänsdach (ROOF_S2 = +6.30)
+	d.add_cylinder(Vector3(-2.5, ROOF_S2 + 0.9, 20.5), 1.15, 1.8, "ship_hull", C_GELCOAT)
+	d.add_cylinder(Vector3(-2.5, ROOF_S2 + 2.1, 20.5), 1.45, 0.85, "ship_hull", C_GELCOAT)
+	d.add_box(Vector3(1.5, ROOF_S2 + 1.8, 20.5), Vector3(3.4, 0.18, 0.35), "metal_panel", C_CHROME)
+	d.glow(Vector3(-2.5, ROOF_S2 + 3.2, 20.5), Color(1.0, 0.14, 0.10), 1.6)
 
 	d.bulb(Vector3(0, MID_Y + 0.95, 0.0), Color(0.15, 0.90, 1.0), 3.4, 2.8, 9.0)
 	d.bulb(Vector3(0, BOW_Y + 0.95, -33.5), Color(0.15, 0.90, 1.0), 2.8, 2.4, 7.0)
