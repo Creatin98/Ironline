@@ -412,7 +412,11 @@ func _on_kill_zone_entered(body: Node3D) -> void:
 
 
 
-
+var _sun_light: DirectionalLight3D
+var _sky_mat: ShaderMaterial
+var _lightning_flash: ColorRect
+var _lightning_timer: float = 4.0
+var _lightning_flash_val: float = 0.0
 func _process(delta: float) -> void:
 	_wind_time += delta
 	var gust := 0.75 + 0.35 * sin(_wind_time * 0.85) + 0.25 * sin(_wind_time * 2.1)
