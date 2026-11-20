@@ -309,7 +309,7 @@ func build_detail(d: MapDetail) -> void:
 	d.led_strip(Vector3(2.6, LOWER_Y + 3.1, -21.0), Vector3(2.6, LOWER_Y + 3.1, 21.0), Color(0.55, 0.85, 1.0), 3.4)
 	for kz in [-18.0, -9.0, 0.0, 9.0, 18.0]:
 		d.lamp(Vector3(0.0, LOWER_Y + 3.0, kz), Color(0.85, 0.94, 1.0), 2.2, 14.0)
-			d.lamp(Vector3(kx, LOWER_Y + 3.1, kz), Color(0.88, 0.95, 1.0), 2.5, 18.0)
+			
 func _setup_midnight_atmosphere() -> void:
 	if has_node("HarborDistantIslands"):
 		get_node("HarborDistantIslands").visible = false
