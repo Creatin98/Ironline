@@ -141,7 +141,7 @@ func _process(delta: float) -> void:
 		# Waffen & Hände der Ego-Kamera einmalig mit nassem Hochglanz-Klarlack überziehen
 		if not _wet_viewmodel_done:
 			for mi in cam_s.find_children("*", "MeshInstance3D", true, false):
-				var wmat := mi.get_active_material(0)
+				var wmat: Material = mi.get_active_material(0)
 				if wmat is StandardMaterial3D:
 					var dup := wmat.duplicate() as StandardMaterial3D
 					dup.roughness = 0.10
