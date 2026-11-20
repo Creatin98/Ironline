@@ -20,7 +20,9 @@ var geometry_root: Node3D
 var nav_region: NavigationRegion3D
 var navigation_ready: bool = false
 var _material_cache: Dictionary = {}
-
+var _rain_mat: ParticleProcessMaterial
+var _wind_time: float = 0.0
+var _wind_dir: Vector2 = Vector2(0.92, 0.38).normalized()
 
 func _ready() -> void:
 	add_to_group("map")
@@ -409,6 +411,17 @@ func _on_kill_zone_entered(body: Node3D) -> void:
 
 
 func _upgrade_cinematic_lighting() -> void:
+	func _process(delta: float) -> void:
+	_wind_time += delta
+	var gust := 0.75 + 0.35 * sin(_wind_time * 0.85) + 0.25 * sin(_wind_time * 2.1)
+	RenderingServer.global_shader_parameter_set("wind_dir", _wind_dir)
+	RenderingServer.global_shader_parameter_set("wind_strength", gust)
+	if _rain_mat != null:
+		var slant := 8.5 * gust
+		_rain_mat.direction = Vector3(_wind_dir.x * slant, -22.0, _wind_dir.y * slant).normalized()
+
+
+func _upgrade_cinematic_lighting() -> void:
 	var env_node: WorldEnvironment = null
 	for child in get_children():
 		if child is WorldEnvironment:
@@ -494,15 +507,15 @@ func _spawn_rain_particles() -> void:
 	rain.visibility_aabb = AABB(Vector3(-80, -5, -80), Vector3(160, 40, 160))
 	rain.position = Vector3(0.0, 18.0, 0.0)
 
-	var pmat := ParticleProcessMaterial.new()
-	pmat.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_BOX
-	pmat.emission_box_extents = Vector3(60.0, 3.0, 60.0)
-	pmat.direction = Vector3(0.38, -1.0, 0.16).normalized()
-	pmat.spread = 2.0
-	pmat.initial_velocity_min = 24.0
-	pmat.initial_velocity_max = 32.0
-	pmat.gravity = Vector3(5.5, -15.0, 2.2)
-	rain.process_material = pmat
+	_rain_mat = ParticleProcessMaterial.new()
+	_rain_mat.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_BOX
+	_rain_mat.emission_box_extents = Vector3(60.0, 3.0, 60.0)
+	_rain_mat.direction = Vector3(0.38, -1.0, 0.16).normalized()
+	_rain_mat.spread = 2.0
+	_rain_mat.initial_velocity_min = 24.0
+	_rain_mat.initial_velocity_max = 32.0
+	_rain_mat.gravity = Vector3(5.5, -15.0, 2.2)
+	rain.process_material = _rain_mat
 
 	var drop := QuadMesh.new()
 	drop.size = Vector2(0.006, 0.65)
