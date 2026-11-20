@@ -26,6 +26,21 @@ func _ready() -> void:
 	kill_y = -25.0
 	atmosphere_preset = "clear_day"
 	super._ready()
+# Sicherstellen, dass alle Spawns auf dem festen Teakholz-Deck stehen & niemand ineinander spawnt
+	var all_spawns := get_tree().get_nodes_in_group("spawn_points")
+	var red_i := 0
+	var blue_i := 0
+	for sp in all_spawns:
+		if sp is Node3D:
+			var t := int(sp.get("team")) if sp.get("team") != null else ((red_i + blue_i) % 2)
+			if t == 0:
+				sp.global_position = Vector3(-10.0 + float(red_i % 5) * 5.0, 0.35, -30.0 - float(red_i / 5) * 3.5)
+				sp.rotation_degrees = Vector3(0.0, 180.0, 0.0)
+				red_i += 1
+			else:
+				sp.global_position = Vector3(-10.0 + float(blue_i % 5) * 5.0, 0.35, 30.0 + float(blue_i / 5) * 3.5)
+				sp.rotation_degrees = Vector3(0.0, 0.0, 0.0)
+				blue_i += 1
 	_setup_midnight_atmosphere()
 	_upgrade_reflective_materials()
 	_build_seamless_yacht_hull()
@@ -424,3 +439,48 @@ func _build_midnight_ocean_and_liner() -> void:
 	var sdrop := QuadMesh.new()
 	sdrop.size = Vector2(0.04, 0.42)
 	var sdmat := StandardMaterial3D.new()
+
+func get_spawns() -> Array:
+	var s: Array = []
+	var red_pts := [
+		Vector3(-9.5, 0.25, -31.0), Vector3(-4.5, 0.25, -33.0), Vector3(0.0, 0.25, -34.0),
+		Vector3(4.5, 0.25, -33.0), Vector3(9.5, 0.25, -31.0), Vector3(-13.5, 0.25, -29.0),
+		Vector3(13.5, 0.25, -29.0), Vector3(0.0, 0.25, -30.5)
+	]
+	for p in red_pts:
+		s.append({"pos": p, "yaw": 180.0, "team": 0})
+	var blue_pts := [
+		Vector3(-9.5, 0.25, 31.0), Vector3(-4.5, 0.25, 33.0), Vector3(0.0, 0.25, 34.0),
+		Vector3(4.5, 0.25, 33.0), Vector3(9.5, 0.25, 31.0), Vector3(-13.5, 0.25, 29.0),
+		Vector3(13.5, 0.25, 29.0), Vector3(0.0, 0.25, 30.5)
+	]
+	for p in blue_pts:
+		s.append({"pos": p, "yaw": 0.0, "team": 1})
+	return s
+
+
+func get_lanes() -> Dictionary:
+	return {
+		"left": [
+			Vector3(-13.8, 0.25, -28.0), Vector3(-13.8, 0.25, -12.0),
+			Vector3(-13.8, 0.25, 0.0), Vector3(-13.8, 0.25, 12.0), Vector3(-13.8, 0.25, 28.0)
+		],
+		"mid": [
+			Vector3(0.0, 0.25, -28.0), Vector3(0.0, 0.25, -16.0),
+			Vector3(0.0, 0.25, -5.0), Vector3(0.0, 0.25, 5.0),
+			Vector3(0.0, 0.25, 16.0), Vector3(0.0, 0.25, 28.0)
+		],
+		"right": [
+			Vector3(13.8, 0.25, -28.0), Vector3(13.8, 0.25, -12.0),
+			Vector3(13.8, 0.25, 0.0), Vector3(13.8, 0.25, 12.0), Vector3(13.8, 0.25, 28.0)
+		]
+	}
+
+
+func get_cover_points() -> Array:
+	return [
+		Vector3(-4.5, 0.25, -4.6), Vector3(4.5, 0.25, 4.6),
+		Vector3(-13.8, 0.25, -12.0), Vector3(13.8, 0.25, 12.0),
+		Vector3(0.0, UPPER_Y + 0.25, -12.0), Vector3(0.0, UPPER_Y + 0.25, 10.5),
+		Vector3(-4.2, LOWER_Y + 0.25, -8.0), Vector3(4.2, LOWER_Y + 0.25, 8.0)
+	]
