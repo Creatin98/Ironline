@@ -391,16 +391,17 @@ void fragment() {
 	var m_mat := ShaderMaterial.new()
 	m_mat.shader = m_shd
 
+	# Üppige Gebirgsketten links UND weit dahinter rechts auf der offenen Meeresseite!
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 202606
-	for i in 16:
-		var ang := lerpf(-2.6, -0.5, float(i) / 15.0) if i < 8 else lerpf(0.5, 2.6, float(i - 8) / 7.0)
-		var dist := rng.randf_range(235.0, 325.0)
+	for i in 22:
+		var ang := lerpf(-2.7, -0.8, float(i) / 10.0) if i < 11 else lerpf(-0.45, 1.35, float(i - 11) / 10.0)
+		var dist := rng.randf_range(240.0, 320.0) if i < 11 else rng.randf_range(310.0, 410.0)
 		var m_pos := Vector3(cos(ang) * dist, -6.0, sin(ang) * dist)
 		var st := SurfaceTool.new()
 		st.begin(Mesh.PRIMITIVE_TRIANGLES)
-		var rad := rng.randf_range(68.0, 118.0)
-		var h := rng.randf_range(58.0, 128.0)
+		var rad := rng.randf_range(72.0, 128.0)
+		var h := rng.randf_range(65.0, 145.0)
 		var rings := 18
 		var segs := 32
 		var p1 := rng.randf() * TAU
@@ -435,32 +436,52 @@ void fragment() {
 		mi.position = m_pos
 		env_root.add_child(mi)
 
-	# Mehrstöckiger Ozeanriese am Horizont (Rumpf, Promenadendecks, Schornstein & beleuchtete Fensterreihen)
+	# Detaillierter Ozeanriese frei auf dem offenen Meer (rechts/vorne bei x=+165, z=-60, vor der Gebirgskette!)
 	var liner := Node3D.new()
 	liner.name = "DistantCruiseLiner"
-	liner.position = Vector3(-165.0, -3.2, -55.0)
-	liner.rotation_degrees = Vector3(0.0, 22.0, 0.0)
+	liner.position = Vector3(165.0, -3.2, -60.0)
+	liner.rotation_degrees = Vector3(0.0, -28.0, 0.0)
 
-	var lmat := StandardMaterial3D.new()
-	lmat.albedo_color = Color(0.92, 0.94, 0.97)
-	lmat.roughness = 0.35
+	# Detail-Shader für den Kreuzfahrtschiff-Aufbau (Kabinenfenster-Raster, Decksfugen & Stahlplatten!)
+	var liner_shd := Shader.new()
+	liner_shd.code = """
+shader_type spatial;
+render_mode cull_back, diffuse_burley, specular_schlick_ggx;
+varying vec3 obj_p;
+void vertex() { obj_p = VERTEX; }
+void fragment() {
+	float deck_line = smoothstep(0.06, 0.0, abs(fract(obj_p.y * 0.45) - 0.5));
+	float win_x = step(0.32, fract(obj_p.z * 0.38)) * step(fract(obj_p.z * 0.38), 0.78);
+	float win_y = step(0.28, fract(obj_p.y * 0.45)) * step(fract(obj_p.y * 0.45), 0.62);
+	float is_win = win_x * win_y * step(4.2, obj_p.y);
+	vec3 hull_white = mix(vec3(0.90, 0.92, 0.95), vec3(0.55, 0.60, 0.66), deck_line * 0.55);
+	ALBEDO = mix(hull_white, vec3(0.12, 0.16, 0.22), is_win);
+	EMISSION = vec3(1.0, 0.84, 0.52) * is_win * 2.2;
+	ROUGHNESS = mix(0.32, 0.08, is_win);
+	SPECULAR = 0.75;
+}
+"""
+	var lmat := ShaderMaterial.new()
+	lmat.shader = liner_shd
 
 	var navy_mat := StandardMaterial3D.new()
-	navy_mat.albedo_color = Color(0.06, 0.12, 0.22)
-	navy_mat.roughness = 0.35
+	navy_mat.albedo_color = Color(0.05, 0.11, 0.20)
+	navy_mat.roughness = 0.28
+	navy_mat.metallic = 0.15
 
-	var emat := StandardMaterial3D.new()
-	emat.albedo_color = Color(1.0, 0.88, 0.62)
-	emat.emission_enabled = true
-	emat.emission = Color(1.0, 0.85, 0.55)
-	emat.emission_energy_multiplier = 2.6
+	var red_accent := StandardMaterial3D.new()
+	red_accent.albedo_color = Color(0.75, 0.14, 0.14)
+	red_accent.roughness = 0.35
 
 	var tiers := [
-		{"size": Vector3(20.0, 6.5, 165.0), "pos": Vector3(0.0, 2.0, 0.0), "mat": navy_mat},
-		{"size": Vector3(18.5, 4.2, 145.0), "pos": Vector3(0.0, 7.2, 2.0), "mat": lmat},
-		{"size": Vector3(15.5, 3.8, 118.0), "pos": Vector3(0.0, 11.0, 4.0), "mat": lmat},
-		{"size": Vector3(12.0, 3.2, 82.0), "pos": Vector3(0.0, 14.4, 2.0), "mat": lmat},
-		{"size": Vector3(5.5, 6.5, 10.0), "pos": Vector3(0.0, 18.8, 22.0), "mat": navy_mat}
+		{"size": Vector3(22.0, 6.8, 175.0), "pos": Vector3(0.0, 1.8, 0.0), "mat": navy_mat},
+		{"size": Vector3(22.3, 0.6, 176.0), "pos": Vector3(0.0, 5.1, 0.0), "mat": red_accent},
+		{"size": Vector3(20.0, 4.4, 152.0), "pos": Vector3(0.0, 7.4, 2.0), "mat": lmat},
+		{"size": Vector3(17.2, 4.2, 126.0), "pos": Vector3(0.0, 11.4, 4.0), "mat": lmat},
+		{"size": Vector3(13.8, 3.6, 92.0), "pos": Vector3(0.0, 15.0, 2.0), "mat": lmat},
+		{"size": Vector3(16.5, 2.2, 14.0), "pos": Vector3(0.0, 16.5, -36.0), "mat": lmat}, # Kommandobrücke vorne
+		{"size": Vector3(5.8, 7.2, 11.0), "pos": Vector3(0.0, 19.8, 24.0), "mat": navy_mat}, # Schornstein
+		{"size": Vector3(6.0, 1.4, 11.2), "pos": Vector3(0.0, 21.8, 24.0), "mat": red_accent}
 	]
 	for t in tiers:
 		var m := MeshInstance3D.new()
@@ -471,17 +492,32 @@ void fragment() {
 		m.position = t["pos"]
 		liner.add_child(m)
 
-	for deck in [6.8, 10.6, 14.0]:
-		var strip := MeshInstance3D.new()
-		var sm := BoxMesh.new()
-		sm.size = Vector3(18.8, 0.45, 112.0)
-		strip.mesh = sm
-		strip.material_override = emat
-		strip.position = Vector3(0.0, deck, 3.0)
-		liner.add_child(strip)
+	# Bug-Spitze & Positionslichter (Rot Backbord / Grün Steuerbord) am Kreuzfahrtschiff
+	var bow := MeshInstance3D.new()
+	var pm := PrismMesh.new()
+	pm.size = Vector3(22.0, 24.0, 7.2)
+	bow.mesh = pm
+	bow.material_override = navy_mat
+	bow.rotation_degrees = Vector3(-90.0, 0.0, 0.0)
+	bow.position = Vector3(0.0, 1.8, -99.5)
+	liner.add_child(bow)
+
+	for side in [-1.0, 1.0]:
+		var nav := MeshInstance3D.new()
+		var sm := SphereMesh.new()
+		sm.radius = 0.85
+		nav.mesh = sm
+		var nmat := StandardMaterial3D.new()
+		var ncol := Color(1.0, 0.12, 0.08) if side < 0.0 else Color(0.1, 1.0, 0.28)
+		nmat.albedo_color = ncol
+		nmat.emission_enabled = true
+		nmat.emission = ncol
+		nmat.emission_energy_multiplier = 6.0
+		nav.material_override = nmat
+		nav.position = Vector3(side * 9.5, 16.8, -36.0)
+		liner.add_child(nav)
+
 	env_root.add_child(liner)
-
-
 func get_spawns() -> Array:
 	var s: Array = []
 	var red_pts := [
