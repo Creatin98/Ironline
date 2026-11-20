@@ -130,3 +130,125 @@ func get_blocks() -> Array:
 	b.append(box(Vector3(7.2, UPPER_Y + 0.2, 14.5), Vector3(0.25, 0.4, 13.0), "ship_hull", C_HULL))
 	# Kommandobrücke auf dem Süd-Oberdeck
 	b.append_array(room_walls(Vector3(0, UPPER_Y, 16.5), Vector3(7.0, 2.3, 6.0), 0.25, "ship_hull", C_HULL,
+		[{"side": "w", "offset": 0.0, "width": 1.8}, {"side": "e", "offset": 0.0, "width": 1.8},
+		 {"side": "n", "offset": -1.5, "width": 1.8}, {"side": "n", "offset": 1.5, "width": 1.8}]))
+	for wx in [-1.5, 1.5]:
+		b.append(header(Vector3(wx, 0, 13.5), 1.8, UPPER_Y, UPPER_Y + 0.85, 0.25, true, "ship_hull", C_HULL))
+		b.append(header(Vector3(wx, 0, 13.5), 1.8, UPPER_Y + 1.95, UPPER_Y + 2.3, 0.25, true, "ship_hull", C_HULL))
+	b.append(header(Vector3(-3.5, UPPER_Y, 16.5), 1.8, UPPER_Y + 2.0, UPPER_Y + 2.3, 0.25, false, "ship_hull", C_HULL))
+	b.append(header(Vector3(3.5, UPPER_Y, 16.5), 1.8, UPPER_Y + 2.0, UPPER_Y + 2.3, 0.25, false, "ship_hull", C_HULL))
+	b.append(box(Vector3(0, UPPER_Y + 2.4, 16.5), Vector3(7.6, 0.22, 6.6), "ship_hull", C_HULL))
+	b.append(box(Vector3(0, UPPER_Y + 0.5, 14.5), Vector3(4.2, 1.0, 0.6), "wood_planks", C_TEAK))
+	# Geschwungener Radar-Bogen über der Kommandobrücke
+	b.append(box(Vector3(-4.8, UPPER_Y + 2.3, 18.0), Vector3(0.42, 4.6, 1.4), "ship_hull", C_HULL, Vector3(-15, 0, -10)))
+	b.append(box(Vector3(4.8, UPPER_Y + 2.3, 18.0), Vector3(0.42, 4.6, 1.4), "ship_hull", C_HULL, Vector3(-15, 0, 10)))
+	b.append(box(Vector3(0, UPPER_Y + 4.5, 18.6), Vector3(8.6, 0.36, 1.5), "ship_hull", C_HULL))
+	# Teakholz-Treppe aufs Süd-Oberdeck
+	b.append(ramp(Vector3(8.8, DECK_Y, 28.0), Vector3(8.8, UPPER_Y, 21.0), 2.8, "wood_planks", 0.25, C_TEAK))
+
+	# ---------------------------------------------------------------- 9. ÄUSSERE SEITEN-LANES (X = ±11.5..17.4) – DECKUNG & FLOW
+	for z in [-16.0, 16.0]:
+		b.append(box(Vector3(-12.8, 1.1, z), Vector3(1.9, 0.85, 4.8), "ship_hull", C_HULL))
+		b.append(box(Vector3(12.8, 1.1, z), Vector3(1.9, 0.85, 4.8), "ship_hull", C_HULL))
+		b.append(box(Vector3(-12.8, 1.5, z), Vector3(2.1, 0.24, 5.0), "metal_panel", C_ORANGE))
+		b.append(box(Vector3(12.8, 1.5, z), Vector3(2.1, 0.24, 5.0), "metal_panel", C_ORANGE))
+	for z in [-24.0, -9.0, 9.0, 24.0]:
+		b.append(cylinder(Vector3(-14.5, 0.65, z), 0.72, 1.3, "plaster", C_HULL, Vector3(0, 0, 90)))
+		b.append(cylinder(Vector3(14.5, 0.65, z), 0.72, 1.3, "plaster", C_HULL, Vector3(0, 0, 90)))
+
+	# Team-Markierungen an Bug & Heck
+	b.append(box(Vector3(0, 0.55, -43.1), Vector3(2.6, 0.25, 0.15), "plaster", C_RED))
+	b.append(box(Vector3(0, 0.55, 43.1), Vector3(2.6, 0.25, 0.15), "plaster", C_BLUE))
+	return b
+
+
+func build_detail(d: MapDetail) -> void:
+	_build_curved_hull_ends(d)
+
+	# LED-Deckstreifen & Navigationslichter
+	d.led_strip(Vector3(-17.1, 0.06, -37.2), Vector3(-17.1, 0.06, 37.2), Color(0.25, 0.72, 1.0), 3.4)
+	d.led_strip(Vector3(17.1, 0.06, -37.2), Vector3(17.1, 0.06, 37.2), Color(0.25, 0.72, 1.0), 3.4)
+	d.bulb(Vector3(-17.2, 1.15, -37.5), Color(1.0, 0.12, 0.08), 1.6, 1.4, 5.5)
+	d.bulb(Vector3(17.2, 1.15, -37.5), Color(0.1, 1.0, 0.25), 1.6, 1.4, 5.5)
+	d.bulb(Vector3(0, 0.95, 0.0), Color(0.2, 0.88, 1.0), 2.6, 2.4, 7.0)
+	d.bulb(Vector3(0, 0.95, -31.5), Color(0.2, 0.88, 1.0), 2.5, 2.3, 6.5)
+
+	# Offene Chrom-Reling (Hauptdeck, Balkone & Keller-Treppenschächte)
+	d.rail(Vector3(-17.4, 0.35, -37.8), Vector3(-17.4, 0.35, 37.8), 0.75)
+	d.rail(Vector3(17.4, 0.35, -37.8), Vector3(17.4, 0.35, 37.8), 0.75)
+	d.rail(Vector3(-7.2, UPPER_Y + 0.35, -8.0), Vector3(7.2, UPPER_Y + 0.35, -8.0), 0.75)
+	d.rail(Vector3(-7.2, UPPER_Y + 0.35, 8.0), Vector3(7.2, UPPER_Y + 0.35, 8.0), 0.75)
+	# Schutzgeländer um die beiden Keller-Treppenschächte
+	for sx in [-6.6, -10.4]:
+		d.rail(Vector3(sx, 0.0, -5.6), Vector3(sx, 0.0, 5.6), 0.95)
+	for sx in [6.6, 10.4]:
+		d.rail(Vector3(sx, 0.0, -5.6), Vector3(sx, 0.0, 5.6), 0.95)
+
+	# Zwei schwarze Schlauchboote (RIBs) hinter der Badeplattform
+	for bx in [-5.2, 5.2]:
+		var bz := 47.5 if bx < 0.0 else 49.4
+		d.add_box(Vector3(bx, -2.15, bz), Vector3(2.2, 0.55, 4.8), "metal_panel", Color(0.10, 0.11, 0.13))
+		d.add_cylinder(Vector3(bx - 1.0, -1.95, bz), 0.35, 4.6, "metal_panel", Color(0.12, 0.13, 0.15), Basis(Vector3.RIGHT, PI * 0.5))
+		d.add_cylinder(Vector3(bx + 1.0, -1.95, bz), 0.35, 4.6, "metal_panel", Color(0.12, 0.13, 0.15), Basis(Vector3.RIGHT, PI * 0.5))
+
+	# Bullaugen & Rettungsringe
+	for side in [-1.0, 1.0]:
+		var x: float = side * 17.86
+		for z in range(-32, 34, 4):
+			d.add_cylinder(Vector3(x, -1.35, float(z)), 0.55, 0.05, "metal_panel", C_CHROME, Basis(Vector3.BACK, PI * 0.5))
+			d.add_cylinder(Vector3(x + side * 0.02, -1.35, float(z)), 0.42, 0.05, "metal_panel", Color(0.05, 0.08, 0.12), Basis(Vector3.BACK, PI * 0.5))
+	for z in [-26.0, -10.0, 10.0, 26.0]:
+		for side in [-1.0, 1.0]:
+			d.add_cylinder(Vector3(side * 17.25, 0.75, z), 0.60, 0.1, "metal_panel", C_ORANGE, Basis(Vector3.BACK, PI * 0.5))
+			d.add_cylinder(Vector3(side * 17.25, 0.75, z), 0.33, 0.11, "plaster", C_HULL, Basis(Vector3.BACK, PI * 0.5))
+
+	# Innenbeleuchtung & Keller-Maschinenraum-Lichter
+	d.lamp(Vector3(0, 3.0, -16.0), Color(1.0, 0.93, 0.80), 1.3, 12.0)
+	d.lamp(Vector3(0, 3.0, 16.0), Color(1.0, 0.93, 0.80), 1.3, 12.0)
+	d.lamp(Vector3(0, UPPER_Y + 2.2, 16.5), Color(0.95, 0.97, 1.0), 1.1, 8.0)
+	for kz in [-16.0, 0.0, 16.0]:
+		d.lamp(Vector3(0, LOWER_Y + 2.9, kz), Color(0.82, 0.92, 1.0), 1.3, 13.0)
+
+
+func _build_curved_hull_ends(d: MapDetail) -> void:
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var segs := 24
+	for i in segs:
+		var t0 := float(i) / float(segs)
+		var t1 := float(i + 1) / float(segs)
+		var z0 := lerpf(-38.0, -50.0, t0)
+		var z1 := lerpf(-38.0, -50.0, t1)
+		var w0 := 17.85 * pow(1.0 - t0, 0.70)
+		var w1 := 17.85 * pow(1.0 - t1, 0.70)
+		var y_top0 := lerpf(0.4, 0.95, t0)
+		var y_top1 := lerpf(0.4, 0.95, t1)
+		for side in [-1.0, 1.0]:
+			var p00 := Vector3(side * w0, -4.0, z0)
+			var p10 := Vector3(side * w1, -4.0, z1)
+			var p11 := Vector3(side * w1, y_top1, z1)
+			var p01 := Vector3(side * w0, y_top0, z0)
+			if side > 0.0:
+				st.add_vertex(p00); st.add_vertex(p10); st.add_vertex(p11)
+				st.add_vertex(p00); st.add_vertex(p11); st.add_vertex(p01)
+			else:
+				st.add_vertex(p00); st.add_vertex(p11); st.add_vertex(p10)
+				st.add_vertex(p00); st.add_vertex(p01); st.add_vertex(p11)
+	for i in segs:
+		var a0 := lerpf(-PI * 0.5, PI * 0.5, float(i) / float(segs))
+		var a1 := lerpf(-PI * 0.5, PI * 0.5, float(i + 1) / float(segs))
+		var p00 := Vector3(sin(a0) * 17.85, -4.0, 38.0 + cos(a0) * 7.5)
+		var p10 := Vector3(sin(a1) * 17.85, -4.0, 38.0 + cos(a1) * 7.5)
+		var p11 := Vector3(sin(a1) * 17.85, 0.4, 38.0 + cos(a1) * 7.5)
+		var p01 := Vector3(sin(a0) * 17.85, 0.4, 38.0 + cos(a0) * 7.5)
+		st.add_vertex(p00); st.add_vertex(p10); st.add_vertex(p11)
+		st.add_vertex(p00); st.add_vertex(p11); st.add_vertex(p01)
+	st.generate_normals()
+	var mi := MeshInstance3D.new()
+	mi.mesh = st.commit()
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = C_HULL
+	mat.roughness = 0.25
+	mat.metallic = 0.05
+	mi.material_override = mat
+	d.add_child(mi)
