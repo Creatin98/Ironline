@@ -100,12 +100,13 @@ void fragment() {
 
 	float wall_dirt = (1.0 - smoothstep(0.75, 0.98, world_nrm.y)) * smoothstep(1.2, 0.0, fract(world_pos.y * 0.25)) * dirt_bottom_strength;
 
-	ALBEDO = base_col * albedo_color.rgb * mix(0.88, 0.46, wetness) * (1.0 - wall_dirt * 0.35);
+	ALBEDO = base_col * tint_color.rgb * mix(0.95, 0.54, wetness) * (1.0 - wall_dirt * 0.35);
 
-	vec2 rip = rain_ripples(world_pos.xz, TIME) * 0.22 * puddle;
+	// Regentropfen-Ringe plätschern NUR wenn es tatsächlich regnet (rain_wetness > 0)!
+	vec2 rip = rain_ripples(world_pos.xz, TIME) * 0.22 * puddle * clamp(rain_wetness, 0.0, 1.0);
 	vec3 water_nrm = vec3(0.5 + rip.x, 0.5 + rip.y, 1.0);
 	NORMAL_MAP = mix(base_nrm, water_nrm, puddle * 0.92);
-	NORMAL_MAP_DEPTH = normal_scale;
+	NORMAL_MAP_DEPTH = normal_strength;
 
 	ROUGHNESS = mix(clamp(base_rgh * 0.85, 0.55, 0.90), 0.06, puddle);
 	ROUGHNESS = mix(ROUGHNESS, 0.24, wetness * (1.0 - puddle));
