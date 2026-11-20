@@ -375,7 +375,7 @@ func _upgrade_reflective_materials() -> void:
 		if mi.mesh == null:
 			continue
 		for s in mi.mesh.get_surface_count():
-			var mat := mi.mesh.surface_get_material(s)
+			var mat: Material = mi.mesh.surface_get_material(s)
 			if mat == null:
 				mat = mi.material_override
 			if mat == null:
