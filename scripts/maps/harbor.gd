@@ -728,6 +728,72 @@ func _build_midnight_ocean_and_liner() -> void:
 	bow.position = Vector3(0.0, 0.5, -111.5)
 	_my_liner.add_child(bow)
 	add_child(_my_liner)
+	# 5. Peitschender Amazonas-Sturmregen (3.800 schräge Regenstreifen)
+	_storm_rain = GPUParticles3D.new()
+	_storm_rain.name = "AmazonasStormRain"
+	_storm_rain.amount = 3800
+	_storm_rain.lifetime = 0.85
+	_storm_rain.preprocess = 1.0
+	var rmat := ParticleProcessMaterial.new()
+	rmat.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_BOX
+	rmat.emission_box_extents = Vector3(26.0, 4.0, 26.0)
+	rmat.direction = Vector3(-0.48, -1.0, -0.38).normalized()
+	rmat.spread = 6.0
+	rmat.initial_velocity_min = 28.0
+	rmat.initial_velocity_max = 36.0
+	rmat.gravity = Vector3(-8.0, -18.0, -6.0)
+	_storm_rain.process_material = rmat
+	var rmesh := QuadMesh.new()
+	rmesh.size = Vector2(0.025, 1.35)
+	var rshad := StandardMaterial3D.new()
+	rshad.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	rshad.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	rshad.billboard_mode = BaseMaterial3D.BILLBOARD_FIXED_Y
+	rshad.albedo_color = Color(0.75, 0.86, 0.98, 0.34)
+	rmesh.material = rshad
+	_storm_rain.draw_pass_1 = rmesh
+	add_child(_storm_rain)
+
+	# 6. Aufprall-Spritzer auf dem gesamten Teakdeck (1.600 tanzende Regentropfen-Krönchen)
+	_deck_splashes = GPUParticles3D.new()
+	_deck_splashes.name = "DeckRainSplashes"
+	_deck_splashes.amount = 1600
+	_deck_splashes.lifetime = 0.24
+	_deck_splashes.position = Vector3(0.0, 0.15, 0.0)
+	var spmat := ParticleProcessMaterial.new()
+	spmat.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_BOX
+	spmat.emission_box_extents = Vector3(16.5, 1.15, 36.0)
+	spmat.direction = Vector3(0.0, 1.0, 0.0)
+	spmat.spread = 48.0
+	spmat.initial_velocity_min = 1.8
+	spmat.initial_velocity_max = 3.6
+	spmat.gravity = Vector3(0.0, -16.0, 0.0)
+	_deck_splashes.process_material = spmat
+	var spmesh := SphereMesh.new()
+	spmesh.radius = 0.035
+	spmesh.height = 0.07
+	var spshad := StandardMaterial3D.new()
+	spshad.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	spshad.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	spshad.albedo_color = Color(0.84, 0.92, 1.0, 0.45)
+	spmesh.material = spshad
+	_deck_splashes.draw_pass_1 = spmesh
+	add_child(_deck_splashes)
+
+	# 7. Visier- & Gesichts-Regenlauf-Overlay (Tropfen perlen & laufen am Bildschirm herunter!)
+	var cl := CanvasLayer.new()
+	cl.layer = 5
+	var rect := ColorRect.new()
+	rect.set_anchors_preset(Control.PRESET_FULL_RECT)
+	rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var vshd := Shader.new()
+	vshd.code = "shader_type canvas_item;\nuniform float wetness=1.0;\nfloat hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}\nvoid fragment(){\n\tvec2 uv = UV * vec2(18.0, 10.0);\n\tfloat col_id = floor(uv.x);\n\tfloat rnd = hash(vec2(col_id, 3.7));\n\tfloat speed = 0.35 + rnd * 0.45;\n\tfloat y_flow = fract(uv.y * 0.35 - TIME * speed + rnd * 10.0);\n\tvec2 cell = vec2(fract(uv.x) - 0.5, y_flow - 0.5);\n\tfloat drop = smoothstep(0.16, 0.02, length(cell * vec2(1.0, 2.6)));\n\tfloat trail = smoothstep(0.05, 0.0, abs(cell.x)) * smoothstep(0.5, 0.0, cell.y) * step(0.0, cell.y) * 0.45;\n\tfloat edge = smoothstep(0.35, 0.98, length(UV - 0.5) * 1.45);\n\tfloat alpha = (drop + trail) * edge * wetness * 0.24;\n\tCOLOR = vec4(0.78, 0.88, 1.0, alpha);\n}"
+	_visor_rain_mat = ShaderMaterial.new()
+	_visor_rain_mat.shader = vshd
+	rect.material = _visor_rain_mat
+	cl.add_child(rect)
+	add_child(cl)
+
 
 
 func get_spawns() -> Array:
