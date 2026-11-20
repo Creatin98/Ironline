@@ -410,8 +410,8 @@ func _on_kill_zone_entered(body: Node3D) -> void:
 		body.queue_free()
 
 
-func _upgrade_cinematic_lighting() -> void:
-	func _process(delta: float) -> void:
+
+func _process(delta: float) -> void:
 	_wind_time += delta
 	var gust := 0.75 + 0.35 * sin(_wind_time * 0.85) + 0.25 * sin(_wind_time * 2.1)
 	RenderingServer.global_shader_parameter_set("wind_dir", _wind_dir)
