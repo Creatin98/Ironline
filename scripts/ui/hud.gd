@@ -397,6 +397,9 @@ func _edit_input(event: InputEvent) -> void:
 func _process(delta: float) -> void:
 	_update_reload_hint(delta)
 	_hitmarker_time = maxf(0.0, _hitmarker_time - delta)
+	if _kill_flash != null and _kill_flash.color.a > 0.0:
+		_kill_flash.color.a = maxf(0.0, _kill_flash.color.a - delta * 0.65)
+	if _player and _player.alive:
 	if _player and _player.alive:
 		var w := _player.weapon_manager.get_current_weapon()
 		var target_spread := 0.0
@@ -609,6 +612,8 @@ func _on_local_died(_killer_id: int, respawn_delay: float) -> void:
 	center_label.text = ""
 	sub_label.text = ""
 	_respawn_time_left = respawn_delay
+	if _kill_flash != null:
+		_kill_flash.color.a = 0.0
 
 
 func _on_local_damaged(amount: float, source_position: Vector3) -> void:
