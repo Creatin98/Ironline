@@ -476,26 +476,7 @@ func _process(delta: float) -> void:
 			_ocean_mat.set_shader_parameter("ship_speed_offset", _wind_time * 6.5)
 		return
 
-		# Wenn eine schwere Welle gegen Backbord oder Steuerbord schlägt -> Gischt-Fontäne + Deck-Nässe!
-		var splash_side := 0.0
-		if absf(wave_force) > 0.78:
-			splash_side = signf(wave_force) # +1 = Steuerbord, -1 = Backbord
-			var spray := get_node_or_null("HarborBowSpray") as GPUParticles3D
-			if spray != null:
-				spray.position = Vector3(splash_side * 15.5, 0.2, randf_range(-22.0, 22.0))
-				spray.process_material.direction = Vector3(-splash_side * 0.85, 1.35, -0.35).normalized()
-				spray.emitting = true
-
-		# Deck-Nässe (rain_wetness) pulsiert leicht durch übergeschwapptes Meerwasser (ohne Regentropfen!)
-		_outdoors_blend = move_toward(_outdoors_blend, 0.45 if absf(wave_force) > 0.75 else 0.12, delta * 0.4)
-		RenderingServer.global_shader_parameter_set("rain_wetness", 0.0)
-		if _ocean_mat != null:
-			_ocean_mat.set_shader_parameter("ship_speed_offset", _wind_time * 6.5)
-			_ocean_mat.set_shader_parameter("deck_splash", Vector2(splash_side, _outdoors_blend))
-		var isl_node := get_node_or_null("HarborDistantIslands") as Node3D
-		if isl_node != null:
-			isl_node.position.z = fmod(_wind_time * 1.4, 180.0) - 60.0
-		return
+		
 
 	# 3. Trockene Maps ohne Sturm
 	if not is_mesa:
