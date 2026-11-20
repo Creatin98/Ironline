@@ -464,7 +464,7 @@ func _build_midnight_ocean_and_liner() -> void:
 	ocean.position = Vector3(0.0, -4.85, 0.0)
 
 	var oshd := Shader.new()
-	oshd.code = "shader_type spatial;\nrender_mode cull_back,diffuse_burley,specular_schlick_ggx;\nuniform float ship_speed_offset=0.0;\nvarying float wave_h;\nvarying vec3 w_pos;\nvarying vec3 world_nrm;\nfloat hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}\nfloat noise(vec2 p){vec2 i=floor(p);vec2 f=fract(p);f=f*f*(3.0-2.0*f);return mix(mix(hash(i),hash(i+vec2(1.0,0.0)),f.x),mix(hash(i+vec2(0.0,1.0)),hash(i+vec2(1.0,1.0)),f.x),f.y);}\nfloat fbm(vec2 p){return noise(p)*0.55+noise(p*2.15+3.7)*0.28+noise(p*4.4-1.9)*0.17;}\nvoid vertex(){vec3 wp=(MODEL_MATRIX*vec4(VERTEX,1.0)).xyz;vec2 hull=abs(wp.xz)/vec2(23.5,58.0);
+		oshd.code = "shader_type spatial;\nrender_mode cull_back,diffuse_burley,specular_schlick_ggx;\nuniform float ship_speed_offset=0.0;\nvarying float wave_h;\nvarying vec3 w_pos;\nvarying vec3 world_nrm;\nfloat hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}\nfloat noise(vec2 p){vec2 i=floor(p);vec2 f=fract(p);f=f*f*(3.0-2.0*f);return mix(mix(hash(i),hash(i+vec2(1.0,0.0)),f.x),mix(hash(i+vec2(0.0,1.0)),hash(i+vec2(1.0,1.0)),f.x),f.y);}\nfloat fbm(vec2 p){return noise(p)*0.55+noise(p*2.15+3.7)*0.28+noise(p*4.4-1.9)*0.17;}\nvoid vertex(){vec3 wp=(MODEL_MATRIX*vec4(VERTEX,1.0)).xyz;vec2 hull=abs(wp.xz)/vec2(23.5,58.0);
 	_my_ocean_mat = ShaderMaterial.new()
 	_my_ocean_mat.shader = oshd
 	ocean.material_override = _my_ocean_mat
@@ -501,7 +501,7 @@ func _build_midnight_ocean_and_liner() -> void:
 	_my_liner.position = Vector3(175.0, -1.6, -75.0)
 	_my_liner.rotation_degrees = Vector3(0.0, -28.0, 0.0)
 	var liner_shd := Shader.new()
-	liner_shd.code = "shader_type spatial;\nrender_mode cull_back,diffuse_burley,specular_schlick_ggx;\nvarying vec3 w_p;\nvoid vertex(){w_p=(MODEL_MATRIXvec4(VERTEX,1.0)).xyz;}\nvoid fragment(){float deck_line=smoothstep(0.06,0.0,abs(fract(w_p.y0.32)-0.5));float win_z=step(0.30,fract(w_p.z0.34))step(fract(w_p.z0.34),0.74);float win_y=step(0.32,fract(w_p.y0.32))step(fract(w_p.y0.32),0.62);float is_win=win_zwin_y;vec3 steel=mix(vec3(0.78,0.82,0.88),vec3(0.25,0.30,0.38),deck_line0.7);ALBEDO=mix(steel,vec3(0.06,0.09,0.14),is_win);EMISSION=vec3(1.0,0.82,0.46)is_win3.8;ROUGHNESS=mix(0.38,0.08,is_win);METALLIC=0.22;}"
+		liner_shd.code = "shader_type spatial;\nrender_mode cull_back,diffuse_burley,specular_schlick_ggx;\nvarying vec3 w_p;\nvoid vertex(){w_p=(MODEL_MATRIXvec4(VERTEX,1.0)).xyz;}\nvoid fragment(){float deck_line=smoothstep(0.06,0.0,abs(fract(w_p.y0.32)-0.5));float win_z=step(0.30,fract(w_p.z0.34))step(fract(w_p.z0.34),0.74);float win_y=step(0.32,fract(w_p.y0.32))step(fract(w_p.y0.32),0.62);float is_win=win_zwin_y;vec3 steel=mix(vec3(0.78,0.82,0.88),vec3(0.25,0.30,0.38),deck_line0.7);ALBEDO=mix(steel,vec3(0.06,0.09,0.14),is_win);EMISSION=vec3(1.0,0.82,0.46)is_win3.8;ROUGHNESS=mix(0.38,0.08,is_win);METALLIC=0.22;}"
 	var lmat := ShaderMaterial.new()
 	lmat.shader = liner_shd
 	var navy_mat := StandardMaterial3D.new()
@@ -569,7 +569,7 @@ func get_lanes() -> Dictionary:
 			Vector3(0.0, 0.25, -5.0), Vector3(0.0, 0.25, 5.0),
 			Vector3(0.0, 0.25, 16.0), Vector3(0.0, 0.25, 28.0)
 		],
-		"right": [
+				"right": [
 			Vector3(13.8, 0.25, -28.0), Vector3(13.8, 0.25, -12.0),
 			Vector3(13.8, 0.25, 0.0), Vector3(13.8, 0.25, 12.0), Vector3(13.8, 0.25, 28.0)
 		]
