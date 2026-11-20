@@ -173,3 +173,23 @@ wind_strength={
 "type": "float",
 "value": 0.9
 }
+wind_dir={
+"type": "vec2",
+"value": Vector2(0.92, 0.38)
+}
+wind_strength={
+"type": "float",
+"value": 0.9
+}
+roof_mask_tex={
+"type": "sampler2D",
+"value": ""
+}
+roof_bounds={
+"type": "vec4",
+"value": Vector4(-85, -85, 170, 170)
+}
+rain_wetness={
+"type": "float",
+"value": 0.0
+}
