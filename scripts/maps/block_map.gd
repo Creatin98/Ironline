@@ -460,18 +460,7 @@ func _process(delta: float) -> void:
 			isl_node.position.y = -w1 * 0.65
 			isl_node.rotation_degrees = Vector3(-cos(_wind_time * 1.25) * 0.9, 0.0, -wave_force * 1.5)
 
-		# Wellenschlag an Backbord / Steuerbord -> weiche Gischt + Wasserlache auf dem Deck
-		var splash_side := 0.0
-		if absf(wave_force) > 0.78:
-			splash_side = signf(wave_force)
-			var spray := get_node_or_null("HarborBowSpray") as GPUParticles3D
-			if spray != null:
-				spray.position = Vector3(splash_side * 15.5, 0.2, randf_range(-22.0, 22.0))
-				spray.process_material.direction = Vector3(-splash_side * 0.85, 1.35, -0.35).normalized()
-				spray.emitting = true
 
-		_outdoors_blend = move_toward(_outdoors_blend, 0.45 if absf(wave_force) > 0.75 else 0.12, delta * 0.4)
-		RenderingServer.global_shader_parameter_set("rain_wetness", 0.0)
 		if _ocean_mat != null:
 			_ocean_mat.set_shader_parameter("ship_speed_offset", _wind_time * 6.5)
 		return
@@ -765,95 +754,6 @@ void fragment() {
 	_ocean_mat.shader = oshd
 	ocean.material_override = _ocean_mat
 	add_child(ocean)
-
-	# 2. Weiche, runde Gischt-Tröpfchen & Sprühnebel (KEINE weißen Quadrate mehr!)
-	var spray := GPUParticles3D.new()
-	spray.name = "HarborBowSpray"
-	spray.amount = 360
-	spray.lifetime = 0.95
-	spray.one_shot = false
-	spray.emitting = false
-	var smat := ParticleProcessMaterial.new()
-	smat.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_BOX
-	smat.emission_box_extents = Vector3(1.0, 0.4, 10.0)
-	smat.direction = Vector3(-0.85, 1.35, -0.35).normalized()
-	smat.spread = 24.0
-	smat.initial_velocity_min = 7.0
-	smat.initial_velocity_max = 13.0
-	smat.gravity = Vector3(0.0, -16.0, -4.0)
-	smat.scale_min = 0.35
-	smat.scale_max = 0.95
-	spray.process_material = smat
-
-	var sdrop := QuadMesh.new()
-	sdrop.size = Vector2(0.14, 0.14)
-	var sd_shd := Shader.new()
-	sd_shd.code = """
-shader_type spatial;
-render_mode blend_mix, depth_draw_never, cull_disabled, unshaded;
-void vertex() {
-	MODELVIEW_MATRIX = VIEW_MATRIX * mat4(INV_VIEW_MATRIX[0], INV_VIEW_MATRIX[1], INV_VIEW_MATRIX[2], MODEL_MATRIX[3]);
-}
-void fragment() {
-	float d = length(UV - 0.5) * 2.0;
-	float soft = smoothstep(1.0, 0.15, d);
-	if (soft <= 0.01) { discard; }
-	ALBEDO = vec3(0.86, 0.92, 0.96);
-	ALPHA = soft * 0.28;
-}
-"""
-	var sdmat := ShaderMaterial.new()
-	sdmat.shader = sd_shd
-	sdrop.material = sdmat
-	spray.draw_pass_1 = sdrop
-	add_child(spray)
-
-	# 3. Spiegelnde Meerwasser-Lache auf dem Deck (glänzt wie echtes Wasser & läuft wieder ab)
-	var wash := MeshInstance3D.new()
-	wash.name = "HarborDeckWash"
-	var wplane := PlaneMesh.new()
-	wplane.size = Vector2(32.0, 82.0)
-	wash.mesh = wplane
-	wash.position = Vector3(0.0, 0.025, 0.0)
-	var wshd := Shader.new()
-	wshd.code = """
-shader_type spatial;
-render_mode blend_mix, depth_draw_never, cull_back, diffuse_burley, specular_schlick_ggx;
-
-varying vec3 local_p;
-
-float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
-float noise(vec2 p) {
-	vec2 i = floor(p); vec2 f = fract(p);
-	f = f * f * (3.0 - 2.0 * f);
-	return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), f.x), mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), f.x), f.y);
-}
-float fbm(vec2 p) { return noise(p) * 0.65 + noise(p * 2.3 + 1.9) * 0.35; }
-
-void vertex() {
-	local_p = VERTEX;
-}
-
-void fragment() {
-	float surge = sin(TIME * 1.65 + local_p.z * 0.07);
-	float side_reach = max(0.0, abs(local_p.x) - 5.2 + surge * 4.8) / 10.5;
-	float flow = fbm(local_p.xz * 0.26 + vec2(surge * 0.4, TIME * 0.3));
-	float water_mask = smoothstep(0.45, 0.75, side_reach * flow * 1.6);
-	float foam_edge = smoothstep(0.45, 0.51, side_reach * flow * 1.6) * (1.0 - smoothstep(0.51, 0.60, side_reach * flow * 1.6));
-
-	if (water_mask <= 0.01) { discard; }
-	float rip = (noise(local_p.xz * 3.5 + TIME * 2.5) - 0.5) * 0.25;
-	NORMAL = normalize((VIEW_MATRIX * vec4(rip, 1.0, rip * 0.8, 0.0)).xyz);
-	ALBEDO = mix(vec3(0.04, 0.08, 0.12), vec3(0.85, 0.91, 0.95), foam_edge * 0.65);
-	ROUGHNESS = mix(0.03, 0.32, foam_edge);
-	SPECULAR = 0.95;
-	ALPHA = clamp(water_mask * 0.48, 0.0, 0.52);
-}
-"""
-	var wmat := ShaderMaterial.new()
-	wmat.shader = wshd
-	wash.material_override = wmat
-	add_child(wash)
 
 	# 4. Majestätische tropische Inseln am fernen Horizont
 	var islands := Node3D.new()
