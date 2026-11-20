@@ -229,36 +229,53 @@ func _build_curved_hull_ends(d: MapDetail) -> void:
 
 func _ready() -> void:
 	atmosphere_preset = "overcast_industrial"
-	_setup_superyacht_spawns()
 	super._ready()
 
-func _setup_superyacht_spawns() -> void:
-	var spawns: Array[Node3D] = []
-	for n in find_children("*", "Node3D", true, false):
-		if n.is_in_group("spawn_points") or n.get("team") != null or n.name.to_lower().contains("spawn"):
-			spawns.append(n)
 
-	var red_spots: Array[Vector3] = [
-		Vector3(-11.0, 0.5, -29.0), Vector3(-6.0, 0.5, -32.0), Vector3(0.0, 0.5, -34.0),
-		Vector3(6.0, 0.5, -32.0), Vector3(11.0, 0.5, -29.0), Vector3(-13.5, 0.5, -26.5),
-		Vector3(13.5, 0.5, -26.5), Vector3(0.0, 0.5, -28.0)
+func get_spawns() -> Array:
+	var s: Array = []
+	# Team Rot (Bug / Nord, Blick nach Süden: yaw = 180)
+	var red_pts := [
+		Vector3(-11.0, 0.1, -29.0), Vector3(-5.5, 0.1, -33.0), Vector3(0.0, 0.1, -35.0),
+		Vector3(5.5, 0.1, -33.0), Vector3(11.0, 0.1, -29.0), Vector3(-13.5, 0.1, -26.5),
+		Vector3(13.5, 0.1, -26.5), Vector3(0.0, 0.1, -28.0)
 	]
-	var blue_spots: Array[Vector3] = [
-		Vector3(-11.0, 0.5, 29.0), Vector3(-6.0, 0.5, 32.0), Vector3(0.0, 0.5, 34.0),
-		Vector3(6.0, 0.5, 32.0), Vector3(11.0, 0.5, 29.0), Vector3(-13.5, 0.5, 26.5),
-		Vector3(13.5, 0.5, 26.5), Vector3(0.0, 0.5, 28.0)
-	]
+	for p in red_pts:
+		s.append({"pos": p, "yaw": 180.0, "team": 0})
 
-	var red_i := 0
-	var blue_i := 0
-	for s in spawns:
-		var t = s.get("team")
-		var is_red := (t != null and int(t) == 0) or s.name.to_lower().contains("red") or (t == null and (red_i + blue_i) % 2 == 0)
-		if is_red:
-			s.position = red_spots[red_i % red_spots.size()]
-			s.rotation_degrees = Vector3(0.0, 180.0, 0.0)
-			red_i += 1
-		else:
-			s.position = blue_spots[blue_i % blue_spots.size()]
-			s.rotation_degrees = Vector3(0.0, 0.0, 0.0)
-			blue_i += 1
+	# Team Blau (Heck / Süd, Blick nach Norden: yaw = 0)
+	var blue_pts := [
+		Vector3(-11.0, 0.1, 29.0), Vector3(-5.5, 0.1, 33.0), Vector3(0.0, 0.1, 35.0),
+		Vector3(5.5, 0.1, 33.0), Vector3(11.0, 0.1, 29.0), Vector3(-13.5, 0.1, 26.5),
+		Vector3(13.5, 0.1, 26.5), Vector3(0.0, 0.1, 28.0)
+	]
+	for p in blue_pts:
+		s.append({"pos": p, "yaw": 0.0, "team": 1})
+	return s
+
+
+func get_lanes() -> Dictionary:
+	return {
+		"left": [
+			Vector3(-13.5, 0.1, -28.0), Vector3(-13.5, 0.1, -12.0),
+			Vector3(-13.5, 0.1, 0.0), Vector3(-13.5, 0.1, 12.0), Vector3(-13.5, 0.1, 28.0)
+		],
+		"mid": [
+			Vector3(0.0, 0.1, -28.0), Vector3(0.0, 0.1, -16.0),
+			Vector3(0.0, 0.1, -5.0), Vector3(0.0, 0.1, 5.0),
+			Vector3(0.0, 0.1, 16.0), Vector3(0.0, 0.1, 28.0)
+		],
+		"right": [
+			Vector3(13.5, 0.1, -28.0), Vector3(13.5, 0.1, -12.0),
+			Vector3(13.5, 0.1, 0.0), Vector3(13.5, 0.1, 12.0), Vector3(13.5, 0.1, 28.0)
+		]
+	}
+
+
+func get_cover_points() -> Array:
+	return [
+		Vector3(-4.6, 0.1, -4.8), Vector3(4.6, 0.1, 4.8),
+		Vector3(-13.5, 0.1, -12.0), Vector3(13.5, 0.1, 12.0),
+		Vector3(0.0, UPPER_Y + 0.1, -8.8), Vector3(0.0, UPPER_Y + 0.1, 8.8),
+		Vector3(-3.8, LOWER_Y + 0.1, -8.0), Vector3(3.8, LOWER_Y + 0.1, 8.0)
+	]
