@@ -3,6 +3,7 @@ render_mode blend_mix, depth_draw_opaque, cull_back, diffuse_burley, specular_sc
 
 global uniform sampler2D roof_mask_tex : filter_linear, repeat_disable;
 global uniform vec4 roof_bounds;
+global uniform float rain_wetness;
 
 uniform sampler2D albedo_texture : source_color, filter_linear_mipmap, repeat_enable;
 uniform sampler2D normal_texture : hint_normal, filter_linear_mipmap, repeat_enable;
