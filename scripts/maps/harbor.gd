@@ -22,6 +22,12 @@ var _my_liner: Node3D
 var _my_wash_mat: ShaderMaterial
 var _wash_l: float = 0.0
 var _wash_r: float = 0.0
+var _storm_rain: GPUParticles3D
+var _deck_splashes: GPUParticles3D
+var _visor_rain_mat: ShaderMaterial
+var _lightning_timer: float = 4.0
+var _wet_viewmodel_done: bool = false
+
 
 
 func _ready() -> void:
@@ -119,6 +125,45 @@ func _process(delta: float) -> void:
 	if _my_wash_mat != null:
 		_my_wash_mat.set_shader_parameter("wash_l", _wash_l)
 		_my_wash_mat.set_shader_parameter("wash_r", _wash_r)
+
+	# 3. Amazonas-Unwetter: Sturm-Regen, Visier-Tropfen, nasse Waffen & Wetterleuchten
+	var cam_s := get_viewport().get_camera_3d()
+	if cam_s != null:
+		if _storm_rain != null:
+			_storm_rain.global_position = cam_s.global_position + Vector3(6.0, 11.0, 5.0)
+		# Prüfen ob Spieler draußen im Sturm steht (nicht im Salon/Kapitänshaus)
+		var cp := cam_s.global_position
+		var indoors := (absf(cp.x) < 6.6 and absf(cp.z + 20.5) < 6.3 and cp.y < 4.8) or (absf(cp.x) < 6.6 and absf(cp.z - 20.5) < 6.1 and cp.y < 6.2)
+		if _visor_rain_mat != null:
+			var cur_w: float = _visor_rain_mat.get_shader_parameter("wetness")
+			var target_w := 0.12 if indoors else 1.0
+			_visor_rain_mat.set_shader_parameter("wetness", lerpf(cur_w, target_w, minf(1.0, delta * 2.5)))
+
+		# Waffen & Hände der Ego-Kamera einmalig mit nassem Hochglanz-Klarlack überziehen
+		if not _wet_viewmodel_done:
+			for mi in cam_s.find_children("*", "MeshInstance3D", true, false):
+				var wmat := mi.get_active_material(0)
+				if wmat is StandardMaterial3D:
+					var dup := wmat.duplicate() as StandardMaterial3D
+					dup.roughness = 0.10
+					dup.metallic = maxf(dup.metallic, 0.25)
+					dup.clearcoat = 0.92
+					dup.clearcoat_roughness = 0.05
+					mi.material_override = dup
+					_wet_viewmodel_done = true
+
+	# Wetterleuchten-Blitze hinter den Sturmwolken
+	_lightning_timer -= delta
+	var sun_l := get_node_or_null("DirectionalLight3D") as DirectionalLight3D
+	if sun_l != null:
+		if _lightning_timer <= 0.0:
+			sun_l.light_energy = 4.6
+			sun_l.light_color = Color(0.82, 0.90, 1.0)
+			if _lightning_timer < -0.14:
+				_lightning_timer = randf_range(5.5, 11.5)
+		else:
+			sun_l.light_energy = lerpf(sun_l.light_energy, 0.95, minf(1.0, delta * 12.0))
+
 
 func get_blocks() -> Array:
 	var b: Array = []
