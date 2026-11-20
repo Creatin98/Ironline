@@ -225,4 +225,4 @@ func _build_curved_hull_ends(d: MapDetail) -> void:
 	mat.roughness = 0.25
 	mat.metallic = 0.05
 	mi.material_override = mat
-	d.add_child(mi)
+	add_child(mi)
