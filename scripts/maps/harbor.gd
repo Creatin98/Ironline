@@ -542,6 +542,46 @@ void fragment() {
 		{"size": Vector3(22.0, 6.8, 175.0), "pos": Vector3(0.0, 1.8, 0.0), "mat": navy_mat},
 		{"size": Vector3(22.3, 0.6, 176.0), "pos": Vector3(0.0, 5.1, 0.0), "mat": red_accent},
 		{"size": Vector3(20.0, 4.4, 152.0), "pos": Vector3(0.0, 7.4, 2.0), "mat": lmat},
+		{"size": Vector3(17.2, 4.2, 126.0), "pos": Vector3(0.0, 11.4, 4.0), "mat": lmat},
+		{"size": Vector3(13.8, 3.6, 92.0), "pos": Vector3(0.0, 15.0, 2.0), "mat": lmat},
+		{"size": Vector3(16.5, 2.2, 14.0), "pos": Vector3(0.0, 16.5, -36.0), "mat": lmat},
+		{"size": Vector3(5.8, 7.2, 11.0), "pos": Vector3(0.0, 19.8, 24.0), "mat": navy_mat},
+		{"size": Vector3(6.0, 1.4, 11.2), "pos": Vector3(0.0, 21.8, 24.0), "mat": red_accent}
+	]
+	for t in tiers:
+		var m := MeshInstance3D.new()
+		var bm := BoxMesh.new()
+		bm.size = t["size"]
+		m.mesh = bm
+		m.material_override = t["mat"]
+		m.position = t["pos"]
+		liner.add_child(m)
+
+	var bow := MeshInstance3D.new()
+	var pm := PrismMesh.new()
+	pm.size = Vector3(22.0, 24.0, 7.2)
+	bow.mesh = pm
+	bow.material_override = navy_mat
+	bow.rotation_degrees = Vector3(-90.0, 0.0, 0.0)
+	bow.position = Vector3(0.0, 1.8, -99.5)
+	liner.add_child(bow)
+
+	for side in [-1.0, 1.0]:
+		var nav := MeshInstance3D.new()
+		var sm := SphereMesh.new()
+		sm.radius = 0.85
+		nav.mesh = sm
+		var nmat := StandardMaterial3D.new()
+		var ncol := Color(1.0, 0.12, 0.08) if side < 0.0 else Color(0.1, 1.0, 0.28)
+		nmat.albedo_color = ncol
+		nmat.emission_enabled = true
+		nmat.emission = ncol
+		nmat.emission_energy_multiplier = 6.0
+		nav.material_override = nmat
+		nav.position = Vector3(side * 9.5, 16.8, -36.0)
+		liner.add_child(nav)
+
+	env_root.add_child(liner)
 func get_spawns() -> Array:
 	var s: Array = []
 	var red_pts := [
