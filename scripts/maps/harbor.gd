@@ -125,28 +125,27 @@ func get_blocks() -> Array:
 	b.append(box(Vector3(0, STERN_Y - 0.25, 23.75), Vector3(34.6, 0.5, 28.5), "wood_planks", C_TEAK))
 	b.append(box(Vector3(0, -2.85, 0.0), Vector3(34.2, 2.8, 76.0), "ship_hull", C_GELCOAT))
 
-	# 2. Bündige Terrassen-Treppen LINKS & RECHTS (liegen komplett VOR den Deck-Kanten z = ±9.5, nichts darunter vergraben!)
-	# Nord-Absatz: Mitteldeck (0.0) -> Vordeck (+1.10) bei z = -9.5
-	b.append(box(Vector3(0.0, BOW_Y * 0.5, -9.5), Vector3(15.6, BOW_Y, 0.5), "ship_hull", C_GELCOAT))
-	for side in [-1.0, 1.0]:
-		var tx: float = side * 12.2
-		b.append(ramp(Vector3(tx, MID_Y, -5.8), Vector3(tx, BOW_Y + 0.02, -9.5), 8.8, "wood_planks", 0.35, C_TEAK))
-		for st_i in 6:
-			var t := float(st_i + 1) / 6.0
-			var h := t * BOW_Y
-			var sz := lerpf(-5.8, -9.15, t)
-			b.append(box(Vector3(tx, h * 0.5, sz), Vector3(8.8, h, 0.65), "wood_planks", C_TEAK))
+	# 2. Durchgehende Luxusyacht-Freitreppen über ALLE 3 LANES (Left, Mid & Right, x = -17 bis +17!)
+	# Nord-Absatz: Mitteldeck (0.0) -> Vordeck (+1.10) bei z = -9.5 (6 bündige Stufen + durchgehende Lauf-Rampe)
+	b.append(ramp(Vector3(0.0, MID_Y, -5.8), Vector3(0.0, BOW_Y + 0.02, -9.5), 34.0, "wood_planks", 0.35, C_TEAK))
+	for st_i in 6:
+		var t := float(st_i + 1) / 6.0
+		var h := t * BOW_Y
+		var sz := lerpf(-5.8, -9.15, t)
+		b.append(box(Vector3(0.0, h * 0.5, sz), Vector3(34.0, h, 0.65), "wood_planks", C_TEAK))
+	# Zwei schmale weiße Design-Wangen als elegante Teilung zwischen Mid-Lane und Seiten-Lanes
+	for wx in [-7.6, 7.6]:
+		b.append(box(Vector3(wx, BOW_Y * 0.5 + 0.15, -7.6), Vector3(0.45, BOW_Y + 0.3, 3.8), "ship_hull", C_GELCOAT))
 
-	# Süd-Absatz: Achterdeck (-1.10) -> Mitteldeck (0.0) bei z = +9.5 (liegen komplett VOR z = +9.5 auf dem Achterdeck!)
-	b.append(box(Vector3(0.0, STERN_Y + 0.55, 9.5), Vector3(15.6, 1.1, 0.5), "ship_hull", C_GELCOAT))
-	for side in [-1.0, 1.0]:
-		var tx: float = side * 12.2
-		b.append(ramp(Vector3(tx, STERN_Y, 13.2), Vector3(tx, MID_Y + 0.02, 9.5), 8.8, "wood_planks", 0.35, C_TEAK))
-		for st_i in 6:
-			var t := float(st_i + 1) / 6.0
-			var h := t * 1.10
-			var sz := lerpf(13.2, 9.85, t)
-			b.append(box(Vector3(tx, STERN_Y + h * 0.5, sz), Vector3(8.8, h, 0.65), "wood_planks", C_TEAK))
+	# Süd-Absatz: Achterdeck (-1.10) -> Mitteldeck (0.0) bei z = +9.5 (6 bündige Stufen + durchgehende Lauf-Rampe)
+	b.append(ramp(Vector3(0.0, STERN_Y, 13.2), Vector3(0.0, MID_Y + 0.02, 9.5), 34.0, "wood_planks", 0.35, C_TEAK))
+	for st_i in 6:
+		var t := float(st_i + 1) / 6.0
+		var h := t * 1.10
+		var sz := lerpf(13.2, 9.85, t)
+		b.append(box(Vector3(0.0, STERN_Y + h * 0.5, sz), Vector3(34.0, h, 0.65), "wood_planks", C_TEAK))
+	for wx in [-7.6, 7.6]:
+		b.append(box(Vector3(wx, STERN_Y + 0.7, 11.4), Vector3(0.45, 1.4, 3.8), "ship_hull", C_GELCOAT))
 
 	# 3. Schanzkleid, Barrieren & Pools
 	for side in [-1.0, 1.0]:
