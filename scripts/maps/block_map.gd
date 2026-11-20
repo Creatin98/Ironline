@@ -472,10 +472,10 @@ func _upgrade_cinematic_lighting() -> void:
 	env.fog_mode = Environment.FOG_MODE_DEPTH
 	env.fog_light_color = Color(0.44, 0.38, 0.37)
 	env.fog_light_energy = 1.0
-	env.fog_sun_scatter = 0.18
-	env.fog_density = 0.62
-	env.fog_depth_begin = 14.0
-	env.fog_depth_end = 90.0
+	env.fog_sun_scatter = 0.05
+	env.fog_density = 0.45
+	env.fog_depth_begin = 26.0
+	env.fog_depth_end = 135.0
 	env.fog_height = 3.5
 	env.fog_height_density = 0.015
 
@@ -499,6 +499,17 @@ func _upgrade_cinematic_lighting() -> void:
 func _spawn_rain_particles() -> void:
 	if has_node("RainParticles"):
 		get_node("RainParticles").queue_free()
+	if has_node("RainRoofCollider"):
+		get_node("RainRoofCollider").queue_free()
+
+	var col := GPUParticlesCollisionHeightField3D.new()
+	col.name = "RainRoofCollider"
+	col.size = Vector3(160.0, 45.0, 160.0)
+	col.position = Vector3(0.0, 16.0, 0.0)
+	col.resolution = GPUParticlesCollisionHeightField3D.RESOLUTION_1024
+	col.update_mode = GPUParticlesCollisionHeightField3D.UPDATE_MODE_WHEN_MOVED
+	add_child(col)
+
 	var rain := GPUParticles3D.new()
 	rain.name = "RainParticles"
 	rain.amount = 2800
@@ -515,6 +526,7 @@ func _spawn_rain_particles() -> void:
 	_rain_mat.initial_velocity_min = 24.0
 	_rain_mat.initial_velocity_max = 32.0
 	_rain_mat.gravity = Vector3(5.5, -15.0, 2.2)
+	_rain_mat.collision_mode = ParticleProcessMaterial.COLLISION_HIDE_ON_CONTACT
 	rain.process_material = _rain_mat
 
 	var drop := QuadMesh.new()
