@@ -595,17 +595,17 @@ func _build_midnight_ocean_and_liner() -> void:
 	add_child(_my_spray)
 
 	var wash_shd := Shader.new()
-	wash_shd.code = "shader_type spatial;\nrender_mode blend_mix,depth_draw_never,cull_back,diffuse_burley,specular_schlick_ggx;\nuniform float wash_l=0.0;\nuniform float wash_r=0.0;\nvarying vec3 w_p;\nfloat hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}\nfloat noise(vec2 p){vec2 i=floor(p);vec2 f=fract(p);f=f*f*(3.0-2.0*f);return mix(mix(hash(i),hash(i+vec2(1.0,0.0)),f.x),mix(hash(i+vec2(0.0,1.0)),hash(i+vec2(1.0,1.0)),f.x),f.y);}\nfloat fbm(vec2 p){return noise(p)*0.55+noise(p*2.1+3.1)*0.30+noise(p*4.3-1.7)*0.15;}\nvoid vertex(){w_p=(MODEL_MATRIX*vec4(VERTEX,1.0)).xyz;}\nvoid fragment(){float surge=w_p.x<0.0?wash_l:wash_r;float edge_dist=clamp((17.0-abs(w_p.x))/7.5,0.0,1.0);float organic=fbm(w_p.xz*vec2(0.28,0.16)+vec2(0.0,TIME*0.45));float puddle_mask=smoothstep(0.46,0.62,organic+(1.0-edge_dist)*surge*0.55);float border_fade=smoothstep(1.0,0.65,edge_dist);float water_alpha=puddle_mask*border_fade;float foam_rim=smoothstep(0.08,0.0,abs((organic+(1.0-edge_dist)*surge*0.55)-0.50))*surge*border_fade;vec2 rip=w_p.xz*2.2+vec2(TIME*0.4,-TIME*0.3);float r0=fbm(rip);float rx=fbm(rip+vec2(0.08,0.0));float rz=fbm(rip+vec2(0.0,0.08));NORMAL=normalize(NORMAL+(VIEW_MATRIX*vec4((r0-rx)*1.4,0.0,(r0-rz)*1.4,0.0)).xyz);ALBEDO=mix(vec3(0.04,0.12,0.20),vec3(0.86,0.94,1.0),foam_rim*0.85);ALPHA=clamp(water_alpha*0.62+foam_rim*0.55,0.0,0.82);ROUGHNESS=0.015;METALLIC=0.25;SPECULAR=1.0;}"
+	wash_shd.code = "shader_type spatial;\nrender_mode blend_mix,depth_draw_never,cull_back,diffuse_burley,specular_schlick_ggx;\nuniform float wash_l=0.0;\nuniform float wash_r=0.0;\nvarying vec3 w_p;\nvarying vec2 v_uv;\nfloat hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}\nfloat noise(vec2 p){vec2 i=floor(p);vec2 f=fract(p);f=f*f*(3.0-2.0*f);return mix(mix(hash(i),hash(i+vec2(1.0,0.0)),f.x),mix(hash(i+vec2(0.0,1.0)),hash(i+vec2(1.0,1.0)),f.x),f.y);}\nfloat fbm(vec2 p){return noise(p)*0.55+noise(p*2.15+3.1)*0.30+noise(p*4.4-1.7)*0.15;}\nvoid vertex(){w_p=(MODEL_MATRIX*vec4(VERTEX,1.0)).xyz;v_uv=UV;}\nvoid fragment(){\n\tfloat surge = w_p.x < 0.0 ? wash_l : wash_r;\n\tfloat rail_side = w_p.x < 0.0 ? v_uv.x : (1.0 - v_uv.x);\n\tfloat fade_inward = smoothstep(0.95, 0.25, rail_side);\n\tfloat fade_ends = smoothstep(0.0, 0.14, v_uv.y) * smoothstep(1.0, 0.86, v_uv.y);\n\tfloat organic = fbm(w_p.xz * vec2(0.32, 0.18) + vec2(0.0, TIME * 0.35));\n\tfloat puddle = smoothstep(0.48, 0.68, organic + (1.0 - rail_side) * surge * 0.45);\n\tfloat mask = puddle * fade_inward * fade_ends;\n\tvec2 rip = w_p.xz * 2.8 + vec2(TIME * 0.45, -TIME * 0.32);\n\tfloat r0 = fbm(rip); float rx = fbm(rip + vec2(0.06, 0.0)); float rz = fbm(rip + vec2(0.0, 0.06));\n\tNORMAL = normalize(NORMAL + (VIEW_MATRIX * vec4((r0-rx)*1.8, 0.0, (r0-rz)*1.8, 0.0)).xyz);\n\tALBEDO = vec3(0.01, 0.03, 0.06);\n\tALPHA = clamp(mask * 0.38, 0.0, 0.42);\n\tROUGHNESS = 0.02;\n\tMETALLIC = 0.15;\n\tSPECULAR = 1.0;\n}"
 	_my_wash_mat = ShaderMaterial.new()
 	_my_wash_mat.shader = wash_shd
 
 	var deck_zones := [
-		{"pos": Vector3(-11.8, 1.115, -24.0), "size": Vector2(10.2, 27.5)},
-		{"pos": Vector3(11.8, 1.115, -24.0), "size": Vector2(10.2, 27.5)},
-		{"pos": Vector3(-11.8, 0.015, 0.0), "size": Vector2(10.2, 18.5)},
-		{"pos": Vector3(11.8, 0.015, 0.0), "size": Vector2(10.2, 18.5)},
-		{"pos": Vector3(-11.8, -1.085, 24.0), "size": Vector2(10.2, 27.5)},
-		{"pos": Vector3(11.8, -1.085, 24.0), "size": Vector2(10.2, 27.5)}
+		{"pos": Vector3(-12.2, 1.112, -23.8), "size": Vector2(10.0, 27.0)},
+		{"pos": Vector3(12.2, 1.112, -23.8), "size": Vector2(10.0, 27.0)},
+		{"pos": Vector3(-12.2, 0.012, 0.0), "size": Vector2(10.0, 17.5)},
+		{"pos": Vector3(12.2, 0.012, 0.0), "size": Vector2(10.0, 17.5)},
+		{"pos": Vector3(-12.2, -1.088, 23.8), "size": Vector2(10.0, 27.0)},
+		{"pos": Vector3(12.2, -1.088, 23.8), "size": Vector2(10.0, 27.0)}
 	]
 	for dz in deck_zones:
 		var wmi := MeshInstance3D.new()
