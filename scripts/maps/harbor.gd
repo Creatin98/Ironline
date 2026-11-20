@@ -330,71 +330,154 @@ func _build_scenic_coast_and_liner() -> void:
 	env_root.name = "ScenicCoastAndLiner"
 	add_child(env_root)
 
+	var m_shd := Shader.new()
+	m_shd.code = """
+shader_type spatial;
+render_mode cull_back, diffuse_burley, specular_schlick_ggx;
+
+varying vec3 w_pos;
+
+float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123); }
+float noise(vec2 p) {
+	vec2 i = floor(p); vec2 f = fract(p);
+	f = f * f * (3.0 - 2.0 * f);
+	return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), f.x), mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), f.x), f.y);
+}
+float fbm(vec2 p) {
+	float v = 0.0; float a = 0.5;
+	for (int i = 0; i < 5; i++) {
+		v += a * noise(p);
+		p = p * 2.07 + vec2(1.7, 9.2);
+		a *= 0.5;
+	}
+	return v;
+}
+
+void vertex() {
+	w_pos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
+}
+
+void fragment() {
+	float eps = 0.85;
+	float h0 = fbm(w_pos.xz * 0.055 + w_pos.y * 0.03);
+	float hx = fbm((w_pos.xz + vec2(eps, 0.0)) * 0.055 + w_pos.y * 0.03);
+	float hz = fbm((w_pos.xz + vec2(0.0, eps)) * 0.055 + w_pos.y * 0.03);
+	vec3 detail_nrm = normalize(vec3((h0 - hx) * 3.0, 1.0, (h0 - hz) * 3.0));
+	NORMAL = normalize(mix(NORMAL, (VIEW_MATRIX * vec4(detail_nrm, 0.0)).xyz, 0.7));
+
+	vec3 world_n = normalize((INV_VIEW_MATRIX * vec4(NORMAL, 0.0)).xyz);
+	float slope = 1.0 - clamp(world_n.y, 0.0, 1.0);
+	float n_macro = fbm(w_pos.xz * 0.024);
+	float n_micro = fbm(w_pos.xz * 0.18 + w_pos.y * 0.12);
+	float h_var = w_pos.y + (n_macro - 0.5) * 28.0 + (n_micro - 0.5) * 8.0;
+
+	vec3 forest_col = mix(vec3(0.04, 0.12, 0.06), vec3(0.10, 0.22, 0.10), n_micro);
+	vec3 rock_col = mix(vec3(0.14, 0.16, 0.19), vec3(0.28, 0.30, 0.34), smoothstep(0.3, 0.8, n_micro));
+	vec3 snow_col = vec3(0.84, 0.88, 0.93);
+
+	float rock_mask = clamp(smoothstep(16.0, 46.0, h_var) + smoothstep(0.30, 0.56, slope) * 0.8, 0.0, 1.0);
+	float snow_mask = smoothstep(66.0, 92.0, h_var) * (1.0 - smoothstep(0.45, 0.72, slope) * 0.65);
+
+	vec3 col = mix(forest_col, rock_col, rock_mask);
+	col = mix(col, snow_col, snow_mask);
+	float shore_mist = 1.0 - smoothstep(-4.0, 15.0, w_pos.y);
+	col = mix(col, vec3(0.38, 0.45, 0.52), shore_mist * 0.45 + 0.26);
+
+	ALBEDO = col;
+	ROUGHNESS = mix(0.88, 0.45, snow_mask);
+	SPECULAR = 0.25;
+}
+"""
+	var m_mat := ShaderMaterial.new()
+	m_mat.shader = m_shd
+
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 202606
-	for i in 14:
-		var ang := lerpf(-2.4, -0.7, float(i) / 13.0) if i < 7 else lerpf(0.7, 2.4, float(i - 7) / 6.0)
-		var dist := rng.randf_range(210.0, 290.0)
-		var m_pos := Vector3(cos(ang) * dist, -5.0, sin(ang) * dist)
+	for i in 16:
+		var ang := lerpf(-2.6, -0.5, float(i) / 15.0) if i < 8 else lerpf(0.5, 2.6, float(i - 8) / 7.0)
+		var dist := rng.randf_range(235.0, 325.0)
+		var m_pos := Vector3(cos(ang) * dist, -6.0, sin(ang) * dist)
 		var st := SurfaceTool.new()
 		st.begin(Mesh.PRIMITIVE_TRIANGLES)
-		var rad := rng.randf_range(48.0, 82.0)
-		var h := rng.randf_range(55.0, 115.0)
-		var rings := 10
-		var segs := 20
+		var rad := rng.randf_range(68.0, 118.0)
+		var h := rng.randf_range(58.0, 128.0)
+		var rings := 18
+		var segs := 32
+		var p1 := rng.randf() * TAU
+		var p2 := rng.randf() * TAU
 		for r in rings:
 			var v0 := float(r) / float(rings)
 			var v1 := float(r + 1) / float(rings)
 			for s in segs:
 				var a0 := TAU * float(s) / float(segs)
 				var a1 := TAU * float(s + 1) / float(segs)
-				var pts := []
-				for pair in [[v0, a0], [v0, a1], [v1, a1], [v1, a0]]:
-					var vv: float = pair[0]
-					var aa: float = pair[1]
-					var ridge := 1.0 + 0.25 * sin(aa * 5.0 + float(i)) * (1.0 - vv * 0.4) + 0.14 * cos(aa * 9.0)
-					var rr := rad * (1.0 - vv) * ridge
-					var col := Color(0.08, 0.22, 0.12).lerp(Color(0.28, 0.30, 0.33), smoothstep(0.45, 0.78, vv))
-					col = col.lerp(Color(0.88, 0.91, 0.95), smoothstep(0.82, 0.98, vv))
-					st.set_color(col)
-					pts.append(Vector3(cos(aa) * rr, vv * h, sin(aa) * rr))
-				st.add_vertex(pts[0]); st.add_vertex(pts[1]); st.add_vertex(pts[2])
-				st.add_vertex(pts[0]); st.add_vertex(pts[2]); st.add_vertex(pts[3])
+				var pts: Array[Vector3] = []
+				for idx in 4:
+					var vv := v0 if (idx == 0 or idx == 1) else v1
+					var aa := a0 if (idx == 0 or idx == 3) else a1
+					var ridge := 1.0 \
+						+ 0.35 * sin(aa * 3.0 + p1) * (1.0 - vv * 0.35) \
+						+ 0.21 * cos(aa * 5.0 + p2 + vv * 2.5) \
+						+ 0.12 * sin(aa * 9.0 - vv * 4.0)
+					var rr := rad * pow(1.0 - vv, 1.25) * ridge
+					var yy := vv * h * (1.0 + 0.12 * sin(aa * 2.0 + p1) * vv)
+					pts.append(Vector3(cos(aa) * rr, yy, sin(aa) * rr))
+				st.add_vertex(pts.front())
+				st.add_vertex(pts.get(1))
+				st.add_vertex(pts.get(2))
+				st.add_vertex(pts.front())
+				st.add_vertex(pts.get(2))
+				st.add_vertex(pts.back())
 		st.generate_normals()
 		var mi := MeshInstance3D.new()
 		mi.mesh = st.commit()
-		var mmat := StandardMaterial3D.new()
-		mmat.vertex_color_use_as_albedo = true
-		mmat.roughness = 0.92
-		mi.material_override = mmat
+		mi.material_override = m_mat
 		mi.position = m_pos
 		env_root.add_child(mi)
 
+	# Mehrstöckiger Ozeanriese am Horizont (Rumpf, Promenadendecks, Schornstein & beleuchtete Fensterreihen)
 	var liner := Node3D.new()
 	liner.name = "DistantCruiseLiner"
-	liner.position = Vector3(-135.0, -2.5, -45.0)
-	liner.rotation_degrees = Vector3(0.0, 18.0, 0.0)
-	var hull_box := MeshInstance3D.new()
-	var hb := BoxMesh.new()
-	hb.size = Vector3(22.0, 12.0, 145.0)
-	hull_box.mesh = hb
+	liner.position = Vector3(-165.0, -3.2, -55.0)
+	liner.rotation_degrees = Vector3(0.0, 22.0, 0.0)
+
 	var lmat := StandardMaterial3D.new()
 	lmat.albedo_color = Color(0.92, 0.94, 0.97)
-	hull_box.material_override = lmat
-	hull_box.position = Vector3(0, 4.0, 0)
-	liner.add_child(hull_box)
-	for deck in [5.5, 8.2, 10.8]:
+	lmat.roughness = 0.35
+
+	var navy_mat := StandardMaterial3D.new()
+	navy_mat.albedo_color = Color(0.06, 0.12, 0.22)
+	navy_mat.roughness = 0.35
+
+	var emat := StandardMaterial3D.new()
+	emat.albedo_color = Color(1.0, 0.88, 0.62)
+	emat.emission_enabled = true
+	emat.emission = Color(1.0, 0.85, 0.55)
+	emat.emission_energy_multiplier = 2.6
+
+	var tiers := [
+		{"size": Vector3(20.0, 6.5, 165.0), "pos": Vector3(0.0, 2.0, 0.0), "mat": navy_mat},
+		{"size": Vector3(18.5, 4.2, 145.0), "pos": Vector3(0.0, 7.2, 2.0), "mat": lmat},
+		{"size": Vector3(15.5, 3.8, 118.0), "pos": Vector3(0.0, 11.0, 4.0), "mat": lmat},
+		{"size": Vector3(12.0, 3.2, 82.0), "pos": Vector3(0.0, 14.4, 2.0), "mat": lmat},
+		{"size": Vector3(5.5, 6.5, 10.0), "pos": Vector3(0.0, 18.8, 22.0), "mat": navy_mat}
+	]
+	for t in tiers:
+		var m := MeshInstance3D.new()
+		var bm := BoxMesh.new()
+		bm.size = t["size"]
+		m.mesh = bm
+		m.material_override = t["mat"]
+		m.position = t["pos"]
+		liner.add_child(m)
+
+	for deck in [6.8, 10.6, 14.0]:
 		var strip := MeshInstance3D.new()
 		var sm := BoxMesh.new()
-		sm.size = Vector3(22.4, 0.55, 130.0)
+		sm.size = Vector3(18.8, 0.45, 112.0)
 		strip.mesh = sm
-		var emat := StandardMaterial3D.new()
-		emat.albedo_color = Color(1.0, 0.88, 0.62)
-		emat.emission_enabled = true
-		emat.emission = Color(1.0, 0.85, 0.55)
-		emat.emission_energy_multiplier = 2.4
 		strip.material_override = emat
-		strip.position = Vector3(0, deck, 0)
+		strip.position = Vector3(0.0, deck, 3.0)
 		liner.add_child(strip)
 	env_root.add_child(liner)
 
