@@ -19,6 +19,9 @@ var _my_time: float = 0.0
 var _my_ocean_mat: ShaderMaterial
 var _my_spray: GPUParticles3D
 var _my_liner: Node3D
+var _my_wash_mat: ShaderMaterial
+var _wash_l: float = 0.0
+var _wash_r: float = 0.0
 
 
 func _ready() -> void:
