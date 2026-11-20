@@ -414,6 +414,7 @@ func _on_kill_zone_entered(body: Node3D) -> void:
 @export_enum("clear_day", "overcast_industrial", "tropical_storm") var atmosphere_preset: String = "clear_day"
 var _sun_light: DirectionalLight3D
 var _sky_mat: ShaderMaterial
+var _ocean_mat: ShaderMaterial
 var _lightning_flash: ColorRect
 var _lens_rain_rect: ColorRect
 var _lens_rain_mat: ShaderMaterial
@@ -436,22 +437,43 @@ func _process(delta: float) -> void:
 	RenderingServer.global_shader_parameter_set("wind_dir", _wind_dir)
 	RenderingServer.global_shader_parameter_set("wind_strength", gust)
 
-# 2. Harbor: Schiff arbeitet dynamisch gegen schwere Wellen (ohne Regen!)
+# 2. Harbor: Schiff fährt durch schwere Dünung, Wellen knallen gegen den Rumpf & schwappen aufs Deck!
 	if is_harbor:
-		RenderingServer.global_shader_parameter_set("rain_wetness", 0.0)
 		if _lens_rain_mat != null:
 			_lens_rain_mat.set_shader_parameter("intensity", 0.0)
 		if _lightning_flash != null:
 			_lightning_flash.color.a = 0.0
-		var roll := sin(_wind_time * 0.95) * 0.95 + sin(_wind_time * 1.85) * 0.35
-		var pitch := cos(_wind_time * 0.72) * 0.65 + sin(_wind_time * 1.45) * 0.25
-		var heave := sin(_wind_time * 1.15) * 0.14
+
+		# Dieselbe Wellen-Mathematik wie im Ozean-Shader -> Schiff reagiert physikalisch exakt auf jede Welle!
+		var w1 := sin(_wind_time * 1.65)
+		var w2 := sin(_wind_time * 2.75 + 1.1)
+		var wave_force := w1 * 0.7 + w2 * 0.3
+
+		# Gezieltes Rollen & Stampfen passend zur Wellenrichtung (ohne Kollisionen zu verschieben!)
+		var roll := wave_force * 1.15
+		var pitch := cos(_wind_time * 1.25) * 0.75 + sin(_wind_time * 2.1) * 0.25
+		var heave := w1 * 0.16
 		for child in get_children():
-			if child is Node3D and child.name != "HarborStormOcean" and not (child is DirectionalLight3D):
-				# Nur visuelle Meshes/Details sanft mitneigen, Kollisionen bleiben exakt!
-				if child == geometry_root or child.name.contains("Detail") or child.name.contains("Prop") or child.name.contains("Vegetation"):
-					child.rotation_degrees = Vector3(pitch, 0.0, roll)
-					child.position.y = heave
+			if child is Node3D and not child.name.begins_with("Harbor") and not (child is DirectionalLight3D) and not (child is WorldEnvironment):
+				child.rotation_degrees = Vector3(pitch, 0.0, roll)
+				child.position.y = heave
+
+		# Wenn eine schwere Welle gegen Backbord oder Steuerbord schlägt -> Gischt-Fontäne + Deck-Nässe!
+		var splash_side := 0.0
+		if absf(wave_force) > 0.78:
+			splash_side = signf(wave_force) # +1 = Steuerbord, -1 = Backbord
+			var spray := get_node_or_null("HarborBowSpray") as GPUParticles3D
+			if spray != null:
+				spray.position = Vector3(splash_side * 15.5, 0.2, randf_range(-22.0, 22.0))
+				spray.process_material.direction = Vector3(-splash_side * 0.85, 1.35, -0.35).normalized()
+				spray.emitting = true
+
+		# Deck-Nässe (rain_wetness) pulsiert leicht durch übergeschwapptes Meerwasser (ohne Regentropfen!)
+		_outdoors_blend = move_toward(_outdoors_blend, 0.45 if absf(wave_force) > 0.75 else 0.12, delta * 0.4)
+		RenderingServer.global_shader_parameter_set("rain_wetness", 0.0)
+		if _ocean_mat != null:
+			_ocean_mat.set_shader_parameter("ship_speed_offset", _wind_time * 6.5)
+			_ocean_mat.set_shader_parameter("deck_splash", Vector2(splash_side, _outdoors_blend))
 		return
 
 	# 3. Trockene Maps ohne Sturm
