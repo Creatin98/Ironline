@@ -66,6 +66,11 @@ func _process(delta: float) -> void:
 			_my_spray.emitting = true
 		else:
 			_my_spray.emitting = false
+	for body in get_tree().get_nodes_in_group("players"):
+		if body is CharacterBody3D:
+			var bp: Vector3 = body.global_position
+			if absf(bp.x) < 0.85 and (absf(bp.z + 8.55) < 0.75 or absf(bp.z - 8.55) < 0.75) and bp.y < 0.25:
+				body.velocity.y = 5.8
 
 
 func get_blocks() -> Array:
@@ -300,6 +305,15 @@ func build_detail(d: MapDetail) -> void:
 	for lx in [-1.6, 1.6]:
 		d.rail(Vector3(lx, 0.0, -8.9), Vector3(lx, 0.0, -5.6), 0.85)
 		d.rail(Vector3(lx, 0.0, 5.6), Vector3(lx, 0.0, 8.9), 0.85)
+	# Zwei CS-Steigleitern in den Nord- & Süd-Luken
+	for l_info in [{"z": -8.72, "dir": 1.0}, {"z": 8.72, "dir": -1.0}]:
+		var lz: float = l_info["z"]
+		for hx in [-0.42, 0.42]:
+			d.add_cylinder(Vector3(hx, LOWER_Y + 1.85, lz), 0.04, 3.7, "metal_panel", C_CHROME)
+		for step_i in 11:
+			var sy := LOWER_Y + 0.32 + float(step_i) * 0.31
+			d.add_cylinder(Vector3(0.0, sy, lz), 0.03, 0.84, "metal_panel", C_CHROME, Basis(Vector3.BACK, PI * 0.5))
+
 
 	# Warmgoldenes Salon- & Cockpit-Licht + heller Maschinenraum-Keller mit LED-Streifen
 	d.lamp(Vector3(0, 3.0, -16.0), Color(1.0, 0.76, 0.36), 2.4, 16.0)
