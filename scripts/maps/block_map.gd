@@ -704,7 +704,7 @@ float fbm(vec2 p) {
 
 void vertex() {
 	vec3 wp = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
-	vec2 hull = abs(wp.xz) / vec2(19.5, 48.0);
+	vec2 hull = abs(wp.xz) / vec2(19.5, 52.0);
 	float hull_dist = max(hull.x, hull.y);
 	float damp = smoothstep(0.82, 1.28, hull_dist);
 	float bow_wake = exp(-abs(hull_dist - 1.15) * 4.5) * 0.65;
