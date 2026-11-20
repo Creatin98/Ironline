@@ -1,4 +1,4 @@
-varclass_name BlockMap
+class_name BlockMap
 extends Node3D
 ## Base class for maps built from block descriptions. Subclasses return a list of
 ## block dictionaries from get_blocks() and spawn descriptions from get_spawns();
