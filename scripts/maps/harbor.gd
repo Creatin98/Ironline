@@ -251,7 +251,7 @@ func build_detail(d: MapDetail) -> void:
 	var mast := Vector3(0.0, UPPER_Y, -16.0)
 	d.add_box(mast + Vector3(0, 0.25, 0), Vector3(2.0, 0.5, 2.0), "metal_panel", C_DARK)
 	d.add_cylinder(mast + Vector3(0, 3.8, 0), 0.30, 7.6, "metal_panel", C_DARK)
-d.add_cylinder(mast + Vector3(0, 8.2, 0), 0.12, 2.2, "metal_panel", C_CHROME)
+	d.add_cylinder(mast + Vector3(0, 8.2, 0), 0.12, 2.2, "metal_panel", C_CHROME)
 	d.glow(mast + Vector3(0, 9.4, 0), Color(1.0, 0.12, 0.08), 1.4)
 	d.add_box(mast + Vector3(0, 4.5, 0), Vector3(4.4, 0.16, 0.5), "metal_panel", C_DARK)
 	d.add_cylinder(mast + Vector3(-1.3, 4.85, 0), 0.78, 0.48, "ship_hull", C_GELCOAT)
