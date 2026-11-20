@@ -78,24 +78,29 @@ func get_blocks() -> Array:
 	b.append(box(Vector3(-13.9, -0.25, 0), Vector3(6.8, 0.5, 14.0), "wood_planks", C_TEAK))
 	b.append(box(Vector3(13.9, -0.25, 0), Vector3(6.8, 0.5, 14.0), "wood_planks", C_TEAK))
 
-	# 2. Heller Maschinenraum-Keller (y = -3.4)
-	b.append(box(Vector3(0, LOWER_Y - 0.35, 0), Vector3(25.0, 0.7, 54.0), "metal_panel", Color(0.28, 0.32, 0.38)))
-	b.append(box(Vector3(-12.2, LOWER_Y + 1.7, 0), Vector3(0.6, 3.6, 54.0), "ship_hull", C_GELCOAT))
-	b.append(box(Vector3(12.2, LOWER_Y + 1.7, 0), Vector3(0.6, 3.6, 54.0), "ship_hull", C_GELCOAT))
-	b.append(box(Vector3(0, LOWER_Y + 1.7, -26.8), Vector3(25.0, 3.6, 0.6), "ship_hull", C_GELCOAT))
-	b.append(box(Vector3(0, LOWER_Y + 1.7, 26.8), Vector3(25.0, 3.6, 0.6), "ship_hull", C_GELCOAT))
-	for z in [-13.5, 13.5]:
-		for side in [-1.0, 1.0]:
-			var ex: float = side * 4.4
-			b.append(box(Vector3(ex, LOWER_Y + 0.85, z), Vector3(2.2, 1.7, 5.4), "metal_panel", C_NAVY))
-			b.append(box(Vector3(ex, LOWER_Y + 1.85, z), Vector3(1.5, 0.35, 4.8), "metal_panel", C_CHROME))
-			for cz in [-1.6, 0.0, 1.6]:
-				b.append(cylinder(Vector3(ex - 0.45, LOWER_Y + 2.35, z + cz), 0.36, 1.1, "metal_panel", C_BRASS))
-				b.append(cylinder(Vector3(ex + 0.45, LOWER_Y + 2.35, z + cz), 0.36, 1.1, "metal_panel", C_CHROME))
-	b.append(box(Vector3(0, LOWER_Y + 0.6, 0), Vector3(3.8, 1.2, 1.8), "metal_panel", C_DARK))
-	b.append(box(Vector3(0, LOWER_Y + 1.25, 0), Vector3(4.0, 0.1, 2.0), "metal_panel", C_CHROME))
-	b.append(ramp(Vector3(-8.6, DECK_Y, -6.2), Vector3(-8.6, LOWER_Y, 3.8), 3.6, "wood_planks", 0.3, C_TEAK))
-	b.append(ramp(Vector3(8.6, DECK_Y, 6.2), Vector3(8.6, LOWER_Y, -3.8), 3.6, "wood_planks", 0.3, C_TEAK))
+	# 2. Unterdeck-Schiffsgang (CS-Style mit Decksluken & Steigleitern, oben geschlossenes Mitteldeck!)
+	b.append(box(Vector3(0, LOWER_Y - 0.35, 0), Vector3(6.4, 0.7, 46.0), "metal_panel", Color(0.24, 0.28, 0.34)))
+	b.append(box(Vector3(-3.0, LOWER_Y + 1.7, 0), Vector3(0.5, 3.6, 46.0), "ship_hull", C_GELCOAT))
+	b.append(box(Vector3(3.0, LOWER_Y + 1.7, 0), Vector3(0.5, 3.6, 46.0), "ship_hull", C_GELCOAT))
+	b.append(box(Vector3(0, LOWER_Y + 1.7, -22.8), Vector3(6.4, 3.6, 0.5), "ship_hull", C_GELCOAT))
+	b.append(box(Vector3(0, LOWER_Y + 1.7, 22.8), Vector3(6.4, 3.6, 0.5), "ship_hull", C_GELCOAT))
+	# Taktische Schotten & Rohre im Unterdeck-Gang als Deckung
+	for sz in [-11.0, 11.0]:
+		b.append(box(Vector3(-1.75, LOWER_Y + 1.6, sz), Vector3(1.9, 3.2, 0.35), "metal_panel", C_NAVY))
+		b.append(box(Vector3(1.75, LOWER_Y + 1.6, sz), Vector3(1.9, 3.2, 0.35), "metal_panel", C_NAVY))
+	b.append(box(Vector3(0, LOWER_Y + 0.55, 0), Vector3(1.6, 1.1, 1.2), "metal_panel", C_DARK))
+
+	# Zwei kompakte Decksluken mit CS-Steigleitern (Nord bei z=-7.2 & Süd bei z=+7.2, dazwischen geschlossenes Deck!)
+	b.append(box(Vector3(0, -0.25, 0), Vector3(7.4, 0.5, 11.2), "wood_planks", C_TEAK))
+	b.append(box(Vector3(-2.6, -0.25, -7.2), Vector3(2.2, 0.5, 3.2), "wood_planks", C_TEAK))
+	b.append(box(Vector3(2.6, -0.25, -7.2), Vector3(2.2, 0.5, 3.2), "wood_planks", C_TEAK))
+	b.append(box(Vector3(-2.6, -0.25, 7.2), Vector3(2.2, 0.5, 3.2), "wood_planks", C_TEAK))
+	b.append(box(Vector3(2.6, -0.25, 7.2), Vector3(2.2, 0.5, 3.2), "wood_planks", C_TEAK))
+	# Luken-Einfassung & CS-Steigleitern (hoch & runter wie in CS!)
+	b.append(box(Vector3(0, 0.18, -8.9), Vector3(3.2, 0.36, 0.25), "metal_panel", C_CHROME))
+	b.append(box(Vector3(0, 0.18, 8.9), Vector3(3.2, 0.36, 0.25), "metal_panel", C_CHROME))
+	b.append(ladder(Vector3(0, LOWER_Y, -8.55), 3.7, 1.4, "n"))
+	b.append(ladder(Vector3(0, LOWER_Y, 8.55), 3.7, 1.4, "s"))
 
 	# 3. Schanzkleid & lückenlose Barrieren
 	b.append(box(Vector3(-17.2, 0.22, 0), Vector3(0.3, 0.44, 76.0), "ship_hull", C_GELCOAT))
@@ -292,19 +297,18 @@ func build_detail(d: MapDetail) -> void:
 	d.rail(Vector3(-7.3, UPPER_Y + 0.35, 8.0), Vector3(7.3, UPPER_Y + 0.35, 8.0), 0.75)
 	d.rail(Vector3(-3.4, UPPER_Y + 0.35, -24.0), Vector3(7.3, UPPER_Y + 0.35, -24.0), 0.75)
 	d.rail(Vector3(-7.3, UPPER_Y + 0.35, 24.0), Vector3(3.4, UPPER_Y + 0.35, 24.0), 0.75)
-	for sx in [-6.7, -10.5]:
-		d.rail(Vector3(sx, 0.0, -6.2), Vector3(sx, 0.0, 6.2), 0.95)
-	for sx in [6.7, 10.5]:
-		d.rail(Vector3(sx, 0.0, -6.2), Vector3(sx, 0.0, 6.2), 0.95)
+	for lx in [-1.6, 1.6]:
+		d.rail(Vector3(lx, 0.0, -8.9), Vector3(lx, 0.0, -5.6), 0.85)
+		d.rail(Vector3(lx, 0.0, 5.6), Vector3(lx, 0.0, 8.9), 0.85)
 
 	# Warmgoldenes Salon- & Cockpit-Licht + heller Maschinenraum-Keller mit LED-Streifen
 	d.lamp(Vector3(0, 3.0, -16.0), Color(1.0, 0.76, 0.36), 2.4, 16.0)
 	d.lamp(Vector3(0, 3.0, 15.5), Color(1.0, 0.74, 0.34), 2.2, 15.0)
 	d.lamp(Vector3(0, UPPER_Y + 2.1, 14.5), Color(1.0, 0.62, 0.22), 2.0, 10.0)
-	d.led_strip(Vector3(-11.6, LOWER_Y + 3.2, -25.0), Vector3(-11.6, LOWER_Y + 3.2, 25.0), Color(0.55, 0.85, 1.0), 3.2)
-	d.led_strip(Vector3(11.6, LOWER_Y + 3.2, -25.0), Vector3(11.6, LOWER_Y + 3.2, 25.0), Color(0.55, 0.85, 1.0), 3.2)
-	for kz in [-20.0, -10.0, 0.0, 10.0, 20.0]:
-		for kx in [-6.5, 0.0, 6.5]:
+	d.led_strip(Vector3(-2.6, LOWER_Y + 3.1, -21.0), Vector3(-2.6, LOWER_Y + 3.1, 21.0), Color(0.55, 0.85, 1.0), 3.4)
+	d.led_strip(Vector3(2.6, LOWER_Y + 3.1, -21.0), Vector3(2.6, LOWER_Y + 3.1, 21.0), Color(0.55, 0.85, 1.0), 3.4)
+	for kz in [-18.0, -9.0, 0.0, 9.0, 18.0]:
+		d.lamp(Vector3(0.0, LOWER_Y + 3.0, kz), Color(0.85, 0.94, 1.0), 2.2, 14.0)
 			d.lamp(Vector3(kx, LOWER_Y + 3.1, kz), Color(0.88, 0.95, 1.0), 2.5, 18.0)
 func _setup_midnight_atmosphere() -> void:
 	if has_node("HarborDistantIslands"):
