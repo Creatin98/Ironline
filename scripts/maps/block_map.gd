@@ -436,19 +436,22 @@ func _process(delta: float) -> void:
 	RenderingServer.global_shader_parameter_set("wind_dir", _wind_dir)
 	RenderingServer.global_shader_parameter_set("wind_strength", gust)
 
-	# 2. Harbor: Schiff arbeitet dynamisch gegen schwere Wellen (Rollen, Stampfen & Heben ohne Regen!)
+# 2. Harbor: Schiff arbeitet dynamisch gegen schwere Wellen (ohne Regen!)
 	if is_harbor:
 		RenderingServer.global_shader_parameter_set("rain_wetness", 0.0)
 		if _lens_rain_mat != null:
 			_lens_rain_mat.set_shader_parameter("intensity", 0.0)
 		if _lightning_flash != null:
 			_lightning_flash.color.a = 0.0
-		if geometry_root != null:
-			var roll := sin(_wind_time * 0.95) * 1.35 + sin(_wind_time * 1.85) * 0.55
-			var pitch := cos(_wind_time * 0.72) * 0.85 + sin(_wind_time * 1.45) * 0.35
-			var heave := sin(_wind_time * 1.15) * 0.24 + cos(_wind_time * 2.1) * 0.08
-			geometry_root.rotation_degrees = Vector3(pitch, 0.0, roll)
-			geometry_root.position.y = heave
+		var roll := sin(_wind_time * 0.95) * 0.95 + sin(_wind_time * 1.85) * 0.35
+		var pitch := cos(_wind_time * 0.72) * 0.65 + sin(_wind_time * 1.45) * 0.25
+		var heave := sin(_wind_time * 1.15) * 0.14
+		for child in get_children():
+			if child is Node3D and child.name != "HarborStormOcean" and not (child is DirectionalLight3D):
+				# Nur visuelle Meshes/Details sanft mitneigen, Kollisionen bleiben exakt!
+				if child == geometry_root or child.name.contains("Detail") or child.name.contains("Prop") or child.name.contains("Vegetation"):
+					child.rotation_degrees = Vector3(pitch, 0.0, roll)
+					child.position.y = heave
 		return
 
 	# 3. Trockene Maps ohne Sturm
