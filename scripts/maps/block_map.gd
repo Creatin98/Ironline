@@ -654,14 +654,19 @@ void sky() {
 
 
 func _spawn_harbor_storm_ocean() -> void:
+	# Alte Wasserflächen der Map ausblenden, damit nichts doppelt liegt
+	for m in find_children("*", "MeshInstance3D", true, false):
+		if m.name.to_lower().contains("water") or m.name.to_lower().contains("ocean") or m.name.to_lower().contains("sea"):
+			m.visible = false
+
 	var ocean := MeshInstance3D.new()
 	ocean.name = "HarborStormOcean"
 	var plane := PlaneMesh.new()
-	plane.size = Vector2(360.0, 360.0)
-	plane.subdivide_width = 140
-	plane.subdivide_depth = 140
+	plane.size = Vector2(420.0, 420.0)
+	plane.subdivide_width = 180
+	plane.subdivide_depth = 180
 	ocean.mesh = plane
-	ocean.position = Vector3(0.0, -2.4, 0.0)
+	ocean.position = Vector3(0.0, -3.6, 0.0)
 
 	var oshd := Shader.new()
 	oshd.code = """
@@ -670,39 +675,60 @@ render_mode cull_back, diffuse_burley, specular_schlick_ggx;
 
 varying float wave_h;
 varying vec3 w_pos;
+varying vec3 smooth_nrm;
 
-float wave(vec2 p, vec2 dir, float freq, float speed, float t) {
-	return sin(dot(p, dir) * freq + t * speed);
+float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+float noise(vec2 p) {
+	vec2 i = floor(p); vec2 f = fract(p);
+	f = f * f * (3.0 - 2.0 * f);
+	return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), f.x), mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), f.x), f.y);
 }
 
 void vertex() {
 	vec3 wp = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
+	// Schiffsrumpf-Maske: Dämpft Wellen unter dem Schiff, damit NIE Wasser durchs Deck schlägt!
+	vec2 hull = abs(wp.xz) / vec2(18.0, 44.0);
+	float hull_dist = max(hull.x, hull.y);
+	float damp = smoothstep(0.85, 1.35, hull_dist);
+
 	float t = TIME;
-	float h = 0.0;
-	h += wave(wp.xz, normalize(vec2(0.85, 0.35)), 0.16, 2.8, t) * 1.45;
-	h += wave(wp.xz, normalize(vec2(0.55, -0.75)), 0.28, 3.6, t) * 0.85;
-	h += wave(wp.xz, normalize(vec2(-0.35, 0.92)), 0.55, 4.9, t) * 0.38;
-	h += wave(wp.xz, normalize(vec2(0.95, 0.15)), 1.15, 6.5, t) * 0.16;
+	vec2 d1 = normalize(vec2(0.85, 0.35));
+	vec2 d2 = normalize(vec2(0.55, -0.75));
+	vec2 d3 = normalize(vec2(-0.35, 0.92));
+
+	float p1 = dot(wp.xz, d1) * 0.14 + t * 2.5;
+	float p2 = dot(wp.xz, d2) * 0.24 + t * 3.2;
+	float p3 = dot(wp.xz, d3) * 0.45 + t * 4.4;
+
+	float h = (sin(p1) * 1.55 + sin(p2) * 0.90 + sin(p3) * 0.42) * damp;
 	VERTEX.y += h;
 	wave_h = h;
 	w_pos = wp + vec3(0.0, h, 0.0);
+
+	// Glatte analytische Wellen-Normale (null kastige Low-Poly-Kanten!)
+	vec2 grad = (d1 * cos(p1) * 0.14 * 1.55 + d2 * cos(p2) * 0.24 * 0.90 + d3 * cos(p3) * 0.45 * 0.42) * damp;
+	smooth_nrm = normalize(vec3(-grad.x, 1.0, -grad.y));
 }
 
 void fragment() {
-	vec3 dx = dFdx(w_pos);
-	vec3 dz = dFdy(w_pos);
-	NORMAL = normalize(cross(dz, dx));
+	// Feine hochauflösende Oberflächen-Kräuselung im Fragment-Shader
+	vec2 uv1 = w_pos.xz * 0.35 + vec2(TIME * 0.18, TIME * 0.08);
+	vec2 uv2 = w_pos.xz * 0.95 - vec2(TIME * 0.12, -TIME * 0.22);
+	float r1 = noise(uv1) - noise(uv1 + vec2(0.15, 0.0));
+	float r2 = noise(uv2) - noise(uv2 + vec2(0.0, 0.15));
+	NORMAL = normalize(smooth_nrm + vec3(r1 * 0.35 + r2 * 0.25, 0.0, r2 * 0.35 - r1 * 0.25));
 
-	float crest = smoothstep(0.95, 2.15, wave_h);
-	float streak = sin(w_pos.x * 1.8 + w_pos.z * 0.7 + TIME * 3.5) * cos(w_pos.z * 2.1 - TIME * 2.8);
-	float foam = clamp(crest * (0.65 + 0.35 * streak), 0.0, 1.0);
+	// Schaumkronen auf hohen Wellen & Gischt-Streifen vom Wind
+	float crest = smoothstep(1.05, 2.25, wave_h);
+	float wind_foam = noise(w_pos.xz * vec2(0.18, 0.65) + vec2(TIME * 0.4, 0.0));
+	float foam = clamp(crest * smoothstep(0.35, 0.75, wind_foam) * 1.35, 0.0, 1.0);
 
-	vec3 deep_sea = vec3(0.03, 0.11, 0.17);
-	vec3 wave_body = vec3(0.07, 0.22, 0.30);
-	vec3 sea_col = mix(deep_sea, wave_body, smoothstep(-1.2, 1.4, wave_h));
-	ALBEDO = mix(sea_col, vec3(0.84, 0.90, 0.94), foam * 0.88);
-	ROUGHNESS = mix(0.08, 0.55, foam);
-	SPECULAR = 0.85;
+	vec3 deep_sea = vec3(0.02, 0.09, 0.15);
+	vec3 wave_body = vec3(0.05, 0.18, 0.26);
+	vec3 sea_col = mix(deep_sea, wave_body, smoothstep(-1.4, 1.6, wave_h));
+	ALBEDO = mix(sea_col, vec3(0.82, 0.89, 0.93), foam * 0.85);
+	ROUGHNESS = mix(0.06, 0.48, foam);
+	SPECULAR = 0.90;
 }
 """
 	var omat := ShaderMaterial.new()
