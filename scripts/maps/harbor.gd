@@ -177,23 +177,28 @@ func get_blocks() -> Array:
 	b.append(box(Vector3(-3.2, BOW_Y + 0.52, -23.5), Vector3(4.2, 1.04, 0.95), "wood_planks", C_TEAK))
 	b.append(box(Vector3(-3.2, BOW_Y + 1.08, -23.5), Vector3(4.4, 0.1, 1.15), "tiles", C_MARBLE))
 
-	# Verwinkeltes Innen-Treppenhaus Nord (Ostseite innen, weit weg von allen Türen! Echte Stufen + Rampen + riesige Öffnung oben)
+	# Verwinkeltes Innen-Treppenhaus Nord (breites Zwischenpodest + riesige Dachöffnung -> 100% begehbar!)
 	var U_N := BOW_Y + UPPER_Y
 	var P_N := BOW_Y + UPPER_Y * 0.5
-	b.append(box(Vector3(4.5, P_N - 0.12, -25.0), Vector3(4.2, 0.24, 3.2), "wood_planks", C_TEAK)) # Zwischenpodest
-	b.append(box(Vector3(2.2, BOW_Y + 1.4, -21.2), Vector3(0.28, 2.8, 7.2), "ship_hull", C_GELCOAT)) # Trennwand zum Salon
-	# Lauf 1: Echte Stufen + Rampe (x=5.4, z=-17.5 -> -23.4)
-	b.append(ramp(Vector3(5.4, BOW_Y, -17.5), Vector3(5.4, P_N + 0.02, -23.4), 2.1, "wood_planks", 0.3, C_TEAK))
+	b.append(box(Vector3(4.5, P_N - 0.12, -25.1), Vector3(4.4, 0.24, 3.2), "wood_planks", C_TEAK)) # Zwischenpodest hinten
+	b.append(box(Vector3(2.1, BOW_Y + 1.4, -20.3), Vector3(0.28, 2.8, 5.6), "ship_hull", C_GELCOAT)) # Trennwand endet VOR dem Podest!
+	# Lauf 1: Echte Stufen + Rampe (x=5.6, z=-17.2 -> -23.4)
+	b.append(ramp(Vector3(5.6, BOW_Y, -17.2), Vector3(5.6, P_N + 0.02, -23.4), 2.2, "wood_planks", 0.3, C_TEAK))
 	for s1 in 10:
 		var t1 := float(s1 + 1) / 10.0
 		var h1 := t1 * (UPPER_Y * 0.5)
-		b.append(box(Vector3(5.4, BOW_Y + h1 * 0.5, lerpf(-17.5, -23.4, t1)), Vector3(2.0, h1, 0.65), "wood_planks", C_TEAK))
-	# Lauf 2 (90°/180° Knick): Echte Stufen + Rampe nach vorne aufs offene Oberdeck (x=3.3, z=-23.4 -> -17.2)
-	b.append(ramp(Vector3(3.3, P_N, -23.4), Vector3(3.3, U_N + 0.04, -17.2), 2.1, "wood_planks", 0.3, C_TEAK))
+		b.append(box(Vector3(5.6, BOW_Y + h1 * 0.5, lerpf(-17.2, -23.4, t1)), Vector3(2.1, h1, 0.68), "wood_planks", C_TEAK))
+	# Lauf 2 (180°-Knick): Breite Stufen + Rampe nach vorne aufs offene Dach (x=3.5, z=-23.4 -> -16.8)
+	b.append(ramp(Vector3(3.5, P_N, -23.4), Vector3(3.5, U_N + 0.04, -16.8), 2.3, "wood_planks", 0.3, C_TEAK))
 	for s2 in 10:
 		var t2 := float(s2 + 1) / 10.0
 		var h2 := (UPPER_Y * 0.5) + t2 * (UPPER_Y * 0.5)
-		b.append(box(Vector3(3.3, BOW_Y + h2 * 0.5, lerpf(-23.4, -17.2, t2)), Vector3(2.0, h2, 0.68), "wood_planks", C_TEAK))
+		b.append(box(Vector3(3.5, BOW_Y + h2 * 0.5, lerpf(-23.4, -16.8, t2)), Vector3(2.2, h2, 0.72), "wood_planks", C_TEAK))
+
+	# Oberdeck Nord: Komplett ausgeschnitten über dem gesamten Treppenhaus (x=2.1..6.9, z=-23.5..-13.6)!
+	b.append(box(Vector3(-2.65, U_N - 0.15, -20.5), Vector3(9.5, 0.3, 13.8), "ship_hull", C_GELCOAT))
+	b.append(box(Vector3(4.6, U_N - 0.15, -25.6), Vector3(5.4, 0.3, 3.6), "ship_hull", C_GELCOAT))
+
 
 	# Oberdeck Nord: Komplett offen über dem gesamten Treppenhaus (x=2.1..6.8, z=-23.5..-13.6) -> null Kopf-Anstoßen!
 	b.append(box(Vector3(-2.6, U_N - 0.15, -20.5), Vector3(9.6, 0.3, 13.8), "ship_hull", C_GELCOAT))
@@ -214,30 +219,25 @@ func get_blocks() -> Array:
 	b.append(box(Vector3(3.2, STERN_Y + 0.56, 23.5), Vector3(4.2, 1.12, 1.0), "metal_panel", C_DARK))
 	b.append(box(Vector3(3.2, STERN_Y + 1.15, 23.5), Vector3(4.4, 0.08, 1.1), "metal_panel", C_CHROME))
 
-	# Verwinkeltes Innen-Treppenhaus Süd (Westseite innen, weit weg von allen Türen! Echte Stufen + Rampen + riesige Öffnung oben)
+	# Verwinkeltes Innen-Treppenhaus Süd (breites Zwischenpodest + riesige Dachöffnung -> 100% begehbar!)
 	var U_S := STERN_Y + UPPER_Y
 	var P_S := STERN_Y + UPPER_Y * 0.5
-	b.append(box(Vector3(-4.5, P_S - 0.12, 25.0), Vector3(4.2, 0.24, 3.2), "wood_planks", C_TEAK))
-	b.append(box(Vector3(-2.2, STERN_Y + 1.4, 21.2), Vector3(0.28, 2.8, 7.2), "ship_hull", C_GELCOAT))
-	b.append(ramp(Vector3(-5.4, STERN_Y, 17.5), Vector3(-5.4, P_S + 0.02, 23.4), 2.1, "wood_planks", 0.3, C_TEAK))
+	b.append(box(Vector3(-4.5, P_S - 0.12, 25.1), Vector3(4.4, 0.24, 3.2), "wood_planks", C_TEAK))
+	b.append(box(Vector3(-2.1, STERN_Y + 1.4, 20.3), Vector3(0.28, 2.8, 5.6), "ship_hull", C_GELCOAT))
+	b.append(ramp(Vector3(-5.6, STERN_Y, 17.2), Vector3(-5.6, P_S + 0.02, 23.4), 2.2, "wood_planks", 0.3, C_TEAK))
 	for s1 in 10:
 		var t1 := float(s1 + 1) / 10.0
 		var h1 := t1 * (UPPER_Y * 0.5)
-		b.append(box(Vector3(-5.4, STERN_Y + h1 * 0.5, lerpf(17.5, 23.4, t1)), Vector3(2.0, h1, 0.65), "wood_planks", C_TEAK))
-	b.append(ramp(Vector3(-3.3, P_S, 23.4), Vector3(-3.3, U_S + 0.04, 17.2), 2.1, "wood_planks", 0.3, C_TEAK))
+		b.append(box(Vector3(-5.6, STERN_Y + h1 * 0.5, lerpf(17.2, 23.4, t1)), Vector3(2.1, h1, 0.68), "wood_planks", C_TEAK))
+	b.append(ramp(Vector3(-3.5, P_S, 23.4), Vector3(-3.5, U_S + 0.04, 16.8), 2.3, "wood_planks", 0.3, C_TEAK))
 	for s2 in 10:
 		var t2 := float(s2 + 1) / 10.0
 		var h2 := (UPPER_Y * 0.5) + t2 * (UPPER_Y * 0.5)
-		b.append(box(Vector3(-3.3, STERN_Y + h2 * 0.5, lerpf(23.4, 17.2, t2)), Vector3(2.0, h2, 0.68), "wood_planks", C_TEAK))
+		b.append(box(Vector3(-3.5, STERN_Y + h2 * 0.5, lerpf(23.4, 16.8, t2)), Vector3(2.2, h2, 0.72), "wood_planks", C_TEAK))
 
-	# Oberdeck Süd: Komplett offen über dem gesamten Treppenhaus (x=-6.8..-2.1, z=13.6..23.5) -> null Kopf-Anstoßen!
-	b.append(box(Vector3(2.6, U_S - 0.15, 20.5), Vector3(9.6, 0.3, 13.8), "ship_hull", C_GELCOAT))
-	b.append(box(Vector3(-4.6, U_S - 0.15, 25.5), Vector3(5.4, 0.3, 3.8), "ship_hull", C_GELCOAT))
-	b.append(box(Vector3(-6.8, U_S - 0.15, 18.6), Vector3(1.2, 0.3, 10.0), "ship_hull", C_GELCOAT))
-	b.append(box(Vector3(2.6, U_S + 0.22, 13.6), Vector3(9.6, 0.44, 0.25), "ship_hull", C_GELCOAT))
-	b.append(box(Vector3(0, U_S + 0.22, 27.4), Vector3(14.8, 0.44, 0.25), "ship_hull", C_GELCOAT))
-	b.append(box(Vector3(-7.3, U_S + 0.22, 20.5), Vector3(0.25, 0.44, 13.8), "ship_hull", C_GELCOAT))
-	b.append(box(Vector3(7.3, U_S + 0.22, 20.5), Vector3(0.25, 0.44, 13.8), "ship_hull", C_GELCOAT))
+	# Oberdeck Süd: Komplett ausgeschnitten über dem gesamten Treppenhaus (x=-6.9..-2.1, z=13.6..23.5)!
+	b.append(box(Vector3(2.65, U_S - 0.15, 20.5), Vector3(9.5, 0.3, 13.8), "ship_hull", C_GELCOAT))
+	b.append(box(Vector3(-4.6, U_S - 0.15, 25.6), Vector3(5.4, 0.3, 3.6), "ship_hull", C_GELCOAT))
 
 
 	# 6. Kommandobrücke auf Oberdeck Süd + taktische Seiten-Deckung
