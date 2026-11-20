@@ -683,7 +683,7 @@ func _spawn_harbor_storm_ocean() -> void:
 		if m.name.to_lower().contains("water") or m.name.to_lower().contains("ocean") or m.name.to_lower().contains("sea"):
 			m.visible = false
 
-	# 1. Glatter Hochsee-Ozean (View-Space Normalen -> null Kacheln/Streifen, Schiff fährt vorwärts!)
+	# 1. Glatter Hochsee-Ozean
 	var ocean := MeshInstance3D.new()
 	ocean.name = "HarborStormOcean"
 	var plane := PlaneMesh.new()
@@ -716,7 +716,6 @@ float fbm(vec2 p) {
 
 void vertex() {
 	vec3 wp = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
-	// Schiffsrumpf-Maske: Wellen bauen sich an der Bordwand auf, schlagen aber nicht durchs Deck!
 	vec2 hull = abs(wp.xz) / vec2(17.5, 43.0);
 	float hull_dist = max(hull.x, hull.y);
 	float damp = smoothstep(0.82, 1.28, hull_dist);
@@ -742,7 +741,6 @@ void vertex() {
 }
 
 void fragment() {
-	// Hochauflösende Oberflächen-Kräuselung + korrekte View-Space Normalen (kein Gitter mehr!)
 	vec2 uv1 = w_pos.xz * 0.28 + vec2(TIME * 0.15, TIME * 0.08);
 	vec2 uv2 = w_pos.xz * 0.85 - vec2(TIME * 0.11, -TIME * 0.19);
 	float eps = 0.12;
@@ -752,7 +750,6 @@ void fragment() {
 	vec3 detail_nrm = normalize(world_nrm + vec3((n0 - nx) * 1.8, 0.0, (n0 - nz) * 1.8));
 	NORMAL = normalize((VIEW_MATRIX * vec4(detail_nrm, 0.0)).xyz);
 
-	// Sattes, tiefes Sturm-Ozeanblau mit weißen Schaumkronen & Bugwelle
 	float crest = smoothstep(1.15, 2.35, wave_h);
 	float foam_tex = fbm(w_pos.xz * vec2(0.22, 0.55) + vec2(TIME * 0.35, 0.0));
 	float foam = clamp(crest * smoothstep(0.32, 0.72, foam_tex) * 1.45, 0.0, 1.0);
@@ -769,6 +766,131 @@ void fragment() {
 	_ocean_mat.shader = oshd
 	ocean.material_override = _ocean_mat
 	add_child(ocean)
+
+	# 2. Weiche, runde Gischt-Tröpfchen & Sprühnebel (KEINE weißen Quadrate mehr!)
+	var spray := GPUParticles3D.new()
+	spray.name = "HarborBowSpray"
+	spray.amount = 360
+	spray.lifetime = 0.95
+	spray.one_shot = false
+	spray.emitting = false
+	var smat := ParticleProcessMaterial.new()
+	smat.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_BOX
+	smat.emission_box_extents = Vector3(1.0, 0.4, 10.0)
+	smat.direction = Vector3(-0.85, 1.35, -0.35).normalized()
+	smat.spread = 24.0
+	smat.initial_velocity_min = 7.0
+	smat.initial_velocity_max = 13.0
+	smat.gravity = Vector3(0.0, -16.0, -4.0)
+	smat.scale_min = 0.35
+	smat.scale_max = 0.95
+	spray.process_material = smat
+
+	var sdrop := QuadMesh.new()
+	sdrop.size = Vector2(0.14, 0.14)
+	var sd_shd := Shader.new()
+	sd_shd.code = """
+shader_type spatial;
+render_mode blend_mix, depth_draw_never, cull_disabled, unshaded;
+void vertex() {
+	MODELVIEW_MATRIX = VIEW_MATRIX * mat4(INV_VIEW_MATRIX[0], INV_VIEW_MATRIX[1], INV_VIEW_MATRIX[2], MODEL_MATRIX[3]);
+}
+void fragment() {
+	float d = length(UV - 0.5) * 2.0;
+	float soft = smoothstep(1.0, 0.15, d);
+	if (soft <= 0.01) { discard; }
+	ALBEDO = vec3(0.86, 0.92, 0.96);
+	ALPHA = soft * 0.28;
+}
+"""
+	var sdmat := ShaderMaterial.new()
+	sdmat.shader = sd_shd
+	sdrop.material = sdmat
+	spray.draw_pass_1 = sdrop
+	add_child(spray)
+
+	# 3. Spiegelnde Meerwasser-Lache auf dem Deck (glänzt wie echtes Wasser & läuft wieder ab)
+	var wash := MeshInstance3D.new()
+	wash.name = "HarborDeckWash"
+	var wplane := PlaneMesh.new()
+	wplane.size = Vector2(32.0, 82.0)
+	wash.mesh = wplane
+	wash.position = Vector3(0.0, 0.025, 0.0)
+	var wshd := Shader.new()
+	wshd.code = """
+shader_type spatial;
+render_mode blend_mix, depth_draw_never, cull_back, diffuse_burley, specular_schlick_ggx;
+
+varying vec3 local_p;
+
+float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+float noise(vec2 p) {
+	vec2 i = floor(p); vec2 f = fract(p);
+	f = f * f * (3.0 - 2.0 * f);
+	return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), f.x), mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), f.x), f.y);
+}
+float fbm(vec2 p) { return noise(p) * 0.65 + noise(p * 2.3 + 1.9) * 0.35; }
+
+void vertex() {
+	local_p = VERTEX;
+}
+
+void fragment() {
+	float surge = sin(TIME * 1.65 + local_p.z * 0.07);
+	float side_reach = max(0.0, abs(local_p.x) - 5.2 + surge * 4.8) / 10.5;
+	float flow = fbm(local_p.xz * 0.26 + vec2(surge * 0.4, TIME * 0.3));
+	float water_mask = smoothstep(0.45, 0.75, side_reach * flow * 1.6);
+	float foam_edge = smoothstep(0.45, 0.51, side_reach * flow * 1.6) * (1.0 - smoothstep(0.51, 0.60, side_reach * flow * 1.6));
+
+	if (water_mask <= 0.01) { discard; }
+	float rip = (noise(local_p.xz * 3.5 + TIME * 2.5) - 0.5) * 0.25;
+	NORMAL = normalize((VIEW_MATRIX * vec4(rip, 1.0, rip * 0.8, 0.0)).xyz);
+	ALBEDO = mix(vec3(0.04, 0.08, 0.12), vec3(0.85, 0.91, 0.95), foam_edge * 0.65);
+	ROUGHNESS = mix(0.03, 0.32, foam_edge);
+	SPECULAR = 0.95;
+	ALPHA = clamp(water_mask * 0.48, 0.0, 0.52);
+}
+"""
+	var wmat := ShaderMaterial.new()
+	wmat.shader = wshd
+	wash.material_override = wmat
+	add_child(wash)
+
+	# 4. Majestätische tropische Inseln am fernen Horizont
+	var islands := Node3D.new()
+	islands.name = "HarborDistantIslands"
+	add_child(islands)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 90210
+	for i in 6:
+		var isl := MeshInstance3D.new()
+		var st := SurfaceTool.new()
+		st.begin(Mesh.PRIMITIVE_TRIANGLES)
+		var cone := CylinderMesh.new()
+		cone.top_radius = rng.randf_range(3.0, 9.0)
+		cone.bottom_radius = rng.randf_range(28.0, 52.0)
+		cone.height = rng.randf_range(16.0, 34.0)
+		cone.radial_segments = 16
+		cone.rings = 4
+		var arr := cone.get_mesh_arrays()
+		var vtx: PackedVector3Array = arr[Mesh.ARRAY_VERTEX]
+		var idx: PackedInt32Array = arr[Mesh.ARRAY_INDEX]
+		for k in idx:
+			var v := vtx[k]
+			var ridge := sin(v.x * 0.18 + float(i)) * cos(v.z * 0.16) * 4.5
+			v.x += ridge
+			v.z += ridge * 0.7
+			st.add_vertex(v)
+		st.generate_normals()
+		isl.mesh = st.commit()
+		var imat := StandardMaterial3D.new()
+		imat.albedo_color = Color(0.16, 0.24, 0.22)
+		imat.roughness = 0.95
+		isl.material_override = imat
+		var side := -1.0 if i % 2 == 0 else 1.0
+		isl.position = Vector3(side * rng.randf_range(145.0, 210.0), 4.0, -160.0 + float(i) * 65.0)
+		isl.rotation.y = rng.randf() * TAU
+		islands.add_child(isl)
 
 	# 2. Gischt-Spritzwasser, das bei Wellenschlag über die Bordwand aufs Deck peitscht
 	var spray := GPUParticles3D.new()
