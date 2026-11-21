@@ -277,12 +277,15 @@ func get_blocks() -> Array:
 		 {"side": "s", "offset": 0.0, "width": 4.2},
 		 {"side": "w", "offset": -1.5, "width": 3.6}, {"side": "e", "offset": -1.5, "width": 3.6}]))
 	# Brüstungs-Unterteile & getöntes Brückenglas in allen Panorama-Fenstern!
+	# Brüstungs-Unterteile & vollwertige, zerbrechliche Panorama-Glasscheiben (durchsichtig & zerschießbar!)
 	for fx in [-3.2, 3.2]:
 		b.append(box(Vector3(fx, U_S + 0.50, 14.2), Vector3(3.4, 1.0, 0.28), "ship_hull", C_GELCOAT))
-		b.append(box(Vector3(fx, U_S + 1.85, 14.2), Vector3(3.4, 1.7, 0.08), "glass", Color(0.15, 0.45, 0.65, 0.38)))
+		b.append({"pos": Vector3(fx, U_S + 1.85, 14.2), "size": Vector3(3.4, 1.7, 0.08), "mat": "glass", "breakable": true, "hp": 35})
 	b.append(box(Vector3(0.0, U_S + 0.50, 26.8), Vector3(4.2, 1.0, 0.28), "ship_hull", C_GELCOAT))
-	b.append(box(Vector3(0.0, U_S + 1.85, 26.8), Vector3(4.2, 1.7, 0.08), "glass", Color(0.15, 0.45, 0.65, 0.38)))
+	b.append({"pos": Vector3(0.0, U_S + 1.85, 26.8), "size": Vector3(4.2, 1.7, 0.08), "mat": "glass", "breakable": true, "hp": 35})
 	for sx in [-6.8, 6.8]:
+		b.append(box(Vector3(sx, U_S + 0.50, 19.0), Vector3(0.28, 1.0, 3.6), "ship_hull", C_GELCOAT))
+		b.append({"pos": Vector3(sx, U_S + 1.85, 19.0), "size": Vector3(0.08, 1.7, 3.6), "mat": "glass", "breakable": true, "hp": 35})
 		b.append(box(Vector3(sx, U_S + 0.50, 19.0), Vector3(0.28, 1.0, 3.6), "ship_hull", C_GELCOAT))
 		b.append(box(Vector3(sx, U_S + 1.85, 19.0), Vector3(0.08, 1.7, 3.6), "glass", Color(0.15, 0.45, 0.65, 0.38)))
 
