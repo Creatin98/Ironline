@@ -326,11 +326,12 @@ func build_detail(d: MapDetail) -> void:
 	# Alle 5 Panorama-Fenster im 1. OG Kapitänshaus direkt für GlassField (zerbrechliches Glas) registrieren!
 	var U_S_WIN := STERN_Y + 3.80
 	for fx in [-3.2, 3.2]:
-		d.windows.append({"center": Vector3(fx, U_S_WIN + 1.875, 14.2), "size": Vector3(3.2, 1.75, 0.08), "axis_x": true})
+		d.windows.append({"center": Vector3(fx, U_S_WIN + 1.875, 14.2), "size": Vector2(3.2, 1.75), "axis_x": true})
 	for bx in [-2.2, 2.2]:
-		d.windows.append({"center": Vector3(bx, U_S_WIN + 1.875, 26.8), "size": Vector3(3.2, 1.75, 0.08), "axis_x": true})
+		d.windows.append({"center": Vector3(bx, U_S_WIN + 1.875, 26.8), "size": Vector2(3.2, 1.75), "axis_x": true})
 	for sx in [-6.8, 6.8]:
-		d.windows.append({"center": Vector3(sx, U_S_WIN + 1.875, 19.0), "size": Vector3(0.08, 1.75, 3.4), "axis_x": false})
+		d.windows.append({"center": Vector3(sx, U_S_WIN + 1.875, 19.0), "size": Vector2(3.4, 1.75), "axis_x": false})
+
 
 
 	# Reling-Spots passend zu den 3 Deck-Höhen
