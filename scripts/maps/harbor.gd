@@ -354,21 +354,18 @@ func build_detail(d: MapDetail) -> void:
 		d.bulb(Vector3(16.9, STERN_Y + 0.55, float(rz)), Color(1.0, 0.85, 0.58), 0.75, 0.45, 5.5)
 
 	# Stufen-LED-Bänder an den zwei Deck-Absätzen (z = ±9.5)
-	d.led_strip(Vector3(-16.8, BOW_Y + 0.05, -9.5), Vector3(16.8, BOW_Y + 0.05, -9.5), Color(0.25, 0.80, 1.0), 3.6)
-	d.led_strip(Vector3(-16.8, MID_Y + 0.05, 9.5), Vector3(16.8, MID_Y + 0.05, 9.5), Color(0.25, 0.80, 1.0), 3.6)
+	d.led_strip(Vector3(-16.8, BOW_Y + 0.05, -9.5), Vector3(16.8, BOW_Y + 0.05, -9.5), Color(0.25, 0.80, 1.0), 1.4)
+	d.led_strip(Vector3(-16.8, MID_Y + 0.05, 9.5), Vector3(16.8, MID_Y + 0.05, 9.5), Color(0.25, 0.80, 1.0), 1.4)
 
-	# Lila Eingangs-Lichtbalken über allen 8 Türen (passend zu den versetzten Eingängen!)
+	# Dezente Eingangs-Lichtbalken nur über den 4 Haupt-Portalen (keine überstehenden Seiten-LEDs mehr!)
 	var door_bars := [
-		# Nord-Deckhaus (Türen bei x = -2.4, Breite 2.6/2.8, und West-Tür bei z = -20.5)
-		{"a": Vector3(-3.7, BOW_Y + 2.62, -27.18), "b": Vector3(-1.1, BOW_Y + 2.62, -27.18)},
-		{"a": Vector3(-3.8, BOW_Y + 2.62, -13.82), "b": Vector3(-1.0, BOW_Y + 2.62, -13.82)},
-		{"a": Vector3(-7.08, BOW_Y + 2.62, -21.7), "b": Vector3(-7.08, BOW_Y + 2.62, -19.3)},
-		# Süd-Kapitänshaus EG (zentrales Doppelportal vorne & hinten + Seitentür bei z = 17.2)
-		{"a": Vector3(-2.1, STERN_Y + 2.62, 13.82), "b": Vector3(2.1, STERN_Y + 2.62, 13.82)},
-		{"a": Vector3(-2.1, STERN_Y + 2.62, 27.18), "b": Vector3(2.1, STERN_Y + 2.62, 27.18)},
-		{"a": Vector3(7.08, STERN_Y + 2.62, 16.0), "b": Vector3(7.08, STERN_Y + 2.62, 18.4)}
-
+		{"a": Vector3(-3.6, BOW_Y + 2.58, -27.18), "b": Vector3(-1.2, BOW_Y + 2.58, -27.18)},
+		{"a": Vector3(-3.7, BOW_Y + 2.58, -13.82), "b": Vector3(-1.1, BOW_Y + 2.58, -13.82)},
+		{"a": Vector3(-2.0, STERN_Y + 2.58, 13.82), "b": Vector3(2.0, STERN_Y + 2.58, 13.82)},
+		{"a": Vector3(-2.0, STERN_Y + 2.58, 27.18), "b": Vector3(2.0, STERN_Y + 2.58, 27.18)}
 	]
+	for db in door_bars:
+		d.led_strip(db["a"], db["b"], Color(0.65, 0.30, 0.95), 1.4)
 
 	for db in door_bars:
 		d.led_strip(db["a"], db["b"], Color(0.76, 0.24, 1.0), 4.8)
@@ -411,14 +408,10 @@ func build_detail(d: MapDetail) -> void:
 	# Show-Beleuchtung, Panorama-LEDs & Radar-Dach für das neue 2-Etagen-Kapitänshaus (Süd)
 	var U_S2 := STERN_Y + 3.80
 	var ROOF_S2 := U_S2 + 3.60
-	d.led_strip(Vector3(-6.7, U_S2 + 0.06, 14.1), Vector3(6.7, U_S2 + 0.06, 14.1), Color(0.22, 0.82, 1.0), 3.6)
-	d.led_strip(Vector3(-6.7, ROOF_S2 + 0.06, 14.0), Vector3(6.7, ROOF_S2 + 0.06, 14.0), Color(0.75, 0.28, 1.0), 3.6)
 	d.rail(Vector3(-6.9, ROOF_S2 + 0.35, 14.0), Vector3(6.9, ROOF_S2 + 0.35, 14.0), 0.75)
 	d.rail(Vector3(-6.9, ROOF_S2 + 0.35, 27.0), Vector3(6.9, ROOF_S2 + 0.35, 27.0), 0.75)
 	d.lamp(Vector3(2.2, STERN_Y + 3.3, 20.5), Color(1.0, 0.76, 0.38), 1.8, 14.0) # Warmes EG-Salonlicht
-	d.led_strip(Vector3(-6.35, STERN_Y + 0.76, 17.8), Vector3(-3.45, STERN_Y + 0.76, 17.8), Color(0.25, 0.78, 1.0), 1.2)
-	d.led_strip(Vector3(-6.35, STERN_Y + 1.91, 20.3), Vector3(-3.45, STERN_Y + 1.91, 20.3), Color(0.25, 0.78, 1.0), 1.2)
-	d.led_strip(Vector3(-6.35, STERN_Y + 3.06, 22.8), Vector3(-3.45, STERN_Y + 3.06, 22.8), Color(0.25, 0.78, 1.0), 1.2)
+	p(Vector3(-6.35, STERN_Y + 3.06, 22.8), Vector3(-3.45, STERN_Y + 3.06, 22.8), Color(0.25, 0.78, 1.0), 1.2)
 	d.lamp(Vector3(0.0, U_S2 + 3.1, 18.0), Color(1.0, 0.72, 0.36), 1.1, 12.0)    # Gemütliches Cockpit-Amber im 1. OG
 	d.bulb(Vector3(0.0, U_S2 + 1.45, 15.1), Color(0.15, 0.85, 1.0), 1.2, 0.9, 6.0) # Blaues Instrumenten-Leuchten
 	
