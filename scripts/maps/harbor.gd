@@ -251,25 +251,22 @@ func get_blocks() -> Array:
 	var ROOF_S := U_S + F2_H         # Radar-Dach (y = +6.30)
 
 	# --- ERDGESCHOSS (Salon & Treppen-Atrium, z = 14.0 bis 27.0) ---
-	# Logische, breite Mittelachse vom Spawn (s: offset=0.0, 4.4m) direkt durchs Haus aufs Schiff (n: offset=0.0, 4.4m) + Seitentür (e: offset=-3.3 -> z=17.2)!
 	b.append_array(room_walls(Vector3(0, STERN_Y, 20.5), Vector3(13.8, F1_H, 13.0), 0.34, "ship_hull", C_GELCOAT,
 		[{"side": "n", "offset": 0.0, "width": 4.4}, {"side": "s", "offset": 0.0, "width": 4.4},
 		 {"side": "e", "offset": -3.3, "width": 2.4}]))
-	# Saubere weiße Türstürze ohne MapDetail-Fensterrahmen (exakt passend zu den 3 Eingängen!)
+	# Hohe, weiße Türstürze oben an der Decke (Durchgangshöhe 2.55m -> null hängende Balken vor der Tür!)
 	b.append(box(Vector3(0.0, STERN_Y + 3.175, 14.0), Vector3(4.4, 1.25, 0.34), "ship_hull", C_GELCOAT))
 	b.append(box(Vector3(0.0, STERN_Y + 3.175, 27.0), Vector3(4.4, 1.25, 0.34), "ship_hull", C_GELCOAT))
 	b.append(box(Vector3(6.9, STERN_Y + 2.90, 17.2), Vector3(0.34, 1.80, 2.4), "ship_hull", C_GELCOAT))
-
-
 
 	# Edle Lounge-Bar & Sitzgruppe sauber an der Ostwand (komplett aus dem Laufweg!)
 	b.append(box(Vector3(5.6, STERN_Y + 0.56, 23.2), Vector3(1.1, 1.12, 4.4), "metal_panel", C_DARK))
 	b.append(box(Vector3(5.6, STERN_Y + 1.15, 23.2), Vector3(1.25, 0.08, 4.6), "tiles", C_MARBLE))
 	b.append(box(Vector3(3.4, STERN_Y + 0.35, 23.2), Vector3(1.0, 0.7, 3.6), "metal_panel", C_NAVY))
 
-
-	# Schnurgerade, breite Galerie-Treppe EG -> 1. OG (kein schwebender Podest-Klotz mehr!)
+	# Schnurgerade, breite Galerie-Treppe EG -> 1. OG
 	b.append(ramp(Vector3(-4.9, STERN_Y, 16.2), Vector3(-4.9, U_S + 0.02, 24.4), 3.2, "metal_panel", 0.24, C_CHROME))
+
 
 	# --- 1. OBERGESCHOSS: PANORAMA-KOMMANDOBRÜCKE (U_S = +2.70 bis +6.30) ---
 	b.append(box(Vector3(1.8, U_S - 0.15, 20.5), Vector3(10.2, 0.3, 12.6), "wood_planks", C_TEAK))
