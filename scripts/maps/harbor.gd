@@ -497,6 +497,16 @@ func _upgrade_reflective_materials() -> void:
 					pm.specular = 0.45
 					pm.clearcoat = 0.12
 					mi.set_surface_override_material(s, pm)
+			elif m_id.contains("glass"):
+				var gm := StandardMaterial3D.new()
+				gm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+				gm.albedo_color = Color(0.68, 0.88, 1.0, 0.24)
+				gm.roughness = 0.05
+				gm.metallic = 0.1
+				gm.specular = 1.0
+				gm.cull_mode = BaseMaterial3D.CULL_DISABLED
+				mi.set_surface_override_material(s, gm)
+
 
 
 func _build_seamless_yacht_hull() -> void:
