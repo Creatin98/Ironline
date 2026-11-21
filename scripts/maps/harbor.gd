@@ -256,9 +256,10 @@ func get_blocks() -> Array:
 		[{"side": "n", "offset": 0.0, "width": 4.4}, {"side": "s", "offset": 0.0, "width": 4.4},
 		 {"side": "e", "offset": -3.3, "width": 2.4}]))
 	# Saubere weiße Türstürze ohne MapDetail-Fensterrahmen (exakt passend zu den 3 Eingängen!)
-	b.append(box(Vector3(0.0, STERN_Y + 3.15, 14.0), Vector3(4.4, 1.3, 0.34), "wood_planks", C_GELCOAT))
-	b.append(box(Vector3(0.0, STERN_Y + 3.15, 27.0), Vector3(4.4, 1.3, 0.34), "wood_planks", C_GELCOAT))
-	b.append(box(Vector3(6.9, STERN_Y + 3.15, 17.2), Vector3(0.34, 1.3, 2.4), "wood_planks", C_GELCOAT))
+	b.append(box(Vector3(0.0, STERN_Y + 3.175, 14.0), Vector3(4.4, 1.25, 0.34), "ship_hull", C_GELCOAT))
+	b.append(box(Vector3(0.0, STERN_Y + 3.175, 27.0), Vector3(4.4, 1.25, 0.34), "ship_hull", C_GELCOAT))
+	b.append(box(Vector3(6.9, STERN_Y + 3.175, 17.2), Vector3(0.34, 1.25, 2.4), "tiles", C_GELCOAT))
+
 
 	# Edle Lounge-Bar & Sitzgruppe sauber an der Ostwand (komplett aus dem Laufweg!)
 	b.append(box(Vector3(5.6, STERN_Y + 0.56, 23.2), Vector3(1.1, 1.12, 4.4), "metal_panel", C_DARK))
@@ -274,17 +275,18 @@ func get_blocks() -> Array:
 	b.append(box(Vector3(-4.9, U_S - 0.15, 25.6), Vector3(3.6, 0.3, 2.4), "wood_planks", C_TEAK))
 	b.append(box(Vector3(-3.1, U_S + 0.45, 20.2), Vector3(0.22, 0.9, 8.4), "ship_hull", C_GELCOAT))
 
-	# Außenwände 1. OG + bündige Panorama-Fensterrahmen (2.80 - 0.95 = 1.85m hohe Scheiben!)
+	# Außenwände 1. OG + bündige Panorama-Fensterrahmen (3.8m breit -> null schwebende MapDetail-Gitter!)
 	b.append_array(room_walls(Vector3(0, U_S, 20.5), Vector3(13.6, F2_H, 12.6), 0.30, "ship_hull", C_GELCOAT,
-		[{"side": "n", "offset": -3.2, "width": 3.2}, {"side": "n", "offset": 3.2, "width": 3.2},
-		 {"side": "s", "offset": -2.2, "width": 3.2}, {"side": "s", "offset": 2.2, "width": 3.2},
-		 {"side": "w", "offset": -1.5, "width": 3.4}, {"side": "e", "offset": -1.5, "width": 3.4}]))
+		[{"side": "n", "offset": -3.2, "width": 3.8}, {"side": "n", "offset": 3.2, "width": 3.8},
+		 {"side": "s", "offset": -2.4, "width": 3.8}, {"side": "s", "offset": 2.4, "width": 3.8},
+		 {"side": "w", "offset": -1.5, "width": 3.8}, {"side": "e", "offset": -1.5, "width": 3.8}]))
 	for fx in [-3.2, 3.2]:
-		b.append_array(window(Vector3(fx, U_S, 14.2), 3.2, 1.00, 2.85, F2_H, 0.30, true, "ship_hull", C_GELCOAT))
-	for bx in [-2.2, 2.2]:
-		b.append_array(window(Vector3(bx, U_S, 26.8), 3.2, 1.00, 2.85, F2_H, 0.30, true, "ship_hull", C_GELCOAT))
+		b.append_array(window(Vector3(fx, U_S, 14.2), 3.8, 1.00, 2.85, F2_H, 0.30, true, "ship_hull", C_GELCOAT))
+	for bx in [-2.4, 2.4]:
+		b.append_array(window(Vector3(bx, U_S, 26.8), 3.8, 1.00, 2.85, F2_H, 0.30, true, "ship_hull", C_GELCOAT))
 	for sx in [-6.8, 6.8]:
-		b.append_array(window(Vector3(sx, U_S, 19.0), 3.4, 1.00, 2.85, F2_H, 0.30, false, "ship_hull", C_GELCOAT))
+		b.append_array(window(Vector3(sx, U_S, 19.0), 3.8, 1.00, 2.85, F2_H, 0.30, false, "ship_hull", C_GELCOAT))
+
 
 	# Zentraler Taktik- & Kapitänstisch mitten in der Kommandozentrale (rundherum frei begehbar!)
 	b.append(box(Vector3(1.6, U_S + 0.48, 19.8), Vector3(3.4, 0.96, 1.8), "wood_planks", C_TEAK))
@@ -333,12 +335,11 @@ func build_detail(d: MapDetail) -> void:
 	# Alle 5 Panorama-Fenster im 1. OG Kapitänshaus direkt für GlassField (zerbrechliches Glas) registrieren!
 	var U_S_WIN := STERN_Y + 3.80
 	for fx in [-3.2, 3.2]:
-		d.windows.append({"center": Vector3(fx, U_S_WIN + 1.925, 14.2), "size": Vector2(3.24, 1.89), "axis_x": true})
-	for bx in [-2.2, 2.2]:
-		d.windows.append({"center": Vector3(bx, U_S_WIN + 1.925, 26.8), "size": Vector2(3.24, 1.89), "axis_x": true})
+		d.windows.append({"center": Vector3(fx, U_S_WIN + 1.925, 14.2), "size": Vector2(3.84, 1.89), "axis_x": true})
+	for bx in [-2.4, 2.4]:
+		d.windows.append({"center": Vector3(bx, U_S_WIN + 1.925, 26.8), "size": Vector2(3.84, 1.89), "axis_x": true})
 	for sx in [-6.8, 6.8]:
-		d.windows.append({"center": Vector3(sx, U_S_WIN + 1.925, 19.0), "size": Vector2(3.44, 1.89), "axis_x": false})
-
+		d.windows.append({"center": Vector3(sx, U_S_WIN + 1.925, 19.0), "size": Vector2(3.84, 1.89), "axis_x": false})
 
 
 	# Reling-Spots passend zu den 3 Deck-Höhen
