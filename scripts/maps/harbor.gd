@@ -130,8 +130,8 @@ func _process(delta: float) -> void:
 	# 3. Amazonas-Unwetter: Sturm-Regen, Visier-Tropfen, nasse Waffen & Wetterleuchten
 	var cam_s := get_viewport().get_camera_3d()
 	if cam_s != null:
-		if _storm_rain != null:
-			_storm_rain.global_position = cam_s.global_position + Vector3(6.0, 11.0, 5.0)
+			if _storm_rain != null:
+			_storm_rain.global_position = cam_s.global_position + Vector3(0.0, 11.0, 0.0)
 		# Prüfen ob Spieler draußen im Sturm steht (nicht im Salon/Kapitänshaus)
 		var cp := cam_s.global_position
 		var indoors := (absf(cp.x) < 6.6 and absf(cp.z + 20.5) < 6.3 and cp.y < 4.8) or (absf(cp.x) < 6.6 and absf(cp.z - 20.5) < 6.1 and cp.y < 6.2)
@@ -269,7 +269,6 @@ func get_blocks() -> Array:
 	# --- 1. OBERGESCHOSS: PANORAMA-KOMMANDOBRÜCKE (U_S = +2.70 bis +6.30) ---
 	b.append(box(Vector3(1.8, U_S - 0.15, 20.5), Vector3(10.2, 0.3, 12.6), "wood_planks", C_TEAK))
 	b.append(box(Vector3(-4.9, U_S - 0.15, 25.6), Vector3(3.6, 0.3, 2.4), "wood_planks", C_TEAK))
-	b.append(box(Vector3(-4.9, U_S - 0.15, 15.1), Vector3(3.6, 0.3, 1.8), "wood_planks", C_TEAK))
 	b.append(box(Vector3(-3.1, U_S + 0.45, 20.2), Vector3(0.22, 0.9, 8.4), "ship_hull", C_GELCOAT))
 
 	# Außenwände 1. OG + bündige Panorama-Fensterrahmen (2.80 - 0.95 = 1.85m hohe Scheiben!)
@@ -293,9 +292,9 @@ func get_blocks() -> Array:
 	b.append(box(Vector3(1.1, U_S + 1.24, 15.65), Vector3(0.32, 0.28, 0.24), "metal_panel", C_CHROME))
 	b.append(box(Vector3(0.0, U_S + 0.48, 16.9), Vector3(1.0, 0.96, 1.0), "metal_panel", C_NAVY))
 	b.append(box(Vector3(0.0, U_S + 1.12, 17.32), Vector3(1.0, 0.85, 0.18), "metal_panel", C_NAVY))
-	# Kartentisch hinter dem Kapitänspult
-	b.append(box(Vector3(-3.4, U_S + 0.48, 19.6), Vector3(2.8, 0.96, 1.5), "wood_planks", C_TEAK))
-	b.append(box(Vector3(-3.4, U_S + 0.98, 19.6), Vector3(2.2, 0.04, 1.1), "tiles", C_MARBLE))
+	# Kartentisch hinter dem Kapitänspult (steht sauber auf dem 1. OG-Boden neben der Brüstung!)
+	b.append(box(Vector3(-1.2, U_S + 0.48, 19.6), Vector3(2.8, 0.96, 1.5), "wood_planks", C_TEAK))
+	b.append(box(Vector3(-1.2, U_S + 0.98, 19.6), Vector3(2.2, 0.04, 1.1), "tiles", C_MARBLE))
 
 	# --- 2. TREPPENLAUF 1. OG -> RADAR-DACHTERRASSE (ROOF_S = +6.30) ---
 	b.append(ramp(Vector3(5.3, U_S, 23.8), Vector3(5.3, ROOF_S + 0.03, 17.2), 2.2, "wood_planks", 0.26, C_TEAK))
@@ -352,15 +351,16 @@ func build_detail(d: MapDetail) -> void:
 
 	# Lila Eingangs-Lichtbalken über allen 8 Türen (passend zu den versetzten Eingängen!)
 	var door_bars := [
-		{"a": Vector3(1.1, BOW_Y + 2.62, -27.18), "b": Vector3(3.7, BOW_Y + 2.62, -27.18)},
+		# Nord-Deckhaus (Türen bei x = -2.4, Breite 2.6/2.8, und West-Tür bei z = -20.5)
+		{"a": Vector3(-3.7, BOW_Y + 2.62, -27.18), "b": Vector3(-1.1, BOW_Y + 2.62, -27.18)},
 		{"a": Vector3(-3.8, BOW_Y + 2.62, -13.82), "b": Vector3(-1.0, BOW_Y + 2.62, -13.82)},
-		{"a": Vector3(-7.08, BOW_Y + 2.62, -23.8), "b": Vector3(-7.08, BOW_Y + 2.62, -21.6)},
-		{"a": Vector3(7.08, BOW_Y + 2.62, -19.4), "b": Vector3(7.08, BOW_Y + 2.62, -17.2)},
-		{"a": Vector3(1.0, STERN_Y + 2.62, 13.82), "b": Vector3(3.8, STERN_Y + 2.62, 13.82)},
-		{"a": Vector3(-3.7, STERN_Y + 2.62, 27.18), "b": Vector3(-1.1, STERN_Y + 2.62, 27.18)},
-		{"a": Vector3(-7.08, STERN_Y + 2.62, 21.6), "b": Vector3(-7.08, STERN_Y + 2.62, 23.8)},
-		{"a": Vector3(7.08, STERN_Y + 2.62, 17.2), "b": Vector3(7.08, STERN_Y + 2.62, 19.4)}
+		{"a": Vector3(-7.08, BOW_Y + 2.62, -21.7), "b": Vector3(-7.08, BOW_Y + 2.62, -19.3)},
+		# Süd-Kapitänshaus EG (Türen bei x = +2.4, Breite 2.6, und Ost-Tür bei z = +20.5)
+		{"a": Vector3(1.1, STERN_Y + 2.62, 13.82), "b": Vector3(3.7, STERN_Y + 2.62, 13.82)},
+		{"a": Vector3(1.1, STERN_Y + 2.62, 27.18), "b": Vector3(3.7, STERN_Y + 2.62, 27.18)},
+		{"a": Vector3(7.08, STERN_Y + 2.62, 19.3), "b": Vector3(7.08, STERN_Y + 2.62, 21.7)}
 	]
+
 	for db in door_bars:
 		d.led_strip(db["a"], db["b"], Color(0.76, 0.24, 1.0), 4.8)
 
@@ -757,6 +757,8 @@ func _build_midnight_ocean_and_liner() -> void:
 	_storm_rain.amount = 3800
 	_storm_rain.lifetime = 0.85
 	_storm_rain.preprocess = 1.0
+	_storm_rain.local_coords = false
+	_storm_rain.visibility_aabb = AABB(Vector3(-80.0, -40.0, -80.0), Vector3(160.0, 80.0, 160.0))
 	var rmat := ParticleProcessMaterial.new()
 	rmat.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_BOX
 	rmat.emission_box_extents = Vector3(26.0, 4.0, 26.0)
