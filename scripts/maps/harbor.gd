@@ -443,10 +443,10 @@ func _setup_midnight_atmosphere() -> void:
 	env.ambient_light_color = Color(0.08, 0.14, 0.24)
 	env.ambient_light_energy = 1.15
 	env.glow_enabled = true
-	env.glow_intensity = 0.85
-	env.glow_strength = 1.08
-	env.glow_bloom = 0.28
-	env.glow_blend_mode = Environment.GLOW_BLEND_MODE_SCREEN
+	env.glow_intensity = 0.22
+	env.glow_strength = 0.75
+	env.glow_bloom = 0.04
+	env.glow_hdr_threshold = 1.35
 
 	env.fog_enabled = true
 	env.fog_mode = Environment.FOG_MODE_DEPTH
@@ -465,9 +465,10 @@ func _setup_midnight_atmosphere() -> void:
 
 func _upgrade_reflective_materials() -> void:
 	var gelcoat := StandardMaterial3D.new()
-	gelcoat.albedo_color = Color(0.92, 0.93, 0.95)
+	gelcoat.albedo_color = Color(0.90, 0.91, 0.93)
 	gelcoat.vertex_color_use_as_albedo = false
-	gelcoat.roughness = 0.45
+	gelcoat.roughness = 0.62
+	gelcoat.specular = 0.25
 	gelcoat.metallic = 0.0
 	gelcoat.clearcoat = 0.0
 
@@ -489,19 +490,11 @@ func _upgrade_reflective_materials() -> void:
 					pm.uv1_triplanar = true
 					pm.uv1_world_triplanar = true
 					pm.uv1_scale = Vector3(0.35, 0.35, 0.35)
-					pm.roughness = 0.38
-					pm.specular = 0.45
-					pm.clearcoat = 0.12
+					pm.roughness = 0.54
+					pm.specular = 0.22
+					pm.clearcoat = 0.05
 					mi.set_surface_override_material(s, pm)
-			elif m_id.contains("glass"):
-				var gm := StandardMaterial3D.new()
-				gm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-				gm.albedo_color = Color(0.68, 0.88, 1.0, 0.24)
-				gm.roughness = 0.05
-				gm.metallic = 0.1
-				gm.specular = 1.0
-				gm.cull_mode = BaseMaterial3D.CULL_DISABLED
-				mi.set_surface_override_material(s, gm)
+
 
 
 
@@ -804,8 +797,6 @@ func _build_midnight_ocean_and_liner() -> void:
 	var rect := ColorRect.new()
 	rect.set_anchors_preset(Control.PRESET_FULL_RECT)
 	rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var vshd := Shader.new()
-	vshd.code = "shader_type canvas_item;\nuniform sampler2D screen_tex : hint_screen_texture, filter_linear_mipmap;\nuniform float wetness=1.0;\nfloat hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}\nvoid fragment(){\n\tvec3 col = texture(screen_tex, SCREEN_UV).rgb;\n\t// Dezentes kühles Sturm-Grading (erhält sauberes Weiß & warmes Holz!)\n\tcol *= vec3(0.92, 0.96, 1.04);\n\tcol = clamp((col - 0.5) * 1.06 + 0.5, 0.0, 1.25);\n\t// Feines analoges Filmkorn + sanfte Sturm-Vignette\n\tfloat grain = (hash(SCREEN_UV * 900.0 + fract(TIME * 15.0)) - 0.5) * 0.025;\n\tfloat vig = smoothstep(1.45, 0.45, length(UV - 0.5) * 1.25);\n\tcol = (col + grain) * mix(0.75, 1.0, vig);\n\tCOLOR = vec4(col, 1.0);\n}"
 	_visor_rain_mat = ShaderMaterial.new()
 	_visor_rain_mat.shader = vshd
 	rect.material = _visor_rain_mat
