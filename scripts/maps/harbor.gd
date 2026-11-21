@@ -266,10 +266,10 @@ func get_blocks() -> Array:
 
 	# --- 1. OBERGESCHOSS: PANORAMA-KOMMANDOBRÜCKE (U_S = +2.70 bis +6.30, 13.6m x 12.6m) ---
 	# Bodenplatte 1. OG (hinterer Streifen z=23.2..26.6, x=-6.4..3.2 ist für die Treppe 100% offen!)
-	b.append(box(Vector3(0.0, U_S - 0.15, 18.6), Vector3(13.8, 0.3, 9.2), "wood_planks", C_TEAK))
-	b.append(box(Vector3(4.9, U_S - 0.15, 25.0), Vector3(4.0, 0.3, 3.6), "wood_planks", C_TEAK))
-	# Brüstung um die Treppenöffnung im 1. OG
-	b.append(box(Vector3(-1.8, U_S + 0.45, 23.2), Vector3(9.4, 0.9, 0.22), "ship_hull", C_GELCOAT))
+	b.append(box(Vector3(0.0, U_S - 0.15, 17.4), Vector3(13.8, 0.3, 6.8), "wood_planks", C_TEAK))
+	b.append(box(Vector3(4.6, U_S - 0.15, 23.8), Vector3(4.6, 0.3, 6.2), "wood_planks", C_TEAK))
+	b.append(box(Vector3(-1.8, U_S + 0.45, 20.8), Vector3(9.4, 0.9, 0.22), "ship_hull", C_GELCOAT))
+
 
 	# Außenwände 1. OG mit riesigen Panorama-Fensterfronten (Nord aufs Schiff, West, Ost & Süd aufs Helipad)
 	b.append_array(room_walls(Vector3(0, U_S, 20.5), Vector3(13.6, F2_H, 12.6), 0.30, "ship_hull", C_GELCOAT,
@@ -467,6 +467,7 @@ func _setup_midnight_atmosphere() -> void:
 func _upgrade_reflective_materials() -> void:
 	var gelcoat := StandardMaterial3D.new()
 	gelcoat.albedo_color = Color(0.92, 0.93, 0.95)
+	gelcoat.vertex_color_use_as_albedo = false
 	gelcoat.roughness = 0.45
 	gelcoat.metallic = 0.0
 	gelcoat.clearcoat = 0.0
