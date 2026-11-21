@@ -270,7 +270,6 @@ func get_blocks() -> Array:
 
 	# --- 1. OBERGESCHOSS: PANORAMA-KOMMANDOBRÜCKE (U_S = +2.70 bis +6.30) ---
 	b.append(box(Vector3(1.8, U_S - 0.15, 20.5), Vector3(10.2, 0.3, 12.6), "wood_planks", C_TEAK))
-	b.append(box(Vector3(-4.9, U_S - 0.15, 25.6), Vector3(3.6, 0.3, 2.4), "wood_planks", C_TEAK))
 	b.append(box(Vector3(-3.1, U_S + 0.45, 20.2), Vector3(0.22, 0.9, 8.4), "ship_hull", C_GELCOAT))
 
 	# Außenwände 1. OG + bündige Panorama-Fensterrahmen (3.8m breit -> null schwebende MapDetail-Gitter!)
@@ -411,22 +410,16 @@ func build_detail(d: MapDetail) -> void:
 	d.rail(Vector3(-6.9, ROOF_S2 + 0.35, 27.0), Vector3(6.9, ROOF_S2 + 0.35, 27.0), 0.75)
 	d.lamp(Vector3(2.2, STERN_Y + 3.3, 20.5), Color(1.0, 0.76, 0.38), 1.8, 14.0) # Warmes EG-Salonlicht
 	d.lamp(Vector3(1.85, U_S2 + 3.25, 20.5), Color(1.0, 0.72, 0.36), 1.1, 12.0)
-	d.bulb(Vector3(0.0, U_S2 + 1.45, 15.1), Color(0.15, 0.85, 1.0), 1.2, 0.9, 6.0) # Blaues Instrumenten-Leuchten
 	
 	# Großer Satcom- & Radar-Turm auf dem Kapitänsdach (ROOF_S2 = +6.30)
 	d.add_cylinder(Vector3(1.5, ROOF_S2 + 0.9, 20.5), 0.45, 1.8, "ship_hull", C_GELCOAT)
 	d.add_box(Vector3(1.5, ROOF_S2 + 1.8, 20.5), Vector3(3.4, 0.18, 0.35), "metal_panel", C_CHROME)
 	d.add_cylinder(Vector3(-2.5, ROOF_S2 + 0.9, 20.5), 1.15, 1.8, "ship_hull", C_GELCOAT)
 	d.add_cylinder(Vector3(-2.5, ROOF_S2 + 2.1, 20.5), 1.45, 0.85, "ship_hull", C_GELCOAT)
-	d.add_box(Vector3(1.5, ROOF_S2 + 1.8, 20.5), Vector3(3.4, 0.18, 0.35), "metal_panel", C_CHROME)
-	d.glow(Vector3(-2.5, ROOF_S2 + 3.2, 20.5), Color(1.0, 0.14, 0.10), 1.6)
-
+	
 	d.bulb(Vector3(0, MID_Y + 0.95, 0.0), Color(0.15, 0.90, 1.0), 3.4, 2.8, 9.0)
 	d.bulb(Vector3(0, BOW_Y + 0.95, -33.5), Color(0.15, 0.90, 1.0), 2.8, 2.4, 7.0)
 	d.lamp(Vector3(-1.5, BOW_Y + 3.4, -20.5), Color(1.0, 0.76, 0.36), 2.4, 16.0)
-	d.lamp(Vector3(1.5, STERN_Y + 3.4, 20.5), Color(1.0, 0.74, 0.34), 2.2, 15.0)
-	d.lamp(Vector3(-4.5, STERN_Y + 3.4, 22.5), Color(0.45, 0.78, 1.0), 1.4, 10.0) # Treppenhaus-Licht Süd
-	d.lamp(Vector3(1.5, U_S + 2.2, 18.5), Color(1.0, 0.68, 0.34), 0.65, 8.0)
 
 
 
