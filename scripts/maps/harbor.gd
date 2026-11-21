@@ -130,7 +130,7 @@ func _process(delta: float) -> void:
 	# 3. Amazonas-Unwetter: Sturm-Regen, Visier-Tropfen, nasse Waffen & Wetterleuchten
 	var cam_s := get_viewport().get_camera_3d()
 	if cam_s != null:
-			if _storm_rain != null:
+		if _storm_rain != null:
 			_storm_rain.global_position = cam_s.global_position + Vector3(0.0, 11.0, 0.0)
 		# Prüfen ob Spieler draußen im Sturm steht (nicht im Salon/Kapitänshaus)
 		var cp := cam_s.global_position
