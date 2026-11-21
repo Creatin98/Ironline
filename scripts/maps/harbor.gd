@@ -251,37 +251,38 @@ func get_blocks() -> Array:
 
 	# --- ERDGESCHOSS (Salon & Treppen-Atrium, z = 14.0 bis 27.0) ---
 	b.append_array(room_walls(Vector3(0, STERN_Y, 20.5), Vector3(13.8, F1_H, 13.0), 0.34, "ship_hull", C_GELCOAT,
-		[{"side": "n", "offset": 2.4, "width": 2.8}, {"side": "s", "offset": 2.4, "width": 2.6},
+		[{"side": "n", "offset": 2.4, "width": 2.6}, {"side": "s", "offset": 2.4, "width": 2.6},
 		 {"side": "e", "offset": 0.0, "width": 2.4}]))
+	# Saubere weiße Türstürze über allen 3 EG-Türen (kein riesiges Loch mehr bis zur Decke!)
+	b.append(box(Vector3(2.4, STERN_Y + 3.15, 14.0), Vector3(2.6, 1.3, 0.34), "ship_hull", C_GELCOAT))
+	b.append(box(Vector3(2.4, STERN_Y + 3.15, 27.0), Vector3(2.6, 1.3, 0.34), "ship_hull", C_GELCOAT))
+	b.append(box(Vector3(6.9, STERN_Y + 3.15, 20.5), Vector3(0.34, 1.3, 2.4), "ship_hull", C_GELCOAT))
+
 	# Edle Lounge-Bar & Sitzgruppe rechts im EG
 	b.append(box(Vector3(3.6, STERN_Y + 0.56, 22.8), Vector3(4.2, 1.12, 1.0), "metal_panel", C_DARK))
 	b.append(box(Vector3(3.6, STERN_Y + 1.15, 22.8), Vector3(4.4, 0.08, 1.1), "tiles", C_MARBLE))
 	b.append(box(Vector3(3.8, STERN_Y + 0.35, 17.5), Vector3(3.6, 0.7, 1.1), "metal_panel", C_NAVY))
 
-	# Schnurgerade, breite Galerie-Treppe EG -> 1. OG (x = -4.9, Breite 3.2m -> 0% Versatz, 100% flüssig begehbar!)
+	# Schnurgerade, breite Galerie-Treppe EG -> 1. OG (kein schwebender Podest-Klotz mehr!)
 	b.append(ramp(Vector3(-4.9, STERN_Y, 16.2), Vector3(-4.9, U_S + 0.02, 24.4), 3.2, "metal_panel", 0.24, C_CHROME))
 
 	# --- 1. OBERGESCHOSS: PANORAMA-KOMMANDOBRÜCKE (U_S = +2.70 bis +6.30) ---
-	# Bodenplatte 1. OG (Treppenschacht links x=-6.7..-3.1, z=16.0..24.4 ist 100% offen; hinten z=24.4..26.8 ist Podest!)
 	b.append(box(Vector3(1.8, U_S - 0.15, 20.5), Vector3(10.2, 0.3, 12.6), "wood_planks", C_TEAK))
 	b.append(box(Vector3(-4.9, U_S - 0.15, 25.6), Vector3(3.6, 0.3, 2.4), "wood_planks", C_TEAK))
 	b.append(box(Vector3(-4.9, U_S - 0.15, 15.1), Vector3(3.6, 0.3, 1.8), "wood_planks", C_TEAK))
-	# Brüstung an der Innenkante des Treppenschachts (x = -3.1, z = 16.0..24.4)
 	b.append(box(Vector3(-3.1, U_S + 0.45, 20.2), Vector3(0.22, 0.9, 8.4), "ship_hull", C_GELCOAT))
 
-	# Außenwände 1. OG mit riesigen Panorama-Fensterfronten (automatisches GlassField mit Splitter-Animation!)
+	# Außenwände 1. OG + bündige Panorama-Fensterrahmen (2.80 - 0.95 = 1.85m hohe Scheiben!)
 	b.append_array(room_walls(Vector3(0, U_S, 20.5), Vector3(13.6, F2_H, 12.6), 0.30, "ship_hull", C_GELCOAT,
 		[{"side": "n", "offset": -3.2, "width": 3.2}, {"side": "n", "offset": 3.2, "width": 3.2},
 		 {"side": "s", "offset": -2.2, "width": 3.2}, {"side": "s", "offset": 2.2, "width": 3.2},
 		 {"side": "w", "offset": -1.5, "width": 3.4}, {"side": "e", "offset": -1.5, "width": 3.4}]))
 	for fx in [-3.2, 3.2]:
-		b.append_array(window(Vector3(fx, U_S, 14.2), 3.2, 1.0, 2.75, F2_H, 0.30, true, "ship_hull", C_GELCOAT))
+		b.append_array(window(Vector3(fx, U_S, 14.2), 3.2, 0.95, 2.80, F2_H, 0.30, true, "ship_hull", C_GELCOAT))
 	for bx in [-2.2, 2.2]:
-		b.append_array(window(Vector3(bx, U_S, 26.8), 3.2, 1.0, 2.75, F2_H, 0.30, true, "ship_hull", C_GELCOAT))
+		b.append_array(window(Vector3(bx, U_S, 26.8), 3.2, 0.95, 2.80, F2_H, 0.30, true, "ship_hull", C_GELCOAT))
 	for sx in [-6.8, 6.8]:
-		b.append_array(window(Vector3(sx, U_S, 19.0), 3.4, 1.0, 2.75, F2_H, 0.30, false, "ship_hull", C_GELCOAT))
-
-
+		b.append_array(window(Vector3(sx, U_S, 19.0), 3.4, 0.95, 2.80, F2_H, 0.30, false, "ship_hull", C_GELCOAT))
 
 	# Kapitänspult & Cockpit-Ausstattung im 1. OG (Blickrichtung Bug!)
 	b.append(box(Vector3(0.0, U_S + 0.52, 15.3), Vector3(8.6, 1.04, 1.05), "metal_panel", C_DARK))
@@ -326,11 +327,11 @@ func build_detail(d: MapDetail) -> void:
 	# Alle 5 Panorama-Fenster im 1. OG Kapitänshaus direkt für GlassField (zerbrechliches Glas) registrieren!
 	var U_S_WIN := STERN_Y + 3.80
 	for fx in [-3.2, 3.2]:
-		d.windows.append({"center": Vector3(fx, U_S_WIN + 1.875, 14.2), "size": Vector2(3.2, 1.75), "axis_x": true})
+		d.windows.append({"center": Vector3(fx, U_S_WIN + 1.875, 14.2), "size": Vector2(3.2, 1.85), "axis_x": true})
 	for bx in [-2.2, 2.2]:
-		d.windows.append({"center": Vector3(bx, U_S_WIN + 1.875, 26.8), "size": Vector2(3.2, 1.75), "axis_x": true})
+		d.windows.append({"center": Vector3(bx, U_S_WIN + 1.875, 26.8), "size": Vector2(3.2, 1.85), "axis_x": true})
 	for sx in [-6.8, 6.8]:
-		d.windows.append({"center": Vector3(sx, U_S_WIN + 1.875, 19.0), "size": Vector2(3.4, 1.75), "axis_x": false})
+		d.windows.append({"center": Vector3(sx, U_S_WIN + 1.875, 19.0), "size": Vector2(3.4, 1.85), "axis_x": false})
 
 
 
@@ -410,6 +411,8 @@ func build_detail(d: MapDetail) -> void:
 	d.lamp(Vector3(0.0, U_S2 + 3.1, 18.0), Color(1.0, 0.72, 0.36), 1.1, 12.0)    # Gemütliches Cockpit-Amber im 1. OG
 	d.bulb(Vector3(0.0, U_S2 + 1.45, 15.1), Color(0.15, 0.85, 1.0), 1.2, 0.9, 6.0) # Blaues Instrumenten-Leuchten
 	# Großer Satcom- & Radar-Turm auf dem Kapitänsdach (ROOF_S2 = +6.30)
+	d.add_cylinder(Vector3(1.5, ROOF_S2 + 0.9, 20.5), 0.45, 1.8, "ship_hull", C_GELCOAT)
+	d.add_box(Vector3(1.5, ROOF_S2 + 1.8, 20.5), Vector3(3.4, 0.18, 0.35), "metal_panel", C_CHROME)
 	d.add_cylinder(Vector3(-2.5, ROOF_S2 + 0.9, 20.5), 1.15, 1.8, "ship_hull", C_GELCOAT)
 	d.add_cylinder(Vector3(-2.5, ROOF_S2 + 2.1, 20.5), 1.45, 0.85, "ship_hull", C_GELCOAT)
 	d.add_box(Vector3(1.5, ROOF_S2 + 1.8, 20.5), Vector3(3.4, 0.18, 0.35), "metal_panel", C_CHROME)
@@ -646,15 +649,16 @@ func _build_midnight_ocean_and_liner() -> void:
 	smat.scale_max = 0.14
 	_my_spray.process_material = smat
 	var sdrop := SphereMesh.new()
-	sdrop.radius = 0.5
-	sdrop.height = 1.0
-	sdrop.radial_segments = 8
-	sdrop.rings = 4
+	sdrop.radius = 0.06
+	sdrop.height = 0.12
+	sdrop.radial_segments = 6
+	sdrop.rings = 3
 	var sdmat := StandardMaterial3D.new()
 	sdmat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	sdmat.albedo_color = Color(0.84, 0.93, 1.0, 0.42)
-	sdmat.roughness = 0.05
+	sdmat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	sdmat.albedo_color = Color(0.84, 0.93, 1.0, 0.32)
 	sdrop.material = sdmat
+
 	_my_spray.draw_pass_1 = sdrop
 	add_child(_my_spray)
 
@@ -773,31 +777,6 @@ func _build_midnight_ocean_and_liner() -> void:
 	_storm_rain.draw_pass_1 = rmesh
 	add_child(_storm_rain)
 
-	# 6. Aufprall-Spritzer auf dem gesamten Teakdeck (1.600 tanzende Regentropfen-Krönchen)
-	_deck_splashes = GPUParticles3D.new()
-	_deck_splashes.name = "DeckRainSplashes"
-	_deck_splashes.amount = 1600
-	_deck_splashes.lifetime = 0.24
-	_deck_splashes.position = Vector3(0.0, 0.15, 0.0)
-	var spmat := ParticleProcessMaterial.new()
-	spmat.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_BOX
-	spmat.emission_box_extents = Vector3(16.5, 1.15, 36.0)
-	spmat.direction = Vector3(0.0, 1.0, 0.0)
-	spmat.spread = 48.0
-	spmat.initial_velocity_min = 1.8
-	spmat.initial_velocity_max = 3.6
-	spmat.gravity = Vector3(0.0, -16.0, 0.0)
-	_deck_splashes.process_material = spmat
-	var spmesh := SphereMesh.new()
-	spmesh.radius = 0.035
-	spmesh.height = 0.07
-	var spshad := StandardMaterial3D.new()
-	spshad.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	spshad.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	spshad.albedo_color = Color(0.84, 0.92, 1.0, 0.45)
-	spmesh.material = spshad
-	_deck_splashes.draw_pass_1 = spmesh
-	add_child(_deck_splashes)
 
 	# 7. Dezenter Sturm-Dämmerungs-Filter (natürliche Farben, feines Korn, sanfte Regen-Schlieren am Rand)
 	var cl := CanvasLayer.new()
