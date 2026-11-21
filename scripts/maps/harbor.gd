@@ -777,7 +777,22 @@ func _build_midnight_ocean_and_liner() -> void:
 	rshad.albedo_color = Color(0.75, 0.86, 0.98, 0.34)
 	rmesh.material = rshad
 	_storm_rain.draw_pass_1 = rmesh
+	rmat.collision_mode = ParticleProcessMaterial.COLLISION_HIDE_ON_CONTACT
 	add_child(_storm_rain)
+
+	# Regenschutz-Kollisionsboxen für Nord-Haus & Süd-Kommandohaus (damit kein einziger Tropfen durchs Dach fällt!)
+	var rain_shield_n := GPUParticlesCollisionBox3D.new()
+	rain_shield_n.name = "RainShieldNorth"
+	rain_shield_n.size = Vector3(14.8, 5.2, 14.0)
+	rain_shield_n.position = Vector3(0.0, 3.0, -20.5)
+	add_child(rain_shield_n)
+
+	var rain_shield_s := GPUParticlesCollisionBox3D.new()
+	rain_shield_s.name = "RainShieldSouth"
+	rain_shield_s.size = Vector3(14.6, 8.2, 13.6)
+	rain_shield_s.position = Vector3(0.0, 2.7, 20.5)
+	add_child(rain_shield_s)
+
 
 
 	# 7. Dezenter Sturm-Dämmerungs-Filter (natürliche Farben, feines Korn, sanfte Regen-Schlieren am Rand)
