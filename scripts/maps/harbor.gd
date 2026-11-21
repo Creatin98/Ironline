@@ -253,10 +253,12 @@ func get_blocks() -> Array:
 	b.append_array(room_walls(Vector3(0, STERN_Y, 20.5), Vector3(13.8, F1_H, 13.0), 0.34, "ship_hull", C_GELCOAT,
 		[{"side": "n", "offset": 2.4, "width": 2.6}, {"side": "s", "offset": 2.4, "width": 2.6},
 		 {"side": "e", "offset": 0.0, "width": 2.4}]))
-	# Saubere weiße Türstürze über allen 3 EG-Türen (kein riesiges Loch mehr bis zur Decke!)
-	b.append(box(Vector3(2.4, STERN_Y + 3.15, 14.0), Vector3(2.6, 1.3, 0.34), "ship_hull", C_GELCOAT))
-	b.append(box(Vector3(2.4, STERN_Y + 3.15, 27.0), Vector3(2.6, 1.3, 0.34), "ship_hull", C_GELCOAT))
-	b.append(box(Vector3(6.9, STERN_Y + 3.15, 20.5), Vector3(0.34, 1.3, 2.4), "ship_hull", C_GELCOAT))
+
+	# Saubere weiße Türstürze ohne MapDetail-Fensterrahmen (keine schwarzen Sprossen im EG!)
+	b.append(box(Vector3(2.4, STERN_Y + 3.15, 14.0), Vector3(2.6, 1.3, 0.34), "wood_planks", C_GELCOAT))
+	b.append(box(Vector3(2.4, STERN_Y + 3.15, 27.0), Vector3(2.6, 1.3, 0.34), "wood_planks", C_GELCOAT))
+	b.append(box(Vector3(6.9, STERN_Y + 3.15, 20.5), Vector3(0.34, 1.3, 2.4), "wood_planks", C_GELCOAT))
+
 
 	# Edle Lounge-Bar & Sitzgruppe rechts im EG
 	b.append(box(Vector3(3.6, STERN_Y + 0.56, 22.8), Vector3(4.2, 1.12, 1.0), "metal_panel", C_DARK))
@@ -283,18 +285,16 @@ func get_blocks() -> Array:
 	for sx in [-6.8, 6.8]:
 		b.append_array(window(Vector3(sx, U_S, 19.0), 3.4, 1.00, 2.85, F2_H, 0.30, false, "ship_hull", C_GELCOAT))
 
-	# Kapitänspult & Cockpit-Ausstattung im 1. OG (Blickrichtung Bug!)
-	b.append(box(Vector3(0.0, U_S + 0.52, 15.3), Vector3(8.6, 1.04, 1.05), "metal_panel", C_DARK))
-	b.append(box(Vector3(0.0, U_S + 1.08, 15.3), Vector3(8.8, 0.10, 1.15), "wood_planks", C_TEAK))
-	for mx in [-2.8, -1.0, 1.0, 2.8]:
-		b.append(box(Vector3(mx, U_S + 1.36, 15.05), Vector3(1.1, 0.52, 0.08), "metal_panel", Color(0.06, 0.52, 0.78), Vector3(-24, 0, 0)))
-	b.append(cylinder(Vector3(0.0, U_S + 1.22, 15.85), 0.44, 0.08, "metal_panel", C_BRASS))
-	b.append(box(Vector3(1.1, U_S + 1.24, 15.65), Vector3(0.32, 0.28, 0.24), "metal_panel", C_CHROME))
-	b.append(box(Vector3(0.0, U_S + 0.48, 16.9), Vector3(1.0, 0.96, 1.0), "metal_panel", C_NAVY))
-	b.append(box(Vector3(0.0, U_S + 1.12, 17.32), Vector3(1.0, 0.85, 0.18), "metal_panel", C_NAVY))
-	# Kartentisch hinter dem Kapitänspult (steht sauber auf dem 1. OG-Boden neben der Brüstung!)
-	b.append(box(Vector3(-1.2, U_S + 0.48, 19.6), Vector3(2.8, 0.96, 1.5), "wood_planks", C_TEAK))
-	b.append(box(Vector3(-1.2, U_S + 0.98, 19.6), Vector3(2.2, 0.04, 1.1), "tiles", C_MARBLE))
+	# Zentraler Taktik- & Kapitänstisch mitten in der Kommandozentrale (rundherum frei begehbar!)
+	b.append(box(Vector3(1.6, U_S + 0.48, 19.8), Vector3(3.4, 0.96, 1.8), "wood_planks", C_TEAK))
+	b.append(box(Vector3(1.6, U_S + 0.99, 19.8), Vector3(3.6, 0.08, 2.0), "tiles", C_MARBLE))
+	b.append(box(Vector3(1.6, U_S + 1.05, 19.8), Vector3(2.4, 0.04, 1.2), "metal_panel", Color(0.06, 0.45, 0.72)))
+	# Zwei kompakte Steuerkonsolen links & rechts unter den vorderen Fenstern (Mitte z=15.1 bleibt komplett frei!)
+	for cx in [-3.2, 3.2]:
+		b.append(box(Vector3(cx, U_S + 0.48, 15.0), Vector3(2.4, 0.96, 0.85), "metal_panel", C_DARK))
+		b.append(box(Vector3(cx, U_S + 0.99, 15.0), Vector3(2.5, 0.08, 0.92), "wood_planks", C_TEAK))
+	b.append(cylinder(Vector3(3.2, U_S + 1.14, 15.45), 0.38, 0.08, "metal_panel", C_BRASS))
+	b.append(box(Vector3(3.2, U_S + 0.45, 16.4), Vector3(0.85, 0.9, 0.85), "metal_panel", C_NAVY))
 
 	# --- 2. TREPPENLAUF 1. OG -> RADAR-DACHTERRASSE (ROOF_S = +6.30) ---
 	b.append(ramp(Vector3(5.3, U_S, 23.8), Vector3(5.3, ROOF_S + 0.03, 17.2), 2.2, "wood_planks", 0.26, C_TEAK))
@@ -407,9 +407,12 @@ func build_detail(d: MapDetail) -> void:
 	d.rail(Vector3(-6.9, ROOF_S2 + 0.35, 14.0), Vector3(6.9, ROOF_S2 + 0.35, 14.0), 0.75)
 	d.rail(Vector3(-6.9, ROOF_S2 + 0.35, 27.0), Vector3(6.9, ROOF_S2 + 0.35, 27.0), 0.75)
 	d.lamp(Vector3(2.2, STERN_Y + 3.3, 20.5), Color(1.0, 0.76, 0.38), 1.8, 14.0) # Warmes EG-Salonlicht
-	d.lamp(Vector3(-4.6, STERN_Y + 3.3, 24.5), Color(0.55, 0.30, 1.0), 1.3, 10.0) # Violettes Treppenhaus-Ambiente
+	d.led_strip(Vector3(-6.35, STERN_Y + 0.76, 17.8), Vector3(-3.45, STERN_Y + 0.76, 17.8), Color(0.25, 0.78, 1.0), 1.2)
+	d.led_strip(Vector3(-6.35, STERN_Y + 1.91, 20.3), Vector3(-3.45, STERN_Y + 1.91, 20.3), Color(0.25, 0.78, 1.0), 1.2)
+	d.led_strip(Vector3(-6.35, STERN_Y + 3.06, 22.8), Vector3(-3.45, STERN_Y + 3.06, 22.8), Color(0.25, 0.78, 1.0), 1.2)
 	d.lamp(Vector3(0.0, U_S2 + 3.1, 18.0), Color(1.0, 0.72, 0.36), 1.1, 12.0)    # Gemütliches Cockpit-Amber im 1. OG
 	d.bulb(Vector3(0.0, U_S2 + 1.45, 15.1), Color(0.15, 0.85, 1.0), 1.2, 0.9, 6.0) # Blaues Instrumenten-Leuchten
+	
 	# Großer Satcom- & Radar-Turm auf dem Kapitänsdach (ROOF_S2 = +6.30)
 	d.add_cylinder(Vector3(1.5, ROOF_S2 + 0.9, 20.5), 0.45, 1.8, "ship_hull", C_GELCOAT)
 	d.add_box(Vector3(1.5, ROOF_S2 + 1.8, 20.5), Vector3(3.4, 0.18, 0.35), "metal_panel", C_CHROME)
@@ -421,7 +424,6 @@ func build_detail(d: MapDetail) -> void:
 	d.bulb(Vector3(0, MID_Y + 0.95, 0.0), Color(0.15, 0.90, 1.0), 3.4, 2.8, 9.0)
 	d.bulb(Vector3(0, BOW_Y + 0.95, -33.5), Color(0.15, 0.90, 1.0), 2.8, 2.4, 7.0)
 	d.lamp(Vector3(-1.5, BOW_Y + 3.4, -20.5), Color(1.0, 0.76, 0.36), 2.4, 16.0)
-	d.lamp(Vector3(4.5, BOW_Y + 3.4, -22.5), Color(0.45, 0.78, 1.0), 1.4, 10.0) # Treppenhaus-Licht Nord
 	d.lamp(Vector3(1.5, STERN_Y + 3.4, 20.5), Color(1.0, 0.74, 0.34), 2.2, 15.0)
 	d.lamp(Vector3(-4.5, STERN_Y + 3.4, 22.5), Color(0.45, 0.78, 1.0), 1.4, 10.0) # Treppenhaus-Licht Süd
 	d.lamp(Vector3(1.5, U_S + 2.2, 18.5), Color(1.0, 0.68, 0.34), 0.65, 8.0)
