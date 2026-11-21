@@ -464,14 +464,12 @@ func _setup_midnight_atmosphere() -> void:
 		sun.rotation_degrees = Vector3(-16.0, -138.0, 0.0)
 
 
-
 func _upgrade_reflective_materials() -> void:
 	var gelcoat := StandardMaterial3D.new()
-	gelcoat.albedo_color = C_GELCOAT
-	gelcoat.roughness = 0.22
-	gelcoat.metallic = 0.04
-	gelcoat.clearcoat = 0.68
-	gelcoat.clearcoat_roughness = 0.15
+	gelcoat.albedo_color = Color(0.92, 0.93, 0.95)
+	gelcoat.roughness = 0.45
+	gelcoat.metallic = 0.0
+	gelcoat.clearcoat = 0.0
 
 	for mi in find_children("*", "MeshInstance3D", true, false):
 		if mi.mesh == null:
@@ -491,10 +489,11 @@ func _upgrade_reflective_materials() -> void:
 					pm.uv1_triplanar = true
 					pm.uv1_world_triplanar = true
 					pm.uv1_scale = Vector3(0.35, 0.35, 0.35)
-					pm.roughness = 0.24
-					pm.specular = 0.85
-					pm.clearcoat = 0.45
+					pm.roughness = 0.38
+					pm.specular = 0.45
+					pm.clearcoat = 0.12
 					mi.set_surface_override_material(s, pm)
+
 
 func _build_seamless_yacht_hull() -> void:
 	var st := SurfaceTool.new()
@@ -789,19 +788,20 @@ func _build_midnight_ocean_and_liner() -> void:
 	_deck_splashes.draw_pass_1 = spmesh
 	add_child(_deck_splashes)
 
-	# 7. Gritty Naval Storm Filter (bläulich-dunkel, dämmernd, dreckig-kontrastreich + Visier-Regen!)
+	# 7. Dezenter Sturm-Dämmerungs-Filter (natürliche Farben, feines Korn, sanfte Regen-Schlieren am Rand)
 	var cl := CanvasLayer.new()
 	cl.layer = 5
 	var rect := ColorRect.new()
 	rect.set_anchors_preset(Control.PRESET_FULL_RECT)
 	rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var vshd := Shader.new()
-	vshd.code = "shader_type canvas_item;\nuniform sampler2D screen_tex : hint_screen_texture, filter_linear_mipmap;\nuniform float wetness=1.0;\nfloat hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}\nvoid fragment(){\n\t// 1. Laufende Regentropfen & Schlieren auf der Linse\n\tvec2 uv = UV * vec2(18.0, 10.0);\n\tfloat col_id = floor(uv.x);\n\tfloat rnd = hash(vec2(col_id, 3.7));\n\tfloat speed = 0.35 + rnd * 0.45;\n\tfloat y_flow = fract(uv.y * 0.35 - TIME * speed + rnd * 10.0);\n\tvec2 cell = vec2(fract(uv.x) - 0.5, y_flow - 0.5);\n\tfloat drop = smoothstep(0.16, 0.02, length(cell * vec2(1.0, 2.6)));\n\tfloat trail = smoothstep(0.05, 0.0, abs(cell.x)) * smoothstep(0.5, 0.0, cell.y) * step(0.0, cell.y) * 0.45;\n\tfloat edge = smoothstep(0.30, 0.98, length(UV - 0.5) * 1.45);\n\tfloat rain_vis = (drop + trail) * edge * wetness;\n\t// Leichte Lichtbrechung durch Regentropfen auf dem Visier\n\tvec2 refract_uv = SCREEN_UV + vec2(cell.x, cell.y) * rain_vis * 0.012;\n\tvec3 col = texture(screen_tex, clamp(refract_uv, vec2(0.001), vec2(0.999))).rgb;\n\t// 2. Gritty Dämmerungs- & Tiefsee-Color-Grading (bläulich-dunkel, kontrastreich, Lichter leuchten satt)\n\tfloat luma = dot(col, vec3(0.299, 0.587, 0.114));\n\tvec3 shadow_tint = vec3(0.04, 0.10, 0.19);\n\tvec3 mid_tint = vec3(0.76, 0.88, 1.06);\n\tcol = mix(col * mid_tint, shadow_tint + col * 0.55, smoothstep(0.45, 0.02, luma) * 0.65);\n\t// Knackiger Film-Kontrast (Schatten tiefer, Neon-/Schiffslichter betörend leuchtend)\n\tcol = clamp((col - 0.5) * 1.16 + 0.5, 0.0, 1.35);\n\t// 3. Feines dreckiges Sturm-Filmkorn + dunkle Kino-Vignette\n\tfloat grain = (hash(SCREEN_UV * 950.0 + fract(TIME * 17.3)) - 0.5) * 0.045;\n\tfloat vig = smoothstep(1.38, 0.42, length(UV - 0.5) * 1.32);\n\tcol = (col + grain) * mix(0.58, 1.0, vig);\n\t// 4. Glänzende Regentropfen-Spitzlichter am Rand\n\tcol += vec3(0.55, 0.72, 0.95) * rain_vis * 0.28;\n\tCOLOR = vec4(col, 1.0);\n}"
+	vshd.code = "shader_type canvas_item;\nuniform sampler2D screen_tex : hint_screen_texture, filter_linear_mipmap;\nuniform float wetness=1.0;\nfloat hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}\nvoid fragment(){\n\tvec3 col = texture(screen_tex, SCREEN_UV).rgb;\n\t// Dezentes kühles Sturm-Grading (erhält sauberes Weiß & warmes Holz!)\n\tcol *= vec3(0.92, 0.96, 1.04);\n\tcol = clamp((col - 0.5) * 1.06 + 0.5, 0.0, 1.25);\n\t// Feines analoges Filmkorn + sanfte Sturm-Vignette\n\tfloat grain = (hash(SCREEN_UV * 900.0 + fract(TIME * 15.0)) - 0.5) * 0.025;\n\tfloat vig = smoothstep(1.45, 0.45, length(UV - 0.5) * 1.25);\n\tcol = (col + grain) * mix(0.75, 1.0, vig);\n\tCOLOR = vec4(col, 1.0);\n}"
 	_visor_rain_mat = ShaderMaterial.new()
 	_visor_rain_mat.shader = vshd
 	rect.material = _visor_rain_mat
 	cl.add_child(rect)
 	add_child(cl)
+
 
 
 
