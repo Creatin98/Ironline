@@ -797,6 +797,8 @@ func _build_midnight_ocean_and_liner() -> void:
 	var rect := ColorRect.new()
 	rect.set_anchors_preset(Control.PRESET_FULL_RECT)
 	rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var vshd := Shader.new()
+	vshd.code = "shader_type canvas_item;\nuniform sampler2D screen_tex : hint_screen_texture, filter_linear_mipmap;\nuniform float wetness=1.0;\nfloat hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}\nvoid fragment(){\n\tvec3 col = texture(screen_tex, SCREEN_UV).rgb;\n\tcol *= vec3(0.92, 0.96, 1.04);\n\tfloat grain = (hash(SCREEN_UV * 900.0 + fract(TIME * 15.0)) - 0.5) * 0.02;\n\tfloat vig = smoothstep(1.45, 0.45, length(UV - 0.5) * 1.25);\n\tcol = (col + grain) * mix(0.78, 1.0, vig);\n\tCOLOR = vec4(col, 1.0);\n}"
 	_visor_rain_mat = ShaderMaterial.new()
 	_visor_rain_mat.shader = vshd
 	rect.material = _visor_rain_mat
