@@ -258,18 +258,16 @@ func get_blocks() -> Array:
 	b.append(box(Vector3(3.6, STERN_Y + 1.15, 22.8), Vector3(4.4, 0.08, 1.1), "tiles", C_MARBLE))
 	b.append(box(Vector3(3.8, STERN_Y + 0.35, 17.5), Vector3(3.6, 0.7, 1.1), "metal_panel", C_NAVY))
 
-	# Ruckelfreies L-Treppenhaus EG -> 1. OG (3.2m breites Podest + sanfte Rampen, komplett offene Galerie!)
-	var P_S1 := STERN_Y + F1_H * 0.5
-	b.append(box(Vector3(-4.6, P_S1 - 0.12, 24.8), Vector3(4.0, 0.24, 3.6), "wood_planks", C_TEAK))
-	b.append(ramp(Vector3(-4.8, STERN_Y, 16.5), Vector3(-4.8, P_S1 + 0.02, 23.0), 2.8, "metal_panel", 0.26, C_CHROME))
-	b.append(ramp(Vector3(-3.0, P_S1, 24.8), Vector3(2.8, U_S + 0.03, 24.8), 2.8, "metal_panel", 0.26, C_CHROME))
+	# Schnurgerade, breite Galerie-Treppe EG -> 1. OG (x = -4.9, Breite 3.2m -> 0% Versatz, 100% flüssig begehbar!)
+	b.append(ramp(Vector3(-4.9, STERN_Y, 16.2), Vector3(-4.9, U_S + 0.02, 24.4), 3.2, "metal_panel", 0.24, C_CHROME))
 
-	# --- 1. OBERGESCHOSS: PANORAMA-KOMMANDOBRÜCKE (U_S = +2.70 bis +6.30, 13.6m x 12.6m) ---
-	# Bodenplatte 1. OG (hinterer Streifen z=23.2..26.6, x=-6.4..3.2 ist für die Treppe 100% offen!)
-	b.append(box(Vector3(0.0, U_S - 0.15, 17.4), Vector3(13.8, 0.3, 6.8), "wood_planks", C_TEAK))
-	b.append(box(Vector3(4.6, U_S - 0.15, 23.8), Vector3(4.6, 0.3, 6.2), "wood_planks", C_TEAK))
-	b.append(box(Vector3(-1.8, U_S + 0.45, 20.8), Vector3(9.4, 0.9, 0.22), "ship_hull", C_GELCOAT))
-
+	# --- 1. OBERGESCHOSS: PANORAMA-KOMMANDOBRÜCKE (U_S = +2.70 bis +6.30) ---
+	# Bodenplatte 1. OG (Treppenschacht links x=-6.7..-3.1, z=16.0..24.4 ist 100% offen; hinten z=24.4..26.8 ist Podest!)
+	b.append(box(Vector3(1.8, U_S - 0.15, 20.5), Vector3(10.2, 0.3, 12.6), "wood_planks", C_TEAK))
+	b.append(box(Vector3(-4.9, U_S - 0.15, 25.6), Vector3(3.6, 0.3, 2.4), "wood_planks", C_TEAK))
+	b.append(box(Vector3(-4.9, U_S - 0.15, 15.1), Vector3(3.6, 0.3, 1.8), "wood_planks", C_TEAK))
+	# Brüstung an der Innenkante des Treppenschachts (x = -3.1, z = 16.0..24.4)
+	b.append(box(Vector3(-3.1, U_S + 0.45, 20.2), Vector3(0.22, 0.9, 8.4), "ship_hull", C_GELCOAT))
 
 	# Außenwände 1. OG mit riesigen Panorama-Fensterfronten (automatisches GlassField mit Splitter-Animation!)
 	b.append_array(room_walls(Vector3(0, U_S, 20.5), Vector3(13.6, F2_H, 12.6), 0.30, "ship_hull", C_GELCOAT,
@@ -325,6 +323,15 @@ func build_detail(d: MapDetail) -> void:
 	var STERN_Y := -1.10
 	var U_N := BOW_Y + UPPER_Y
 	var U_S := STERN_Y + UPPER_Y
+	# Alle 5 Panorama-Fenster im 1. OG Kapitänshaus direkt für GlassField (zerbrechliches Glas) registrieren!
+	var U_S_WIN := STERN_Y + 3.80
+	for fx in [-3.2, 3.2]:
+		d.windows.append({"center": Vector3(fx, U_S_WIN + 1.875, 14.2), "size": Vector3(3.2, 1.75, 0.08), "axis_x": true})
+	for bx in [-2.2, 2.2]:
+		d.windows.append({"center": Vector3(bx, U_S_WIN + 1.875, 26.8), "size": Vector3(3.2, 1.75, 0.08), "axis_x": true})
+	for sx in [-6.8, 6.8]:
+		d.windows.append({"center": Vector3(sx, U_S_WIN + 1.875, 19.0), "size": Vector3(0.08, 1.75, 3.4), "axis_x": false})
+
 
 	# Reling-Spots passend zu den 3 Deck-Höhen
 	for rz in range(-36, -9, 6):
