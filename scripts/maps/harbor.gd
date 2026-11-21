@@ -277,11 +277,11 @@ func get_blocks() -> Array:
 		 {"side": "s", "offset": -2.2, "width": 3.2}, {"side": "s", "offset": 2.2, "width": 3.2},
 		 {"side": "w", "offset": -1.5, "width": 3.4}, {"side": "e", "offset": -1.5, "width": 3.4}]))
 	for fx in [-3.2, 3.2]:
-		b.append_array(window(Vector3(fx, U_S, 14.2), 3.2, 0.95, 2.80, F2_H, 0.30, true, "ship_hull", C_GELCOAT))
+		b.append_array(window(Vector3(fx, U_S, 14.2), 3.2, 1.00, 2.85, F2_H, 0.30, true, "ship_hull", C_GELCOAT))
 	for bx in [-2.2, 2.2]:
-		b.append_array(window(Vector3(bx, U_S, 26.8), 3.2, 0.95, 2.80, F2_H, 0.30, true, "ship_hull", C_GELCOAT))
+		b.append_array(window(Vector3(bx, U_S, 26.8), 3.2, 1.00, 2.85, F2_H, 0.30, true, "ship_hull", C_GELCOAT))
 	for sx in [-6.8, 6.8]:
-		b.append_array(window(Vector3(sx, U_S, 19.0), 3.4, 0.95, 2.80, F2_H, 0.30, false, "ship_hull", C_GELCOAT))
+		b.append_array(window(Vector3(sx, U_S, 19.0), 3.4, 1.00, 2.85, F2_H, 0.30, false, "ship_hull", C_GELCOAT))
 
 	# Kapitänspult & Cockpit-Ausstattung im 1. OG (Blickrichtung Bug!)
 	b.append(box(Vector3(0.0, U_S + 0.52, 15.3), Vector3(8.6, 1.04, 1.05), "metal_panel", C_DARK))
@@ -326,11 +326,11 @@ func build_detail(d: MapDetail) -> void:
 	# Alle 5 Panorama-Fenster im 1. OG Kapitänshaus direkt für GlassField (zerbrechliches Glas) registrieren!
 	var U_S_WIN := STERN_Y + 3.80
 	for fx in [-3.2, 3.2]:
-		d.windows.append({"center": Vector3(fx, U_S_WIN + 1.875, 14.2), "size": Vector2(3.2, 1.85), "axis_x": true})
+		d.windows.append({"center": Vector3(fx, U_S_WIN + 1.925, 14.2), "size": Vector2(3.24, 1.89), "axis_x": true})
 	for bx in [-2.2, 2.2]:
-		d.windows.append({"center": Vector3(bx, U_S_WIN + 1.875, 26.8), "size": Vector2(3.2, 1.85), "axis_x": true})
+		d.windows.append({"center": Vector3(bx, U_S_WIN + 1.925, 26.8), "size": Vector2(3.24, 1.89), "axis_x": true})
 	for sx in [-6.8, 6.8]:
-		d.windows.append({"center": Vector3(sx, U_S_WIN + 1.875, 19.0), "size": Vector2(3.4, 1.85), "axis_x": false})
+		d.windows.append({"center": Vector3(sx, U_S_WIN + 1.925, 19.0), "size": Vector2(3.44, 1.89), "axis_x": false})
 
 
 
