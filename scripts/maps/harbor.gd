@@ -189,7 +189,7 @@ func get_blocks() -> Array:
 		b.append(box(Vector3(0.0, h * 0.5, sz), Vector3(34.0, h, 0.65), "wood_planks", C_TEAK))
 	# Zwei schmale weiße Design-Wangen als elegante Teilung zwischen Mid-Lane und Seiten-Lanes
 	for wx in [-7.6, 7.6]:
-		b.append(box(Vector3(wx, BOW_Y * 0.5 + 0.35, -7.65), Vector3(0.55, BOW_Y + 0.9, 4.1), "ship_hull", C_GELCOAT))
+		b.append(box(Vector3(wx, BOW_Y * 0.5 + 0.35, -10.0), Vector3(0.55, BOW_Y + 0.9, 8.4), "ship_hull", C_GELCOAT))
 
 	# Süd-Absatz: Achterdeck (-1.10) -> Mitteldeck (0.0) bei z = +9.5 (6 bündige Stufen + durchgehende Lauf-Rampe)
 	b.append(ramp(Vector3(0.0, STERN_Y, 13.2), Vector3(0.0, MID_Y + 0.02, 9.5), 34.0, "wood_planks", 0.35, C_TEAK))
@@ -199,7 +199,7 @@ func get_blocks() -> Array:
 		var sz := lerpf(13.2, 9.85, t)
 		b.append(box(Vector3(0.0, STERN_Y + h * 0.5, sz), Vector3(34.0, h, 0.65), "wood_planks", C_TEAK))
 	for wx in [-7.6, 7.6]:
-		b.append(box(Vector3(wx, STERN_Y + 0.85, 11.35), Vector3(0.55, 2.0, 4.1), "ship_hull", C_GELCOAT))
+		b.append(box(Vector3(wx, STERN_Y + 0.85, 11.8), Vector3(0.55, 2.0, 4.6), "ship_hull", C_GELCOAT))
 
 
 	# 3. Schanzkleid, Barrieren & Pools
@@ -258,7 +258,8 @@ func get_blocks() -> Array:
 	# Saubere weiße Türstürze ohne MapDetail-Fensterrahmen (exakt passend zu den 3 Eingängen!)
 	b.append(box(Vector3(0.0, STERN_Y + 3.175, 14.0), Vector3(4.4, 1.25, 0.34), "ship_hull", C_GELCOAT))
 	b.append(box(Vector3(0.0, STERN_Y + 3.175, 27.0), Vector3(4.4, 1.25, 0.34), "ship_hull", C_GELCOAT))
-	b.append(box(Vector3(6.9, STERN_Y + 3.175, 17.2), Vector3(0.34, 1.25, 2.4), "tiles", C_GELCOAT))
+	b.append(box(Vector3(6.9, STERN_Y + 2.90, 17.2), Vector3(0.34, 1.80, 2.4), "ship_hull", C_GELCOAT))
+
 
 
 	# Edle Lounge-Bar & Sitzgruppe sauber an der Ostwand (komplett aus dem Laufweg!)
