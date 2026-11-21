@@ -179,28 +179,16 @@ func get_blocks() -> Array:
 	b.append(box(Vector3(0, STERN_Y - 0.25, 23.75), Vector3(34.6, 0.5, 28.5), "wood_planks", C_TEAK))
 	b.append(box(Vector3(0, -2.85, 0.0), Vector3(34.2, 2.8, 76.0), "ship_hull", C_GELCOAT))
 
-	# 2. Durchgehende Luxusyacht-Freitreppen über ALLE 3 LANES (Left, Mid & Right, x = -17 bis +17!)
-	# Nord-Absatz: Mitteldeck (0.0) -> Vordeck (+1.10) bei z = -9.5 (6 bündige Stufen + durchgehende Lauf-Rampe)
-	b.append(ramp(Vector3(0.0, MID_Y, -5.8), Vector3(0.0, BOW_Y + 0.02, -9.5), 34.0, "wood_planks", 0.35, C_TEAK))
-	for st_i in 6:
-		var t := float(st_i + 1) / 6.0
-		var h := t * BOW_Y
-		var sz := lerpf(-5.8, -9.15, t)
-		b.append(box(Vector3(0.0, h * 0.5, sz), Vector3(34.0, h, 0.65), "wood_planks", C_TEAK))
-	# Zwei schmale weiße Design-Wangen als elegante Teilung zwischen Mid-Lane und Seiten-Lanes
-	for wx in [-7.6, 7.6]:
-		b.append(box(Vector3(wx, BOW_Y * 0.5 + 0.35, -10.0), Vector3(0.55, BOW_Y + 0.9, 8.4), "ship_hull", C_GELCOAT))
+	# 2. Durchgehende Luxusyacht-Freitreppen über ALLE 3 LANES (glatte Kollisions-Rampe -> 100% flüssig hochsprinten!)
+	b.append(ramp(Vector3(0.0, MID_Y - 0.04, -5.6), Vector3(0.0, BOW_Y + 0.04, -9.6), 34.0, "wood_planks", 0.35, C_TEAK))
+	for wx in [-6.75, 6.75]:
+		b.append(box(Vector3(wx, BOW_Y * 0.5 + 0.35, -11.4), Vector3(0.64, BOW_Y + 0.9, 5.6), "ship_hull", C_GELCOAT))
+		b.append(ramp(Vector3(wx, MID_Y, -5.8), Vector3(wx, BOW_Y + 0.80, -8.8), 0.64, "ship_hull", 0.35, C_GELCOAT))
 
-	# Süd-Absatz: Achterdeck (-1.10) -> Mitteldeck (0.0) bei z = +9.5 (6 bündige Stufen + durchgehende Lauf-Rampe)
-	b.append(ramp(Vector3(0.0, STERN_Y, 13.2), Vector3(0.0, MID_Y + 0.02, 9.5), 34.0, "wood_planks", 0.35, C_TEAK))
-	for st_i in 6:
-		var t := float(st_i + 1) / 6.0
-		var h := t * 1.10
-		var sz := lerpf(13.2, 9.85, t)
-		b.append(box(Vector3(0.0, STERN_Y + h * 0.5, sz), Vector3(34.0, h, 0.65), "wood_planks", C_TEAK))
-	for wx in [-7.6, 7.6]:
-		b.append(box(Vector3(wx, STERN_Y + 0.85, 11.8), Vector3(0.55, 2.0, 4.6), "ship_hull", C_GELCOAT))
-
+	b.append(ramp(Vector3(0.0, STERN_Y - 0.04, 13.4), Vector3(0.0, MID_Y + 0.04, 9.4), 34.0, "wood_planks", 0.35, C_TEAK))
+	for wx in [-6.75, 6.75]:
+		b.append(box(Vector3(wx, STERN_Y + 0.85, 12.6), Vector3(0.64, 2.0, 3.0), "ship_hull", C_GELCOAT))
+		b.append(ramp(Vector3(wx, STERN_Y + 0.80, 11.4), Vector3(wx, MID_Y + 0.80, 9.5), 0.64, "ship_hull", 0.35, C_GELCOAT))
 
 	# 3. Schanzkleid, Barrieren & Pools
 	for side in [-1.0, 1.0]:
@@ -265,7 +253,7 @@ func get_blocks() -> Array:
 	b.append(box(Vector3(3.4, STERN_Y + 0.35, 23.2), Vector3(1.0, 0.7, 3.6), "metal_panel", C_NAVY))
 
 	# Schnurgerade, breite Galerie-Treppe EG -> 1. OG
-	b.append(ramp(Vector3(-4.9, STERN_Y, 16.2), Vector3(-4.9, U_S + 0.02, 24.4), 3.2, "metal_panel", 0.24, C_CHROME))
+	b.append(ramp(Vector3(-4.9, STERN_Y - 0.05, 16.0), Vector3(-4.9, U_S + 0.05, 24.5), 3.2, "metal_panel", 0.24, C_CHROME))
 
 
 	# --- 1. OBERGESCHOSS: PANORAMA-KOMMANDOBRÜCKE (U_S = +2.70 bis +6.30) ---
@@ -297,7 +285,7 @@ func get_blocks() -> Array:
 	b.append(box(Vector3(3.2, U_S + 0.45, 16.4), Vector3(0.85, 0.9, 0.85), "metal_panel", C_NAVY))
 
 	# --- 2. TREPPENLAUF 1. OG -> RADAR-DACHTERRASSE (ROOF_S = +6.30) ---
-	b.append(ramp(Vector3(5.3, U_S, 23.8), Vector3(5.3, ROOF_S + 0.03, 17.2), 2.2, "wood_planks", 0.26, C_TEAK))
+	b.append(ramp(Vector3(5.3, U_S - 0.05, 24.4), Vector3(5.3, ROOF_S + 0.05, 17.0), 2.3, "metal_panel", 0.24, C_CHROME))
 	# Radar-Dach mit sauberer Treppen-Öffnung rechts (x = 4.1..6.6, z = 16.8..24.2)
 	b.append(box(Vector3(-1.3, ROOF_S - 0.15, 20.5), Vector3(11.4, 0.3, 13.0), "ship_hull", C_GELCOAT))
 	b.append(box(Vector3(5.6, ROOF_S - 0.15, 15.4), Vector3(2.8, 0.3, 2.8), "ship_hull", C_GELCOAT))
