@@ -261,8 +261,8 @@ func get_blocks() -> Array:
 	# Ruckelfreies L-Treppenhaus EG -> 1. OG (3.2m breites Podest + sanfte Rampen, komplett offene Galerie!)
 	var P_S1 := STERN_Y + F1_H * 0.5
 	b.append(box(Vector3(-4.6, P_S1 - 0.12, 24.8), Vector3(4.0, 0.24, 3.6), "wood_planks", C_TEAK))
-	b.append(ramp(Vector3(-4.8, STERN_Y, 16.5), Vector3(-4.8, P_S1 + 0.02, 23.0), 2.8, "wood_planks", 0.26, C_TEAK))
-	b.append(ramp(Vector3(-3.0, P_S1, 24.8), Vector3(2.8, U_S + 0.03, 24.8), 2.8, "wood_planks", 0.26, C_TEAK))
+	b.append(ramp(Vector3(-4.8, STERN_Y, 16.5), Vector3(-4.8, P_S1 + 0.02, 23.0), 2.8, "metal_panel", 0.26, C_CHROME))
+	b.append(ramp(Vector3(-3.0, P_S1, 24.8), Vector3(2.8, U_S + 0.03, 24.8), 2.8, "metal_panel", 0.26, C_CHROME))
 
 	# --- 1. OBERGESCHOSS: PANORAMA-KOMMANDOBRÜCKE (U_S = +2.70 bis +6.30, 13.6m x 12.6m) ---
 	# Bodenplatte 1. OG (hinterer Streifen z=23.2..26.6, x=-6.4..3.2 ist für die Treppe 100% offen!)
@@ -271,23 +271,19 @@ func get_blocks() -> Array:
 	b.append(box(Vector3(-1.8, U_S + 0.45, 20.8), Vector3(9.4, 0.9, 0.22), "ship_hull", C_GELCOAT))
 
 
-	# Außenwände 1. OG mit riesigen Panorama-Fensterfronten (Nord aufs Schiff, West, Ost & Süd aufs Helipad)
+	# Außenwände 1. OG mit riesigen Panorama-Fensterfronten (automatisches GlassField mit Splitter-Animation!)
 	b.append_array(room_walls(Vector3(0, U_S, 20.5), Vector3(13.6, F2_H, 12.6), 0.30, "ship_hull", C_GELCOAT,
-		[{"side": "n", "offset": -3.2, "width": 3.4}, {"side": "n", "offset": 3.2, "width": 3.4},
-		 {"side": "s", "offset": 0.0, "width": 4.2},
-		 {"side": "w", "offset": -1.5, "width": 3.6}, {"side": "e", "offset": -1.5, "width": 3.6}]))
-	# Brüstungs-Unterteile & getöntes Brückenglas in allen Panorama-Fenstern!
-	# Brüstungs-Unterteile & vollwertige, zerbrechliche Panorama-Glasscheiben (durchsichtig & zerschießbar!)
+		[{"side": "n", "offset": -3.2, "width": 3.2}, {"side": "n", "offset": 3.2, "width": 3.2},
+		 {"side": "s", "offset": -2.2, "width": 3.2}, {"side": "s", "offset": 2.2, "width": 3.2},
+		 {"side": "w", "offset": -1.5, "width": 3.4}, {"side": "e", "offset": -1.5, "width": 3.4}]))
 	for fx in [-3.2, 3.2]:
-		b.append(box(Vector3(fx, U_S + 0.50, 14.2), Vector3(3.4, 1.0, 0.28), "ship_hull", C_GELCOAT))
-		b.append({"pos": Vector3(fx, U_S + 1.85, 14.2), "size": Vector3(3.4, 1.7, 0.08), "mat": "glass", "breakable": true, "hp": 35})
-	b.append(box(Vector3(0.0, U_S + 0.50, 26.8), Vector3(4.2, 1.0, 0.28), "ship_hull", C_GELCOAT))
-	b.append({"pos": Vector3(0.0, U_S + 1.85, 26.8), "size": Vector3(4.2, 1.7, 0.08), "mat": "glass", "breakable": true, "hp": 35})
+		b.append_array(window(Vector3(fx, U_S, 14.2), 3.2, 1.0, 2.75, F2_H, 0.30, true, "ship_hull", C_GELCOAT))
+	for bx in [-2.2, 2.2]:
+		b.append_array(window(Vector3(bx, U_S, 26.8), 3.2, 1.0, 2.75, F2_H, 0.30, true, "ship_hull", C_GELCOAT))
 	for sx in [-6.8, 6.8]:
-		b.append(box(Vector3(sx, U_S + 0.50, 19.0), Vector3(0.28, 1.0, 3.6), "ship_hull", C_GELCOAT))
-		b.append({"pos": Vector3(sx, U_S + 1.85, 19.0), "size": Vector3(0.08, 1.7, 3.6), "mat": "glass", "breakable": true, "hp": 35})
-		b.append(box(Vector3(sx, U_S + 0.50, 19.0), Vector3(0.28, 1.0, 3.6), "ship_hull", C_GELCOAT))
-		b.append(box(Vector3(sx, U_S + 1.85, 19.0), Vector3(0.08, 1.7, 3.6), "glass", Color(0.15, 0.45, 0.65, 0.38)))
+		b.append_array(window(Vector3(sx, U_S, 19.0), 3.4, 1.0, 2.75, F2_H, 0.30, false, "ship_hull", C_GELCOAT))
+
+
 
 	# Kapitänspult & Cockpit-Ausstattung im 1. OG (Blickrichtung Bug!)
 	b.append(box(Vector3(0.0, U_S + 0.52, 15.3), Vector3(8.6, 1.04, 1.05), "metal_panel", C_DARK))
